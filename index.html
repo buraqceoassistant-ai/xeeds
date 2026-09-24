@@ -495,7 +495,7 @@
             </div>
             <div style="font-size:13px;color:var(--color-neutral-800);text-wrap:pretty;min-height:40px">{{ p.desc }}</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--color-divider);padding-top:12px;gap:8px">
-              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Рейсов</div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ p.trips }}</div></div>
+              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Рейсов</div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ p.trips }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ p.kinds }}</div></div>
               <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Реальный км</div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ p.real }}</div></div>
               <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Снаружи</div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ p.outside }}</div></div>
             </div>
@@ -507,6 +507,12 @@
           </button>
         </sc-for>
       </div>
+
+      <sc-if value="{{ planHasNotes }}">
+        <div class="plan-notes" style="border:1px solid var(--color-divider);background:var(--color-surface);padding:12px 16px;display:flex;flex-direction:column;gap:6px;font-size:13px">
+          <sc-for list="{{ planNotes }}" as="n"><div style="text-wrap:pretty">{{ n.text }}</div></sc-for>
+        </div>
+      </sc-if>
 
       <div style="display:flex;flex-direction:column;gap:20px">
         <sc-for list="{{ planTrips }}" as="t" hint-placeholder-count="3">
@@ -753,10 +759,12 @@ const LS_KEY = 'logi-site-v2';
 const ST = { 'Rejada': 'В плане', 'Yolda': 'В пути', 'Yetkazildi': 'Доставлено', 'Qolib ketgan': 'Осталось', 'Mijoz ozi oldi': 'Клиент забрал сам', 'Bekor qilindi': 'Отменено' };
 const TR = { 'Belgilanmagan': 'Не назначена', 'Mijoz ozi oladi': 'Клиент заберёт' };
 const PLAN_INFO = {
-  A: { title: 'A — обычный', desc: 'По направлениям от склада. Где груз лёгкий и маленький, рейс сам делится на Labo, если так дешевле.' },
-  B: { title: 'B — меньше машин', desc: 'Мелкие грузы вместе, остальное плотно упаковано. Лёгкие части маршрута автоматически уходят на Labo, если дешевле.' },
-  C: { title: 'C — 2 больших', desc: 'Две большие машины, каждая делает несколько рейсов на своей стороне города.' }
+  A: { title: 'A — по направлениям', desc: 'Точки по кругу от склада делятся на рейсы так, чтобы вышло дешевле. Каждому рейсу — самая дешёвая машина, в которую груз помещается: Labo, Gazel или Kamaz.' },
+  B: { title: 'B — меньше машин', desc: 'Грузы собираются в как можно меньше машин с учётом тарифов. Kamaz — только если груз не помещается в Gazel или так дешевле.' },
+  C: { title: 'C — только Kamaz', desc: 'Большие машины делают несколько рейсов, каждая на своей стороне города.' }
 };
+const VEH = { labo: 'Labo', gazel: 'Gazel', kamaz: 'Kamaz' };
+const reys = n => n % 10 === 1 && n % 100 !== 11 ? 'рейс' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'рейса' : 'рейсов';
 const f0 = n => (n == null || isNaN(n)) ? '—' : Math.round(n).toLocaleString('ru-RU');
 const f1 = (n, d = 1) => (n == null || isNaN(n)) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d });
 const money = n => n == null ? '—' : Math.round(n).toLocaleString('ru-RU') + ' сум';
@@ -915,11 +923,12 @@ class Component extends DCLogic {
     if (!j || j.error || !j.data) throw new Error((j && j.error) || 'Пустой ответ');
     const data = window.XlsxIO.fromSheets(j.data);
     this.staleNotes(data);
-    // Скрипт в таблице старее версии 2 не записывает «точек в базовой цене» для Labo и Kamaz (B55, B56):
-    // оставляем значения сайта и просим обновить код скрипта.
-    this.gsScriptOld = !(j.v >= 2);
+    // Старый скрипт в таблице не записывает новые настройки (B55–B58): оставляем значения сайта
+    // и просим обновить код скрипта.
+    const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3 };   // с какой версии скрипт хранит настройку
+    this.gsScriptOld = !(j.v >= 3);
     const cur0 = this.state.data;
-    if (this.gsScriptOld && cur0) ['laboBaseIncludesPts', 'kamazBaseIncludesPts'].forEach(k => { if (cur0.settings[k] != null) data.settings[k] = cur0.settings[k]; });
+    if (cur0) Object.keys(since).forEach(k => { if (!(j.v >= since[k]) && cur0.settings[k] != null) data.settings[k] = cur0.settings[k]; });
     const mig = this.gsMigrations(data);
     const cur = this.state.data;
     let pend = null; try { pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); } catch (e) {}
@@ -1236,8 +1245,8 @@ class Component extends DCLogic {
       { title: 'Labo', fields: [F('laboBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём кузова', 'м³', 'Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг')] },
       { title: 'Kamaz (план C)', fields: [F('kamazBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — план C без цены'), F('kamazPt', '1 точка', 'сум')] },
       { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), F('depotLat', 'Широта', '°', 'Внимание: в Excel помечено как примерное'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
-      { title: 'Машины для планов', fields: [F('isuzuM3', 'Isuzu — объём (A, B)', 'м³'), F('isuzuKg', 'Isuzu — грузоподъёмность', 'кг'), F('cM3', 'Большая машина — объём (C)', 'м³'), F('cKg', 'Большая машина — грузоподъёмность', 'кг'), F('cTrucks', 'Больших машин', 'шт'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения')] },
-      { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Мелкие грузы едут вместе в первой машине'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), { ...F('smartLabo', 'Авто-подбор Labo в планах A и B', '', '1 — вкл, 0 — выкл. Лёгкие части рейса едут на Labo, если дешевле'), value: S.smartLabo ?? 1 }] }
+      { title: 'Машины для планов', fields: [F('gazelM3', 'Gazel — объём кузова', 'м³', 'Сколько реально помещается. Больше — рейс уйдёт на Kamaz'), F('gazelKg', 'Gazel — грузоподъёмность', 'кг'), F('cM3', 'Kamaz — объём кузова', 'м³'), F('cKg', 'Kamaz — грузоподъёмность', 'кг', 'Груз больше Kamaz делится на несколько рейсов'), F('cTrucks', 'Kamaz — машин для плана C', 'шт'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения'), F('isuzuM3', 'Isuzu — объём', 'м³', 'Только для листов планов в Excel'), F('isuzuKg', 'Isuzu — грузоподъёмность', 'кг', 'Только для листов планов в Excel')] },
+      { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Только для листов планов в Excel'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), { ...F('smartLabo', 'Labo в планах A и B', '', '1 — Labo, если груз помещается и так дешевле; 0 — без Labo'), value: S.smartLabo ?? 1 }] }
     ];
   }
 
@@ -1444,28 +1453,39 @@ class Component extends DCLogic {
 
     if (st.tab === 'plans' && st.planDate) {
       const P = this.plansFor(st.planDate);
-      const prices = ['A', 'B', 'C'].map(k => P[k].sum.price).filter(p => p != null);
-      const minP = prices.length ? Math.min(...prices) : null;
-      out.planCards = ['A', 'B', 'C'].map(k => { const s = P[k].sum, sel = st.planKey === k;
-        return { title: PLAN_INFO[k].title, desc: PLAN_INFO[k].desc, trips: s.trips + (s.labo ? ' · ' + s.labo + ' Labo' : ''), real: f0(s.real) + ' км', outside: s.outside + ' · ' + f1(s.outsideCbm, 1) + ' м³', price: s.price != null ? money(s.price) : 'нет тарифа',
-          cheapest: s.price != null && s.price === minP && prices.length > 1, diff: s.price == null ? 'Заполните тариф Kamaz во вкладке «Тарифы»' : (s.price === minP ? '' : '+' + f0(s.price - minP) + ' сум к самому дешёвому'),
+      // «самый дешёвый» сравниваем только между планами, где у всех рейсов есть цена
+      const full = ['A', 'B', 'C'].filter(k => P[k].sum.trips && !P[k].sum.unpriced), minP = full.length ? Math.min(...full.map(k => P[k].sum.price)) : null;
+      const kindsOf = s => ['labo', 'gazel', 'kamaz'].filter(k => s[k]).map(k => VEH[k] + ' ' + s[k]).join(' · ');
+      out.planCards = ['A', 'B', 'C'].map(k => { const s = P[k].sum, sel = st.planKey === k, noPrice = s.unpriced && !s.price;
+        return { title: PLAN_INFO[k].title, desc: PLAN_INFO[k].desc, trips: s.trips, kinds: kindsOf(s), real: f0(s.real) + ' км', outside: s.outside + ' · ' + f1(s.outsideCbm, 1) + ' м³',
+          price: P[k].noFleet ? 'нет машин' : noPrice ? 'нет тарифа' : money(s.price) + (s.unpriced ? ' +' : ''),
+          cheapest: full.length > 1 && full.includes(k) && s.price === minP,
+          diff: P[k].noFleet ? 'Задайте объём и грузоподъёмность Kamaz во вкладке «Тарифы»' : s.unpriced ? '+ ' + s.unpriced + ' ' + reys(s.unpriced) + ' Kamaz без тарифа — заполните тариф во вкладке «Тарифы»' : (minP == null || s.price === minP || !full.includes(k) ? '' : '+' + f0(s.price - minP) + ' сум к самому дешёвому'),
           bg: sel ? 'var(--color-accent-100)' : 'transparent', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', go: () => this.setState({ planKey: k }) }; });
       const plan = P[st.planKey];
+      const notes = [];
+      if (plan.fleet) notes.push('Вместимость машин: ' + plan.fleet.map(v => v.label + ' ' + f1(v.m3, 1) + ' м³ / ' + f0(v.kg) + ' кг' + (v.priced ? '' : ' (нет тарифа)')).join(' · ') + (S.maxPlaces ? ' · до ' + S.maxPlaces + ' мест' : '') + '. Меняется во вкладке «Тарифы».');
+      plan.splits.forEach(x => { const big = plan.fleet.reduce((a, b) => (b.m3 + b.kg / 1000 > a.m3 + a.kg / 1000 ? b : a));
+        notes.push(x.bl + ((x.client && x.client.brand) ? ' ' + x.client.brand : '') + ': ' + f1(x.cbm, 1) + ' м³ / ' + f0(x.kg) + ' кг — больше самой большой машины (' + big.label + ' ' + f1(big.m3, 1) + ' м³ / ' + f0(big.kg) + ' кг), разделена на ' + x.parts + ' ' + reys(x.parts) + '.' + (x.indivisible ? ' Мест всего ' + x.places + ' — проверьте, можно ли так делить груз.' : '')); });
+      if (plan.sum.unpriced) notes.push('Kamaz без тарифа: ' + plan.sum.unpriced + ' ' + reys(plan.sum.unpriced) + ' не входят в сумму. Заполните базовую цену и цену точки Kamaz во вкладке «Тарифы».');
+      if (plan.sum.over) notes.push('Не помещается ни в одну машину и не делится: ' + plan.trips.filter(t => t.over).map(t => t.stops[0].bl).join(', ') + '. Проверьте вместимость машин во вкладке «Тарифы».');
+      if (plan.noFleet) notes.push('Для этого плана нет машин: задайте объём и грузоподъёмность Kamaz во вкладке «Тарифы».');
+      out.planNotes = notes.map(text => ({ text })); out.planHasNotes = notes.length > 0;
       out.planTrips = plan.trips.map(t => {
-        const isL = t.kind === 'labo', capM3 = isL ? S.laboM3 : st.planKey === 'C' ? S.cM3 : S.isuzuM3, capKg = isL ? S.laboKg : st.planKey === 'C' ? S.cKg : S.isuzuKg;
+        const v = t.vehicle;
         let prev = depot;
-        return { name: t.name, tariff: t.price.label, stopsN: t.stops.length, cbm: f1(t.cbm, 2), kg: f0(t.kg), cbmPct: Math.min(100, t.cbm / capM3 * 100).toFixed(0) + '%', kgPct: Math.min(100, t.kg / capKg * 100).toFixed(0) + '%',
+        return { name: t.name, tariff: t.price.label + (t.over ? ' · ПЕРЕГРУЗ' : ''), stopsN: new Set(t.stops.map(s => s.bl)).size, cbm: f1(t.cbm, 2) + ' из ' + f1(v.m3, 1), kg: f0(t.kg) + ' из ' + f0(v.kg), cbmPct: Math.min(100, t.cbm / v.m3 * 100).toFixed(0) + '%', kgPct: Math.min(100, t.kg / v.kg * 100).toFixed(0) + '%',
           km: f1(t.real, 1) + ' км (реальн.)', time: hhmm(S.dayStart * 1440) + '–' + hhmm(t.finish + t.back / S.speed * 60 * S.roadK), price: t.price.total != null ? money(t.price.total) : 'нет тарифа', formula: t.price.formula,
           yHref: E.yRoute(depot, t.stops.map(s => [s.lat, s.lon])),
           stops: t.stops.map((s, j) => { const c = s.client, leg = E.km(prev, [s.lat, s.lon]); prev = [s.lat, s.lon];
-            return { n: j + 1, bl: s.bl, brand: c.brand || '—', name: c.name || '', district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', pointHref: E.yPoint(s.lat, s.lon), pt: t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') }; }) };
+            return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : ''), brand: c.brand || '—', name: c.name || '', district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', pointHref: E.yPoint(s.lat, s.lon), pt: t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') }; }) };
       });
       out.planNoCoords = P.noCoords.map(s => ({ bl: s.bl, name: (s.client.brand || '') + ' ' + (s.client.name || ''), cbm: f1(s.cbm, 2), kg: f0(s.kg), onEdit: () => { const c = D.cmap[s.bl]; if (c) this.openClient(c); } }));
       out.planHasNoCoords = P.noCoords.length > 0;
       const wc = P.all.filter(s => s.lat != null);
       out.planRouteHref = E.yRoute(depot, wc.slice().sort((a, b) => E.bearing(depot, [a.lat, a.lon]) - E.bearing(depot, [b.lat, b.lon])).map(s => [s.lat, s.lon]));
       const unk = P.all.filter(s => s.lat != null && !(s.cbm > 0) && !(s.kg > 0)).length;
-      out.planSummary = (unk ? unk + ' без CBM/KG — считаются на Gazel · ' : '') + P.all.length + ' отгрузок · ' + f1(P.all.reduce((a, s) => a + s.cbm, 0), 1) + ' м³ · ' + f0(P.all.reduce((a, s) => a + s.kg, 0)) + ' кг';
+      out.planSummary = (unk ? unk + ' без CBM/KG — считаются как пустые, проверьте · ' : '') + P.all.length + ' отгрузок · ' + f1(P.all.reduce((a, s) => a + s.cbm, 0), 1) + ' м³ · ' + f0(P.all.reduce((a, s) => a + s.kg, 0)) + ' кг';
       Object.assign(out, { planDate: st.planDate, onPlanDate: e => this.setState({ planDate: e.target.value }), showPlanOnMap: () => this.setState({ tab: 'map', mapDate: st.planDate, mapPlan: st.planKey }) });
     }
 

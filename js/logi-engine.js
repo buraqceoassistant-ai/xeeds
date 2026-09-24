@@ -74,8 +74,11 @@
     const total = base + uniq.reduce((a, p) => a + p.tariff, 0);
     const nIn = uniq.filter(p => p.zone !== 'out' && p.tariff).length, nOut = uniq.filter(p => p.zone === 'out' && p.tariff).length;
     let formula = Math.round(base / 1000) + '';
-    if (nIn) formula += ' + ' + nIn + '×' + Math.round(ptIn / 1000);
-    if (nOut) formula += ' + ' + nOut + '×' + Math.round(ptOut / 1000);
+    if (ptIn === ptOut) { if (nIn + nOut) formula += ' + ' + (nIn + nOut) + '×' + Math.round(ptIn / 1000); }
+    else {
+      if (nIn) formula += ' + ' + nIn + '×' + Math.round(ptIn / 1000);
+      if (nOut) formula += ' + ' + nOut + '×' + Math.round(ptOut / 1000);
+    }
     // share: proportional to the zone tariff of the point (also for points included in the base,
     // so the first client does not get a zero share); duplicates split their point by cbm
     const sumW = uniq.reduce((a, p) => a + p.weight, 0);
@@ -105,79 +108,179 @@
     const back = stops.length ? km(cur, depot) : 0;
     return { dist, back, real: (dist + back) * S.roadK, arrivals, finish: t };
   }
-  function fits(bin, s, cap) {
-    return bin.cbm + s.cbm <= cap.m3 + 1e-9 && bin.kg + s.kg <= cap.kg + 1e-9 && bin.stops.length < cap.stops && (!cap.places || bin.places + s.places <= cap.places);
+  // ---------- planner ----------
+  // Every trip gets a vehicle (Labo, Gazel or Kamaz) that carries its whole load: volume, weight,
+  // places and number of points. A shipment bigger than the largest vehicle is split into parts.
+  // Among vehicles that fit, the cheapest by tariff wins; a vehicle without a tariff only when nothing else fits.
+  const EPS = 1e-6, UNPRICED = 1e8, KM_COST = 1000;
+  const known = s => (s.cbm || 0) > 0 || (s.kg || 0) > 0;
+  function fleetOf(S, kinds) {
+    const all = {
+      labo: { kind: 'labo', label: 'Labo', m3: +S.laboM3, kg: +S.laboKg },
+      gazel: { kind: 'gazel', label: 'Gazel', m3: +S.gazelM3, kg: +S.gazelKg },
+      kamaz: { kind: 'kamaz', label: 'Kamaz', m3: +S.cM3, kg: +S.cKg }
+    };
+    return kinds.map(k => all[k]).filter(v => v.m3 > 0 && v.kg > 0).map(v => ({ ...v, places: +S.maxPlaces || 0,
+      priced: priceTrip([{ bl: '-', zone: 'in', cbm: 0, kg: 0 }], v.kind, S).total != null }));
   }
-  function newBin() { return { stops: [], cbm: 0, kg: 0, places: 0 }; }
-  function add(bin, s) { bin.stops.push(s); bin.cbm += s.cbm; bin.kg += s.kg; bin.places += s.places; }
-  function sweepPack(list, cap) {
-    const bins = []; let b = null;
-    list.forEach(s => { if (!b || (!fits(b, s, cap) && b.stops.length)) { b = newBin(); bins.push(b); } add(b, s); });
-    return bins;
+  function load(stops) {
+    let cbm = 0, kg = 0, places = 0; const bl = new Set();
+    stops.forEach(s => { cbm += s.cbm || 0; kg += s.kg || 0; places += s.places || 0; bl.add(s.bl); });
+    return { cbm, kg, places, points: bl.size };
+  }
+  const fitsIn = (l, v) => l.cbm <= v.m3 + EPS && l.kg <= v.kg + EPS && (!v.places || l.places <= v.places + EPS);
+  // load exceeds every vehicle or the point limit — longer segments will not fit either
+  const tooBig = (l, fleet, maxStops) => l.points > maxStops || !fleet.some(v => fitsIn(l, v));
+  function evalTrip(stops, fleet, maxStops, S, depot) {
+    const l = load(stops);
+    if (l.points > maxStops) return null;
+    const ordered = nnOrder(depot, stops);
+    const priced = fleet.filter(v => v.priced);
+    const needsBig = s => !priced.some(v => fitsIn(load([s]), v) && (v.kind !== 'labo' || known(s)));
+    let best = null;
+    fleet.forEach(v => {
+      if (!fitsIn(l, v)) return;
+      if (v.kind === 'labo' && !stops.every(known)) return;   // cargo without volume and weight never goes on a Labo
+      // a vehicle without a tariff carries only cargo that fits no vehicle with a tariff — bigger truck only when needed
+      if (!v.priced && priced.length && !stops.every(needsBig)) return;
+      const price = priceTrip(ordered, v.kind, S);
+      const cost = price.total != null ? price.total : UNPRICED;
+      if (!best || cost < best.cost) best = { v, cost, price };
+    });
+    if (!best) return null;
+    const m = tripMetrics(depot, ordered, S);
+    return { stops: ordered, l, ...best, real: m.real, val: best.cost + KM_COST * m.real };
+  }
+  // a single cargo that fits no vehicle (e.g. one piece that cannot be split): the largest vehicle, flagged as overloaded
+  function overTrip(s, fleet, S, depot) {
+    const v = fleet.reduce((a, b) => (b.m3 + b.kg / 1000 > a.m3 + a.kg / 1000 ? b : a));
+    const price = priceTrip([s], v.kind, S), m = tripMetrics(depot, [s], S);
+    return { stops: [s], l: load([s]), v, price, cost: UNPRICED, real: m.real, val: UNPRICED * 2, over: true };
+  }
+  function splitOversize(items, fleet, notes) {
+    if (!fleet.length) return items;
+    const M3 = Math.max(...fleet.map(v => v.m3)), KG = Math.max(...fleet.map(v => v.kg)), PL = fleet[0].places;
+    const out = [];
+    items.forEach(s => {
+      const k = Math.max(1, Math.ceil((s.cbm || 0) / M3 - EPS), Math.ceil((s.kg || 0) / KG - EPS), PL ? Math.ceil((s.places || 0) / PL - EPS) : 1);
+      if (k === 1) { out.push(s); return; }
+      const places = s.places || 0, base = Math.floor(places / k), extra = places - base * k;
+      notes.push({ bl: s.bl, client: s.client, cbm: s.cbm, kg: s.kg, places, parts: k, indivisible: places > 0 && places < k });
+      for (let i = 0; i < k; i++) out.push({ ...s, cbm: (s.cbm || 0) / k, kg: (s.kg || 0) / k, places: base + (i < extra ? 1 : 0), part: i + 1, parts: k });
+    });
+    return out;
+  }
+  // points around the depot by direction, starting after the widest empty sector
+  function sweepOrder(items) {
+    const seq = items.slice().sort((a, b) => a.angle - b.angle || a.depotKm - b.depotKm);
+    if (seq.length < 2) return seq;
+    let cut = 0, gap = -1;
+    seq.forEach((s, i) => { const g = (seq[(i + 1) % seq.length].angle - s.angle + 360) % 360; if (g > gap) { gap = g; cut = (i + 1) % seq.length; } });
+    return seq.slice(cut).concat(seq.slice(0, cut));
+  }
+  // plan A: cut the sweep into consecutive arcs, each with its best vehicle, at the lowest total cost (dynamic programming)
+  function partition(seq, fleet, maxStops, S, depot) {
+    const n = seq.length, best = new Array(n + 1).fill(Infinity), prev = new Array(n + 1);
+    best[0] = 0;
+    for (let j = 1; j <= n; j++) {
+      for (let i = j - 1; i >= 0; i--) {
+        const seg = seq.slice(i, j);
+        if (i < j - 1 && tooBig(load(seg), fleet, maxStops)) break;
+        if (best[i] === Infinity) continue;
+        const t = evalTrip(seg, fleet, maxStops, S, depot);
+        if (t && best[i] + t.val < best[j]) { best[j] = best[i] + t.val; prev[j] = { i, t }; }
+      }
+      if (best[j] === Infinity) { const t = overTrip(seq[j - 1], fleet, S, depot); best[j] = best[j - 1] + t.val; prev[j] = { i: j - 1, t }; }
+    }
+    const trips = [];
+    for (let j = n; j > 0; j = prev[j].i) trips.unshift(prev[j].t);
+    return trips;
+  }
+  // plan B: start with one trip per cargo and keep merging the pair that saves the most (savings method),
+  // then move single points between trips while that lowers the total
+  function consolidate(items, fleet, maxStops, S, depot) {
+    const mk = stops => evalTrip(stops, fleet, maxStops, S, depot) || (stops.length === 1 ? overTrip(stops[0], fleet, S, depot) : null);
+    let trips = items.map(s => mk([s]));
+    const maxM3 = Math.max(...fleet.map(v => v.m3)), maxKg = Math.max(...fleet.map(v => v.kg));
+    for (;;) {
+      let best = null;
+      for (let a = 0; a < trips.length; a++) for (let b = a + 1; b < trips.length; b++) {
+        const A = trips[a], B = trips[b];
+        if (A.over || B.over || A.l.cbm + B.l.cbm > maxM3 + EPS || A.l.kg + B.l.kg > maxKg + EPS) continue;
+        const m = evalTrip(A.stops.concat(B.stops), fleet, maxStops, S, depot);
+        if (!m) continue;
+        const gain = A.val + B.val - m.val;
+        if (gain > EPS && (!best || gain > best.gain + EPS)) best = { a, b, m, gain };
+      }
+      if (!best) break;
+      trips = trips.filter((_, i) => i !== best.a && i !== best.b).concat([best.m]);
+    }
+    for (let pass = 0, moved = true; moved && pass < 4; pass++) {
+      moved = false;
+      for (let a = 0; a < trips.length; a++) for (let k = 0; k < trips[a].stops.length && trips[a].stops.length > 1; k++) {
+        const s = trips[a].stops[k], rest = trips[a].stops.filter((_, i) => i !== k), A2 = evalTrip(rest, fleet, maxStops, S, depot);
+        if (!A2) continue;
+        for (let b = 0; b < trips.length; b++) {
+          if (b === a || trips[b].over) continue;
+          const B2 = evalTrip(trips[b].stops.concat([s]), fleet, maxStops, S, depot);
+          if (B2 && A2.val + B2.val < trips[a].val + trips[b].val - EPS) { trips[a] = A2; trips[b] = B2; moved = true; k = -1; break; }
+        }
+      }
+    }
+    return trips;
+  }
+  // plan C: only Kamaz; the trucks share the sweep into sectors of similar load, each truck makes several trips
+  function kamazRuns(items, fleet, S, depot) {
+    const v = fleet[0], trucks = Math.max(1, S.cTrucks | 0), seq = sweepOrder(items);
+    const w = s => Math.max((s.cbm || 0) / v.m3, (s.kg || 0) / v.kg, 1e-3), total = seq.reduce((a, s) => a + w(s), 0);
+    const sectors = [[]]; let acc = 0;
+    seq.forEach(s => {
+      if (sectors[sectors.length - 1].length && sectors.length < trucks && acc + w(s) / 2 > total * sectors.length / trucks) sectors.push([]);
+      sectors[sectors.length - 1].push(s); acc += w(s);
+    });
+    const out = [];
+    sectors.forEach((sec, k) => partition(sec, fleet, S.bcMaxStops || 99, S, depot).forEach((t, i) => out.push({ ...t, name: 'Kamaz-' + (k + 1) + ' · рейс ' + (i + 1) })));
+    return out;
   }
 
   function buildPlans(stopsAll, S) {
     const depot = [S.depotLat, S.depotLon];
     const withC = stopsAll.filter(s => s.lat != null), noC = stopsAll.filter(s => s.lat == null);
     withC.forEach(s => { s.angle = bearing(depot, [s.lat, s.lon]); s.depotKm = km(depot, [s.lat, s.lon]); });
-    const isuzu = { m3: S.isuzuM3, kg: S.isuzuKg, places: S.maxPlaces };
-    const mkTrip = (nm, ordered, kind) => {
-      const m = tripMetrics(depot, ordered, S), price = priceTrip(ordered, kind, S);
-      const sm = k => ordered.reduce((a, s) => a + (s[k] || 0), 0);
-      return { name: nm, stops: ordered, cbm: sm('cbm'), kg: sm('kg'), places: sm('places'), ...m, price, kind, outside: ordered.filter(s => s.zone === 'out') };
-    };
-    const finish = (bins, name, kindFn) => bins.map((b, i) => mkTrip(name(i, b), nnOrder(depot, b.stops), kindFn(b)));
-    // «умный» подбор машин: каждый рейс режем на подряд идущие участки маршрута, каждый — Labo (если влезает) или Gazel; берём самый дешёвый вариант
-    const smart = S.smartLabo !== 0 && S.laboBase != null && S.laboPt != null;
-    const known = s => (s.cbm || 0) > 0 || (s.kg || 0) > 0;
-    const smartFinish = bins => {
-      const out = []; let nL = 0, nG = 0;
-      bins.forEach(b => {
-        const st = nnOrder(depot, b.stops), n = st.length;
-        let segs = [{ from: 0, to: n, kind: 'auto' }];
-        if (smart && n) {
-          const best = new Array(n + 1).fill(Infinity), prev = new Array(n + 1); best[0] = 0;
-          for (let j = 1; j <= n; j++) for (let i = 0; i < j; i++) {
-            if (best[i] === Infinity) continue;
-            const seg = st.slice(i, j), cbm = seg.reduce((a, s) => a + (s.cbm || 0), 0), kg = seg.reduce((a, s) => a + (s.kg || 0), 0);
-            const opts = ['gazel'];
-            if (cbm <= S.laboM3 + 1e-9 && kg <= S.laboKg + 1e-9 && seg.every(known)) opts.push('labo');
-            opts.forEach(k => { const p = priceTrip(seg, k, S).total; if (p == null) return; const c = best[i] + p + 1; if (c < best[j]) { best[j] = c; prev[j] = { i, k }; } });
-          }
-          if (best[n] < Infinity) { segs = []; for (let j = n; j > 0; j = prev[j].i) segs.unshift({ from: prev[j].i, to: j, kind: prev[j].k }); }
-        }
-        segs.forEach(g => { const k = g.kind === 'auto' ? 'auto' : g.kind; const nm = k === 'labo' ? 'Labo-' + (++nL) : 'Gazel-' + (++nG); out.push(mkTrip(nm, st.slice(g.from, g.to), k)); });
+    const finish = raw => {
+      const cnt = {};
+      return raw.map(t => {
+        const name = t.name || (cnt[t.v.label] = (cnt[t.v.label] || 0) + 1, t.v.label + '-' + cnt[t.v.label]);
+        const m = tripMetrics(depot, t.stops, S);
+        return { name, stops: t.stops, cbm: t.l.cbm, kg: t.l.kg, places: t.l.places, ...m, price: t.price, kind: t.v.kind, vehicle: t.v, over: !!t.over, outside: t.stops.filter(s => s.zone === 'out') };
       });
-      return out;
     };
-    // A
-    const sorted = withC.slice().sort((a, b) => a.angle - b.angle);
-    const A = smartFinish(sweepPack(sorted, { ...isuzu, stops: S.aMaxStops }));
-    // B
-    const capB = { ...isuzu, stops: S.bcMaxStops };
-    const small = sorted.filter(s => s.cbm <= S.bSmallM3), big = withC.filter(s => s.cbm > S.bSmallM3).sort((a, b) => b.cbm - a.cbm);
-    const binsB = sweepPack(small, capB);
-    big.forEach(s => { let b = binsB.find(x => fits(x, s, capB)); if (!b) { b = newBin(); binsB.push(b); } add(b, s); });
-    const B = smartFinish(binsB);
-    // C
-    const n = Math.max(1, S.cTrucks | 0), per = Math.ceil(sorted.length / n);
-    const capC = { m3: S.cM3, kg: S.cKg, places: S.maxPlaces, stops: S.bcMaxStops };
-    let C = [];
-    for (let k = 0; k < n; k++) {
-      const sector = sorted.slice(k * per, (k + 1) * per);
-      const bins = sweepPack(sector, capC);
-      C = C.concat(finish(bins, i => 'Katta-' + (k + 1) + ' · рейс ' + (i + 1), () => 'kamaz'));
-    }
-    const sum = (trips) => ({
-      trips: trips.length,
-      km: trips.reduce((a, t) => a + t.dist, 0),
-      real: trips.reduce((a, t) => a + t.real, 0),
-      outside: trips.reduce((a, t) => a + t.outside.length, 0),
-      outsideCbm: trips.reduce((a, t) => a + t.outside.reduce((x, s) => x + s.cbm, 0), 0),
-      price: trips.some(t => t.price.total == null) ? null : trips.reduce((a, t) => a + t.price.total, 0),
-      labo: trips.filter(t => /^Labo/.test(t.price.label)).length
-    });
-    return { A: { trips: A, sum: sum(A) }, B: { trips: B, sum: sum(B) }, C: { trips: C, sum: sum(C) }, noCoords: noC };
+    const plan = (kinds, build) => {
+      const fleet = fleetOf(S, kinds), splits = [];
+      if (!fleet.length) return { trips: [], splits, noFleet: true };
+      const items = splitOversize(withC, fleet, splits);
+      return { trips: finish(build(items, fleet)), splits, fleet };
+    };
+    const ab = S.smartLabo !== 0 ? ['labo', 'gazel', 'kamaz'] : ['gazel', 'kamaz'];
+    const A = plan(ab, (items, fleet) => partition(sweepOrder(items), fleet, S.aMaxStops || 99, S, depot));
+    const B = plan(ab, (items, fleet) => consolidate(items, fleet, S.bcMaxStops || 99, S, depot));
+    const C = plan(['kamaz'], (items, fleet) => kamazRuns(items, fleet, S, depot));
+    const sum = trips => {
+      const priced = trips.filter(t => t.price.total != null), n = k => trips.filter(t => t.kind === k).length;
+      return {
+        trips: trips.length,
+        km: trips.reduce((a, t) => a + t.dist, 0),
+        real: trips.reduce((a, t) => a + t.real, 0),
+        outside: trips.reduce((a, t) => a + t.outside.length, 0),
+        outsideCbm: trips.reduce((a, t) => a + t.outside.reduce((x, s) => x + s.cbm, 0), 0),
+        price: priced.reduce((a, t) => a + t.price.total, 0),
+        unpriced: trips.length - priced.length,
+        labo: n('labo'), gazel: n('gazel'), kamaz: n('kamaz'), over: trips.filter(t => t.over).length
+      };
+    };
+    const out = { noCoords: noC };
+    [['A', A], ['B', B], ['C', C]].forEach(([k, p]) => { out[k] = { ...p, sum: sum(p.trips) }; });
+    return out;
   }
 
   function yRoute(depot, pts) {

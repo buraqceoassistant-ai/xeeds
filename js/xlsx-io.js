@@ -75,7 +75,7 @@
   const serialToISO = s => { if (!num(s)) return ''; return new Date(Math.round((+s - 25569) * 864e5)).toISOString().slice(0, 10); };
   const isoToSerial = d => { const [y, m, dd] = d.split('-').map(Number); return Date.UTC(y, m - 1, dd) / 864e5 + 25569; };
 
-  const SET_ROWS = { isuzuM3: 5, isuzuKg: 6, depotName: 7, depotLat: 8, depotLon: 9, unloadMin: 10, dayStart: 11, speed: 12, aMaxStops: 13, maxPlaces: 14, bSmallM3: 15, bcMaxStops: 16, cM3: 17, cKg: 18, cTrucks: 19, roadK: 20, gazelBase: 43, gazelHeavy: 44, gazelHeavyKg: 45, gazelPtIn: 46, gazelPtOut: 47, laboBase: 48, laboPt: 49, laboM3: 50, laboKg: 51, baseIncludesPts: 52, kamazBase: 53, kamazPt: 54, laboBaseIncludesPts: 55, kamazBaseIncludesPts: 56 };
+  const SET_ROWS = { isuzuM3: 5, isuzuKg: 6, depotName: 7, depotLat: 8, depotLon: 9, unloadMin: 10, dayStart: 11, speed: 12, aMaxStops: 13, maxPlaces: 14, bSmallM3: 15, bcMaxStops: 16, cM3: 17, cKg: 18, cTrucks: 19, roadK: 20, gazelBase: 43, gazelHeavy: 44, gazelHeavyKg: 45, gazelPtIn: 46, gazelPtOut: 47, laboBase: 48, laboPt: 49, laboM3: 50, laboKg: 51, baseIncludesPts: 52, kamazBase: 53, kamazPt: 54, laboBaseIncludesPts: 55, kamazBaseIncludesPts: 56, gazelM3: 57, gazelKg: 58 };
   const SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 
   function hyperlinksOf(z, path, xml) {
@@ -110,8 +110,9 @@
     const settings = {};
     for (const [k, r] of Object.entries(SET_ROWS)) { const v = (Ss[r] || {}).B; settings[k] = k === 'depotName' ? str(v) : num(v); }
     settings.ringBuffer = num((Hs[4] || {}).B) ?? 1;
-    // older workbooks have no rows 55–56 yet: Labo/Kamaz charge every point (0)
-    ['laboBaseIncludesPts', 'kamazBaseIncludesPts'].forEach(k => { if (settings[k] == null) settings[k] = 0; });
+    // older workbooks have no rows 55–58 yet: Labo/Kamaz charge every point (0), Gazel holds 18 m³ / 2 000 kg
+    const DEF = { laboBaseIncludesPts: 0, kamazBaseIncludesPts: 0, gazelM3: 18, gazelKg: 2000 };
+    Object.keys(DEF).forEach(k => { if (settings[k] == null) settings[k] = DEF[k]; });
     const col = (c, a, b) => { const o = []; for (let r = a; r <= b; r++) if (Ss[r] && str(Ss[r][c])) o.push(str(Ss[r][c])); return o; };
     const lists = { districts: col('A', 24, 39), statuses: col('B', 24, 29), trucks: col('C', 24, 34) };
     const notes = []; let sec = null;
