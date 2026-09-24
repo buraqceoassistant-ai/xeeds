@@ -113,16 +113,21 @@
   // places and number of points. A shipment bigger than the largest vehicle is split into parts.
   // Among vehicles that fit, the cheapest by tariff wins. In plans A and B Kamaz (and any vehicle without
   // a tariff) carries only cargo that fits no regular vehicle: Gazel first, Kamaz only when it does not fit.
+  // Plan B may load a Gazel above its body by a tolerance (bTolM3 / bTolKg), so Kamaz there only takes cargo bigger than that.
   const EPS = 1e-6, UNPRICED = 1e8, KM_COST = 1000;
   const known = s => (s.cbm || 0) > 0 || (s.kg || 0) > 0;
-  function fleetOf(S, kinds, onlyIfNeeded = []) {
+  function fleetOf(S, kinds, opt = {}) {
     const all = {
       labo: { kind: 'labo', label: 'Labo', m3: +S.laboM3, kg: +S.laboKg },
       gazel: { kind: 'gazel', label: 'Gazel', m3: +S.gazelM3, kg: +S.gazelKg },
       kamaz: { kind: 'kamaz', label: 'Kamaz', m3: +S.cM3, kg: +S.cKg }
     };
-    return kinds.map(k => all[k]).filter(v => v.m3 > 0 && v.kg > 0).map(v => ({ ...v, places: +S.maxPlaces || 0,
-      priced: priceTrip([{ bl: '-', zone: 'in', cbm: 0, kg: 0 }], v.kind, S).total != null, onlyIfNeeded: onlyIfNeeded.includes(v.kind) }));
+    const onlyIfNeeded = opt.onlyIfNeeded || [], tol = opt.tol || {};
+    return kinds.map(k => all[k]).filter(v => v.m3 > 0 && v.kg > 0).map(v => {
+      const tM3 = Math.max(0, +(tol[v.kind] || {}).m3 || 0), tKg = Math.max(0, +(tol[v.kind] || {}).kg || 0);
+      return { ...v, nomM3: v.m3, nomKg: v.kg, tolM3: tM3, tolKg: tKg, m3: v.m3 + tM3, kg: v.kg + tKg, places: +S.maxPlaces || 0,
+        priced: priceTrip([{ bl: '-', zone: 'in', cbm: 0, kg: 0 }], v.kind, S).total != null, onlyIfNeeded: onlyIfNeeded.includes(v.kind) };
+    });
   }
   function load(stops) {
     let cbm = 0, kg = 0, places = 0; const bl = new Set();
@@ -256,15 +261,16 @@
         return { name, stops: t.stops, cbm: t.l.cbm, kg: t.l.kg, places: t.l.places, ...m, price: t.price, kind: t.v.kind, vehicle: t.v, over: !!t.over, outside: t.stops.filter(s => s.zone === 'out') };
       });
     };
-    const plan = (kinds, build) => {
-      const fleet = fleetOf(S, kinds, kinds.length > 1 ? ['kamaz'] : []), splits = [];
+    const plan = (kinds, build, opt) => {
+      const fleet = fleetOf(S, kinds, opt), splits = [];
       if (!fleet.length) return { trips: [], splits, noFleet: true };
       const items = splitOversize(withC, fleet, splits);
       return { trips: finish(build(items, fleet)), splits, fleet };
     };
     const ab = S.smartLabo !== 0 ? ['labo', 'gazel', 'kamaz'] : ['gazel', 'kamaz'];
-    const A = plan(ab, (items, fleet) => partition(sweepOrder(items), fleet, S.aMaxStops || 99, S, depot));
-    const B = plan(ab, (items, fleet) => consolidate(items, fleet, S.bcMaxStops || 99, S, depot));
+    const A = plan(ab, (items, fleet) => partition(sweepOrder(items), fleet, S.aMaxStops || 99, S, depot), { onlyIfNeeded: ['kamaz'] });
+    const B = plan(ab, (items, fleet) => consolidate(items, fleet, S.bcMaxStops || 99, S, depot),
+      { onlyIfNeeded: ['kamaz'], tol: { gazel: { m3: S.bTolM3, kg: S.bTolKg } } });
     const C = plan(['kamaz'], (items, fleet) => kamazRuns(items, fleet, S, depot));
     const sum = trips => {
       const priced = trips.filter(t => t.price.total != null), n = k => trips.filter(t => t.kind === k).length;
