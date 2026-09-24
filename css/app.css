@@ -1,5 +1,5 @@
 /* Базовые стили страницы (раньше лежали в <helmet> экспорта) и обвязка сайта:
-   экран входа, кнопка «Выйти», плашка установки приложения. */
+   экран входа, кнопка «Аккаунт» с диалогами, плашка установки приложения. */
 x-dc { display: none !important; }
 body { margin: 0; background: var(--color-bg); }
 a { color: var(--color-accent-700); }
@@ -36,14 +36,20 @@ html.locked, html.locked body { overflow: hidden; }
 .auth-wait { display: none; color: #fff; font-size: 15px; letter-spacing: .02em; }
 .auth[data-state="checking"] .auth-wait { display: block; }
 
-/* ── Кнопка «Выйти» в шапке ── */
-.app-logout {
+/* ── Кнопка «Аккаунт» в шапке и её диалоги ── */
+.app-account {
   flex: none; align-self: center; margin-left: auto;
   padding: 6px 10px; background: none; border: 1px solid var(--color-divider);
   font: 600 13px/1.2 var(--font-heading); letter-spacing: .02em; text-transform: uppercase;
   color: var(--color-neutral-700); cursor: pointer;
 }
-.app-logout:hover { color: var(--color-accent-700); border-color: var(--color-accent); }
+.app-account:hover { color: var(--color-accent-700); border-color: var(--color-accent); }
+.acc-backdrop { z-index: 4000; }
+.acc-dialog { width: min(480px, 100%) !important; max-height: 92vh; overflow-y: auto; background: var(--color-bg) !important; }
+.acc-form { display: flex; flex-direction: column; gap: 12px; }
+.acc-hint { font-size: 12px; line-height: 1.45; color: var(--color-neutral-700); }
+.acc-ok { font-size: 14px; color: var(--color-accent-800); }
+.acc-ok:empty { display: none; }
 
 /* ── Плашка «Установить приложение» ── */
 .install-app {

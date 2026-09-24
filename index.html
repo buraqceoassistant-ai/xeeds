@@ -56,7 +56,7 @@
           <button sc-camel-on-click="{{ t.go }}" style="background:none;border:0;border-bottom:2px solid {{ t.border }};padding:0 12px;font-family:var(--font-heading);font-weight:600;font-size:15px;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;color:{{ t.color }};cursor:pointer" style-hover="color:var(--color-accent)">{{ t.label }}</button>
         </sc-for>
       </nav>
-      <button class="app-logout" sc-camel-on-click="{{ logout }}" title="Выйти и удалить данные с этого устройства">Выйти</button>
+      <button class="app-account" sc-camel-on-click="{{ account }}" title="Смена пароля и выход">Аккаунт</button>
     </div>
     <sc-if value="{{ showStrip }}" hint-placeholder-val="{{ true }}">
     <div style="border-top:1px solid var(--color-divider);background:var(--color-surface)">
@@ -1179,7 +1179,7 @@ class Component extends DCLogic {
     const tabs = tabsDef.map(([k, l]) => ({ label: l, go: () => this.setState({ tab: k }), color: st.tab === k ? 'var(--color-accent-700)' : 'var(--color-text)', border: st.tab === k ? 'var(--color-accent)' : 'transparent' }));
     const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isTariffs: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef,
       fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
-      logout: () => window.LogiAuth && window.LogiAuth.logout() };
+      account: () => window.LogiAuth && window.LogiAuth.openAccount() };
     const fs = st.fileStatus, fat = st.fileAt ? hhmm(st.fileAt.getHours() * 60 + st.fileAt.getMinutes()) : '';
     Object.assign(base, {
       fileTitle: st.fileName ? 'Excel: ' + st.fileName : 'Excel-файл не подключён',

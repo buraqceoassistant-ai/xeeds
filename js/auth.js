@@ -1,23 +1,67 @@
-/* Вход по логину и паролю.
+/* Вход по логину и паролю, смена пароля.
    Данные сайта лежат только в зашифрованном data/vault.json (см. tools/vault.mjs).
    Пароль превращается в ключ (PBKDF2-SHA256), им расшифровывается ключ данных,
    а им — Excel-файл, из которого приложение строит журнал, клиентов и планы.
-   Пока вход не выполнен, приложение ждёт window.LOGI_TEMPLATE_B64 и ничего не показывает. */
+   Пока вход не выполнен, приложение ждёт window.LOGI_TEMPLATE_B64 и ничего не показывает.
+   Смена пароля записывает новый vault.json в репозиторий через GitHub API
+   (нужен токен с правом Contents: Read and write), после чего сайт пересобирается. */
 (function () {
   'use strict';
-  var VAULT_URL = 'data/vault.json';
+  var REPO = { owner: 'buraqceoassistant-ai', repo: 'xeeds', path: 'data/vault.json' };
+  var VAULT_URL = REPO.path;
   var KEY = 'logi-auth-key';            // ключ данных: localStorage («запомнить») или sessionStorage
+  var KEY_PREV = 'logi-auth-key-prev';  // прежний ключ, пока сайт не обновился после смены пароля
+  var LOGIN = 'logi-auth-login';
+  var GH_TOKEN = 'logi-gh-token';
   var BAD = 'Неверный логин или пароль';
+  var MIN_PASSWORD = 8;
   var subtle = window.crypto && window.crypto.subtle;
   var enc = new TextEncoder();
 
   function unb64(s) { var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
   function b64(u) { var s = ''; for (var i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
   function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join(''); }
+  function rand(n) { return window.crypto.getRandomValues(new Uint8Array(n)); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function normLogin(l) { return String(l || '').trim().toLowerCase(); }
+
+  // ── Хранилище браузера ──
   function store(name) { try { return window[name]; } catch (e) { return null; } }
-  function getKey() { var l = store('localStorage'), s = store('sessionStorage'); try { return (l && l.getItem(KEY)) || (s && s.getItem(KEY)) || null; } catch (e) { return null; } }
-  function putKey(k, remember) { try { (remember ? store('localStorage') : store('sessionStorage')).setItem(KEY, k); } catch (e) { /* приватный режим: вход до перезагрузки */ } }
-  function dropKey() { [store('localStorage'), store('sessionStorage')].forEach(function (st) { try { st && st.removeItem(KEY); } catch (e) { /* нет доступа */ } }); }
+  function both() { return [store('localStorage'), store('sessionStorage')]; }
+  function get(k) { var r = null; both().forEach(function (st) { try { if (!r && st) r = st.getItem(k); } catch (e) { /* нет доступа */ } }); return r; }
+  function put(k, v, remember) { try { (remember ? store('localStorage') : store('sessionStorage')).setItem(k, v); } catch (e) { /* приватный режим: до перезагрузки */ } }
+  function drop(k) { both().forEach(function (st) { try { st && st.removeItem(k); } catch (e) { /* нет доступа */ } }); }
+  function remembered() { try { return !!store('localStorage').getItem(KEY); } catch (e) { return false; } }
+
+  // ── Криптография хранилища (тот же формат, что в tools/vault.mjs) ──
+  async function loginId(v, login) {
+    var salt = unb64(v.userSalt), name = enc.encode(normLogin(login)), buf = new Uint8Array(salt.length + name.length);
+    buf.set(salt); buf.set(name, salt.length);
+    return hex(await subtle.digest('SHA-256', buf));
+  }
+  async function kek(v, password, salt, usage) {
+    var base = await subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return subtle.deriveKey({ name: 'PBKDF2', hash: v.kdf.hash, salt: salt, iterations: v.kdf.iterations }, base, { name: 'AES-GCM', length: 256 }, false, [usage]);
+  }
+  async function unwrapKey(v, login, password) {
+    var u = v.users[await loginId(v, login)];
+    if (!u) throw new Error(BAD);
+    try { return new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(u.iv) }, await kek(v, password, unb64(u.salt), 'decrypt'), unb64(u.key))); }
+    catch (e) { throw new Error(BAD); }
+  }
+  async function wrapKey(v, login, password, dekRaw) {
+    var salt = rand(16), iv = rand(12);
+    var key = await subtle.encrypt({ name: 'AES-GCM', iv: iv }, await kek(v, password, salt, 'encrypt'), dekRaw);
+    v.users[await loginId(v, login)] = { salt: b64(salt), iv: b64(iv), key: b64(new Uint8Array(key)) };
+  }
+  async function decryptData(v, dekRaw) {
+    var dek = await subtle.importKey('raw', dekRaw, 'AES-GCM', false, ['decrypt']);
+    return new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(v.data.iv) }, dek, unb64(v.data.ct)));
+  }
+  async function encryptData(v, dekRaw, bytes) {
+    var iv = rand(12), dek = await subtle.importKey('raw', dekRaw, 'AES-GCM', false, ['encrypt']);
+    v.data = { iv: b64(iv), ct: b64(new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv: iv }, dek, bytes))) };
+  }
 
   var vaultP = null;
   function vault() {
@@ -26,28 +70,25 @@
       return r.json();
     }).catch(function (e) { vaultP = null; throw e; }));
   }
-
-  async function keyFromPassword(login, password) {
-    var v = await vault();
-    var salted = new Uint8Array(unb64(v.userSalt).length + enc.encode(login).length);
-    salted.set(unb64(v.userSalt)); salted.set(enc.encode(login), unb64(v.userSalt).length);
-    var u = v.users[hex(await subtle.digest('SHA-256', salted))];
-    if (!u) throw new Error(BAD);
-    var base = await subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
-    var kek = await subtle.deriveKey({ name: 'PBKDF2', hash: v.kdf.hash, salt: unb64(u.salt), iterations: v.kdf.iterations }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
-    try { return b64(new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(u.iv) }, kek, unb64(u.key)))); }
-    catch (e) { throw new Error(BAD); }
-  }
-
   async function openData(keyB64) {
-    var v = await vault();
-    var dek = await subtle.importKey('raw', unb64(keyB64), 'AES-GCM', false, ['decrypt']);
-    var xlsx = await subtle.decrypt({ name: 'AES-GCM', iv: unb64(v.data.iv) }, dek, unb64(v.data.ct));
-    window.LOGI_TEMPLATE_B64 = b64(new Uint8Array(xlsx));
+    window.LOGI_TEMPLATE_B64 = b64(await decryptData(await vault(), unb64(keyB64)));
+  }
+  // Сохранённые ключи: текущий и прежний (сразу после смены пароля сайт ещё отдаёт старый vault.json).
+  async function openWithStored() {
+    var cur = get(KEY), prev = get(KEY_PREV);
+    var list = [cur, prev].filter(Boolean);
+    for (var i = 0; i < list.length; i++) {
+      try {
+        await openData(list[i]);
+        if (list[i] === cur) drop(KEY_PREV);
+        return true;
+      } catch (e) { if (!e || e.name !== 'OperationError') throw e; }
+    }
+    return list.length ? false : null;
   }
 
   // ── Экран входа ──
-  var root, form, err, btn;
+  var root, err, btn;
   function setState(s) { if (root) root.setAttribute('data-state', s); }
   function unlocked() {
     setState('open');
@@ -64,14 +105,16 @@
 
   async function onSubmit(e) {
     e.preventDefault();
-    var login = document.getElementById('auth-login').value.trim().toLowerCase();
+    var login = normLogin(document.getElementById('auth-login').value);
     var pass = document.getElementById('auth-pass').value;
     if (!login || !pass) { err.textContent = 'Введите логин и пароль'; return; }
     setState('busy'); err.textContent = ''; btn.disabled = true; btn.textContent = 'Проверяю…';
     try {
-      var k = await keyFromPassword(login, pass);
+      var k = b64(await unwrapKey(await vault(), login, pass));
       await openData(k);
-      putKey(k, document.getElementById('auth-remember').checked);
+      var remember = document.getElementById('auth-remember').checked;
+      drop(KEY); drop(KEY_PREV); drop(LOGIN);
+      put(KEY, k, remember); put(LOGIN, login, remember);
       document.getElementById('auth-pass').value = '';
       unlocked();
     } catch (ex) {
@@ -84,28 +127,163 @@
   async function start() {
     root = document.getElementById('auth');
     if (!root) return;
-    form = document.getElementById('auth-form'); err = document.getElementById('auth-error'); btn = document.getElementById('auth-submit');
-    form.addEventListener('submit', onSubmit);
+    err = document.getElementById('auth-error'); btn = document.getElementById('auth-submit');
+    document.getElementById('auth-form').addEventListener('submit', onSubmit);
     if (!subtle) { showForm('Браузер не поддерживает шифрование. Откройте сайт по https:// в Chrome, Safari, Edge или Firefox.'); btn.disabled = true; return; }
-    var k = getKey();
-    if (!k) return showForm();
-    try { await openData(k); unlocked(); }
-    catch (e) {
-      if (e && e.name === 'OperationError') { dropKey(); showForm('Данные на сайте обновились — войдите заново'); }
-      else showForm(netError(e));
-    }
+    try {
+      var ok = await openWithStored();
+      if (ok) return unlocked();
+      if (ok === false) { drop(KEY); drop(KEY_PREV); return showForm('Данные на сайте обновились — войдите заново'); }
+      showForm();
+    } catch (e) { showForm(netError(e)); }
   }
 
   // Выход: стирает с устройства ключ, локальную копию данных, связь с Google Таблицей и Excel-файлом.
   function logout() {
     if (!confirm('Выйти и удалить данные с этого устройства?\n\nПравки, которые не записаны в Excel-файл или Google Таблицу, пропадут. Чтобы сохранить их, сначала нажмите «Скачать Excel».')) return;
-    [store('localStorage'), store('sessionStorage')].forEach(function (st) {
+    both().forEach(function (st) {
       try { for (var i = st.length - 1; i >= 0; i--) { var k = st.key(i); if (k && k.indexOf('logi-') === 0) st.removeItem(k); } } catch (e) { /* нет доступа */ }
     });
     try { indexedDB.deleteDatabase('logi-db'); } catch (e) { /* нет IndexedDB */ }
     location.reload();
   }
 
-  window.LogiAuth = { logout: logout };
+  // ── Диалоги «Аккаунт» и «Смена пароля» ──
+  var CORNERS = '<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>';
+  var openDialog = null;
+  function closeDialog() { if (openDialog) { openDialog.remove(); openDialog = null; document.removeEventListener('keydown', onKey); } }
+  function onKey(e) { if (e.key === 'Escape' && openDialog && !openDialog.hasAttribute('data-busy')) closeDialog(); }
+  function dialog(title, bodyHtml, actionsHtml) {
+    closeDialog();
+    var bg = document.createElement('div');
+    bg.className = 'dialog-backdrop acc-backdrop';
+    bg.innerHTML = '<div class="dialog blueprint acc-dialog" role="dialog" aria-modal="true" aria-label="' + esc(title) + '">' + CORNERS +
+      '<div class="dialog-title">' + esc(title) + '</div>' + bodyHtml + '<div class="dialog-actions">' + actionsHtml + '</div></div>';
+    bg.addEventListener('click', function (e) { if (e.target === bg && !bg.hasAttribute('data-busy')) closeDialog(); });
+    document.body.appendChild(bg);
+    document.addEventListener('keydown', onKey);
+    openDialog = bg;
+    return bg;
+  }
+
+  function openAccount() {
+    var login = get(LOGIN);
+    var d = dialog('Аккаунт',
+      '<div class="dialog-body">' + (login ? 'Вы вошли как <b>' + esc(login) + '</b>.' : 'Вход выполнен.') + '</div>',
+      '<button class="btn btn-ghost" data-act="logout" style="margin-right:auto">Выйти</button>' +
+      '<button class="btn btn-secondary" data-act="close">Закрыть</button>' +
+      '<button class="btn btn-primary" data-act="passwd">Сменить пароль</button>');
+    d.addEventListener('click', function (e) {
+      var a = e.target.closest('[data-act]'); if (!a) return;
+      if (a.dataset.act === 'close') closeDialog();
+      else if (a.dataset.act === 'logout') { closeDialog(); logout(); }
+      else openPasswd();
+    });
+  }
+
+  function field(id, label, type, value, extra) {
+    return '<div class="field"><label for="' + id + '">' + label + '</label><input class="input" id="' + id + '" type="' + type + '" value="' + esc(value || '') + '" ' + (extra || '') + '></div>';
+  }
+  function openPasswd() {
+    var token = get(GH_TOKEN) || '';
+    var d = dialog('Смена пароля',
+      '<form class="acc-form" id="pw-form" novalidate>' +
+        field('pw-login', 'Логин', 'text', get(LOGIN) || '', 'autocomplete="username" autocapitalize="none" spellcheck="false"') +
+        field('pw-old', 'Текущий пароль', 'password', '', 'autocomplete="current-password"') +
+        field('pw-new', 'Новый пароль', 'password', '', 'autocomplete="new-password"') +
+        field('pw-new2', 'Новый пароль ещё раз', 'password', '', 'autocomplete="new-password"') +
+        field('pw-token', 'GitHub-токен', 'password', token, 'autocomplete="off" spellcheck="false" placeholder="github_pat_…"') +
+        '<div class="acc-hint">Новый пароль сохраняется в репозиторий <b>' + esc(REPO.owner + '/' + REPO.repo) + '</b>, поэтому нужен токен GitHub. ' +
+        'Создайте его на <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Fine-grained token</a>: ' +
+        'Repository access — только <b>' + esc(REPO.repo) + '</b>, Permissions → Contents — <b>Read and write</b>.</div>' +
+        '<label class="auth-remember"><input type="checkbox" id="pw-remember"' + (token ? ' checked' : '') + '> Запомнить токен на этом устройстве</label>' +
+        '<div class="auth-error" id="pw-error" role="alert"></div>' +
+        '<div class="acc-ok" id="pw-ok" role="status"></div>' +
+      '</form>',
+      '<button class="btn btn-secondary" type="button" data-act="close">Отмена</button>' +
+      '<button class="btn btn-primary" type="submit" form="pw-form" id="pw-submit">Сменить пароль</button>');
+    d.querySelector('[data-act="close"]').addEventListener('click', function () { if (!d.hasAttribute('data-busy')) closeDialog(); });
+    d.querySelector('#pw-form').addEventListener('submit', function (e) { e.preventDefault(); changePassword(d); });
+    d.querySelector(get(LOGIN) ? '#pw-old' : '#pw-login').focus();
+  }
+
+  // ── GitHub API ──
+  async function gh(token, path, opts) {
+    opts = opts || {};
+    var r;
+    try {
+      r = await fetch('https://api.github.com' + path, {
+        method: opts.method || 'GET',
+        headers: Object.assign({ Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + token }, opts.body ? { 'Content-Type': 'application/json' } : {}, opts.headers || {}),
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+        cache: 'no-store'
+      });
+    } catch (e) { throw new Error('Нет связи с GitHub. Проверьте интернет.'); }
+    if (r.ok) return opts.raw ? r.text() : r.json();
+    var msg = ''; try { msg = (await r.json()).message || ''; } catch (e) { /* не JSON */ }
+    if (r.status === 401) throw new Error('GitHub-токен не подходит: неверный или просрочен.');
+    if (r.status === 403 || r.status === 404) throw new Error('У токена нет доступа к репозиторию ' + REPO.repo + ' с правом Contents: Read and write.');
+    if (r.status === 409) throw new Error('Файл на GitHub только что изменился. Нажмите «Сменить пароль» ещё раз.');
+    throw new Error('GitHub ответил ошибкой ' + r.status + (msg ? ': ' + msg : ''));
+  }
+  async function loadRemoteVault(token) {
+    var base = '/repos/' + REPO.owner + '/' + REPO.repo;
+    var branch = (await gh(token, base)).default_branch;
+    var file = await gh(token, base + '/contents/' + REPO.path + '?ref=' + encodeURIComponent(branch));
+    var text = file.content && file.encoding === 'base64'
+      ? atob(file.content.replace(/\s/g, ''))
+      : await gh(token, base + '/contents/' + REPO.path + '?ref=' + encodeURIComponent(branch), { raw: true, headers: { Accept: 'application/vnd.github.raw+json' } });
+    return { base: base, branch: branch, sha: file.sha, vault: JSON.parse(text) };
+  }
+
+  async function changePassword(d) {
+    var $ = function (id) { return d.querySelector('#' + id); };
+    var errEl = $('pw-error'), okEl = $('pw-ok'), submit = d.querySelector('#pw-submit');
+    var login = normLogin($('pw-login').value), oldPw = $('pw-old').value, newPw = $('pw-new').value, newPw2 = $('pw-new2').value, token = $('pw-token').value.trim();
+    errEl.textContent = ''; okEl.textContent = '';
+    if (!login || !oldPw || !newPw || !token) { errEl.textContent = 'Заполните все поля'; return; }
+    if (newPw.length < MIN_PASSWORD) { errEl.textContent = 'Новый пароль — не короче ' + MIN_PASSWORD + ' символов'; return; }
+    if (newPw !== newPw2) { errEl.textContent = 'Новые пароли не совпадают'; $('pw-new2').focus(); return; }
+
+    d.setAttribute('data-busy', ''); submit.disabled = true;
+    try {
+      submit.textContent = 'Загружаю…';
+      var remote = await loadRemoteVault(token), v = remote.vault;
+      submit.textContent = 'Проверяю пароль…';
+      var oldKey;
+      try { oldKey = await unwrapKey(v, login, oldPw); }
+      catch (e) { throw new Error(e.message === BAD ? 'Неверный логин или текущий пароль' : e.message); }
+      submit.textContent = 'Шифрую…';
+      // Единственный пользователь — меняем и ключ данных: старый пароль из истории репозитория
+      // перестаёт открывать текущие данные. Если пользователей несколько, их ключи не трогаем.
+      var single = Object.keys(v.users).length === 1, newKey = oldKey;
+      if (single) {
+        newKey = rand(32);
+        await encryptData(v, newKey, await decryptData(v, oldKey));
+        v.users = {};
+      }
+      await wrapKey(v, login, newPw, newKey);
+      submit.textContent = 'Сохраняю…';
+      await gh(token, remote.base + '/contents/' + REPO.path, { method: 'PUT', body: {
+        message: 'Смена пароля на сайте', content: btoa(JSON.stringify(v) + '\n'), sha: remote.sha, branch: remote.branch } });
+
+      var remember = remembered();
+      if ($('pw-remember').checked) put(GH_TOKEN, token, true); else drop(GH_TOKEN);
+      if (single) { var cur = get(KEY); drop(KEY); drop(KEY_PREV); put(KEY, b64(newKey), remember); if (cur) put(KEY_PREV, cur, remember); }
+      drop(LOGIN); put(LOGIN, login, remember);
+      ['pw-old', 'pw-new', 'pw-new2'].forEach(function (id) { $(id).value = ''; });
+      okEl.textContent = 'Пароль изменён. Новый пароль заработает через 1–2 минуты, когда GitHub обновит сайт.' +
+        (single ? ' На других устройствах нужно будет войти заново.' : '') + ' На этом устройстве вход сохранён.';
+      submit.style.display = 'none';
+      d.querySelector('[data-act="close"]').textContent = 'Готово';
+    } catch (ex) {
+      errEl.textContent = ex.message || String(ex);
+      submit.textContent = 'Сменить пароль';
+    }
+    d.removeAttribute('data-busy'); submit.disabled = false;
+    if (submit.style.display !== 'none') submit.textContent = 'Сменить пароль';
+  }
+
+  window.LogiAuth = { logout: logout, openAccount: openAccount };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

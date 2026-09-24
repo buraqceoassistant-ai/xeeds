@@ -42,7 +42,7 @@
   .app-logo { width: 92px !important; height: 36px !important; border-radius: 18px !important; }
   .app-tabs { margin-left: 0 !important; }
   .app-tabs > button { padding: 0 10px !important; font-size: 14px !important; }
-  .app-logout { margin: 0 max(10px, env(safe-area-inset-right)) 0 0; padding: 6px 8px; font-size: 12px; }
+  .app-account { margin: 0 max(10px, env(safe-area-inset-right)) 0 0; padding: 6px 8px; font-size: 12px; }
 
   .app-strip { padding: 8px max(12px, env(safe-area-inset-left)) 4px !important; gap: 6px 10px !important; }
   .app-strip-actions {
