@@ -859,7 +859,7 @@ const LS_KEY = 'logi-site-v2';
 const ST = { 'Rejada': 'В плане', 'Yolda': 'В пути', 'Yetkazildi': 'Доставлено', 'Qolib ketgan': 'Осталось', 'Mijoz ozi oldi': 'Клиент забрал сам', 'Bekor qilindi': 'Отменено' };
 const TR = { 'Belgilanmagan': 'Не назначена', 'Mijoz ozi oladi': 'Клиент заберёт' };
 const PLAN_INFO = {
-  A: { title: 'A — экономичный', desc: S => 'Самый дешёвый по тарифам: как можно меньше рейсов, маршруты по направлениям. Labo, Gazel и Kamaz. Gazel с допуском — до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³ / ' + f0((+S.gazelKg || 0) + (+S.bTolKg || 0)) + ' кг, Kamaz — только если груз больше.' },
+  A: { title: 'A — экономичный', desc: S => 'Самый дешёвый по тарифам без перегруза: как можно меньше рейсов, маршруты по направлениям. Labo, Gazel и Kamaz. Gazel строго до ' + f1(S.gazelM3, 1) + ' м³ / ' + f0(S.gazelKg) + ' кг, Kamaz — только если груз больше.' },
   B: { title: 'B — Gazel и Labo', desc: S => 'Как можно меньше машин: Gazel и Labo. Gazel можно загрузить с допуском — до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³ / ' + f0((+S.gazelKg || 0) + (+S.bTolKg || 0)) + ' кг. Kamaz — только если груз больше.' },
   C: { title: 'C — только Kamaz', desc: () => 'Большие машины делают несколько рейсов, каждая на своей стороне города.' }
 };
@@ -1400,7 +1400,7 @@ class Component extends DCLogic {
       { title: 'Labo', fields: [F('laboBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём груза', 'м³', 'Кузов 1,94 × 1,33 м, борт 0,29 м: ' + f1(S.laboM3, 1) + ' м³ — груз до ' + f1((+S.laboM3 || 0) / (1.94 * 1.33), 2) + ' м высотой. Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг', 'Labo UzAuto — 550 кг')] },
       { title: 'Kamaz', fields: [F('kamazBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — рейсы Kamaz без цены'), F('kamazPt', '1 точка', 'сум')] },
       { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), F('depotLat', 'Широта', '°', 'Внимание: в Excel помечено как примерное'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
-      { title: 'Машины для планов', fields: [F('gazelM3', 'Gazel — объём кузова', 'м³', 'Сколько реально помещается'), F('gazelKg', 'Gazel — грузоподъёмность', 'кг'), F('bTolM3', 'Допуск Gazel по объёму (планы A и B)', 'м³', 'Сверх объёма кузова. 5 → Gazel берёт до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³; 0 — без допуска'), F('bTolKg', 'Допуск Gazel по весу (планы A и B)', 'кг', 'Сверх грузоподъёмности. Груз больше Gazel с допуском едет на Kamaz'), F('cM3', 'Kamaz — объём кузова', 'м³'), F('cKg', 'Kamaz — грузоподъёмность', 'кг', 'Груз больше Kamaz делится на несколько рейсов'), F('cTrucks', 'Kamaz — машин для плана C', 'шт'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения'), F('isuzuM3', 'Isuzu — объём', 'м³', 'Только для листов планов в Excel'), F('isuzuKg', 'Isuzu — грузоподъёмность', 'кг', 'Только для листов планов в Excel')] },
+      { title: 'Машины для планов', fields: [F('gazelM3', 'Gazel — объём кузова', 'м³', 'Сколько реально помещается. В плане A — строго до этого'), F('gazelKg', 'Gazel — грузоподъёмность', 'кг'), F('bTolM3', 'План B — допуск Gazel по объёму', 'м³', 'Сверх объёма кузова. 5 → в плане B Gazel берёт до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³; 0 — без допуска'), F('bTolKg', 'План B — допуск Gazel по весу', 'кг', 'Сверх грузоподъёмности. Груз больше Gazel с допуском едет на Kamaz'), F('cM3', 'Kamaz — объём кузова', 'м³'), F('cKg', 'Kamaz — грузоподъёмность', 'кг', 'Груз больше Kamaz делится на несколько рейсов'), F('cTrucks', 'Kamaz — машин для плана C', 'шт'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения'), F('isuzuM3', 'Isuzu — объём', 'м³', 'Только для листов планов в Excel'), F('isuzuKg', 'Isuzu — грузоподъёмность', 'кг', 'Только для листов планов в Excel')] },
       { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Только для листов планов в Excel'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), { ...F('smartLabo', 'Labo в планах A и B', '', '1 — Labo, если груз помещается и так дешевле; 0 — без Labo'), value: S.smartLabo ?? 1 }] }
     ];
   }
@@ -1638,7 +1638,7 @@ class Component extends DCLogic {
       out.planTrips = plan.trips.map((t, ti) => {
         const v = t.vehicle;
         let prev = depot;
-        const nM3 = v.nomM3 ?? v.m3, nKg = v.nomKg ?? v.kg, upM3 = t.cbm > nM3 + 1e-6, upKg = t.kg > nKg + 1e-6;   // сверх кузова — за счёт допуска Gazel (планы A и B)
+        const nM3 = v.nomM3 ?? v.m3, nKg = v.nomKg ?? v.kg, upM3 = t.cbm > nM3 + 1e-6, upKg = t.kg > nKg + 1e-6;   // сверх кузова — за счёт допуска Gazel в плане B
         return { name: t.name, tariff: t.price.label + (t.over ? ' · ПЕРЕГРУЗ' : (upM3 || upKg) ? ' · с допуском' : ''), stopsN: new Set(t.stops.map(s => s.bl)).size,
           cbm: f1(t.cbm, 2) + ' из ' + f1(nM3, 1) + (v.tolM3 ? ' (+' + f1(v.tolM3, 1) + ')' : ''), kg: f0(t.kg) + ' из ' + f0(nKg) + (v.tolKg ? ' (+' + f0(v.tolKg) + ')' : ''),
           cbmPct: Math.min(100, t.cbm / nM3 * 100).toFixed(0) + '%', kgPct: Math.min(100, t.kg / nKg * 100).toFixed(0) + '%',
@@ -1696,7 +1696,7 @@ class Component extends DCLogic {
             .map(([lb, v, x]) => ({ l: lb.trim(), v, pct: Math.min(100, x * 100).toFixed(0) + '%', bar: barCol(x), color: over(x) ? '#c0392b' : 'inherit' }));
           out.vizCg = l.cg != null && n ? 'Центр тяжести груза: ' + f1(l.cg, 1) + ' м от кабины (' + pct(l.cg / l.body.l) + ' длины кузова)' : '';
           out.vizHasOver = l.overM3 > 0;
-          out.vizOver = 'Сверх кузова ' + f1(l.overM3, 1) + ' м³ — показано ' + (l.body.flat ? 'за задним бортом' : 'за дверями') + ' полупрозрачным.' + (M.key !== 'C' && l.kind === 'gazel' ? ' Это допуск Gazel.' : '');
+          out.vizOver = 'Сверх кузова ' + f1(l.overM3, 1) + ' м³ — показано ' + (l.body.flat ? 'за задним бортом' : 'за дверями') + ' полупрозрачным.' + (M.key === 'B' && l.kind === 'gazel' ? ' В плане B это допуск Gazel.' : '');
           out.vizStepMax = n; out.vizStep = step;
           out.onVizStep = e => this.setState({ vizStep: +e.target.value, vizSel: null });
           out.vizPrev = () => this.setState({ vizStep: Math.max(0, step - 1), vizSel: null });

@@ -113,7 +113,8 @@
   // places and number of points. A shipment bigger than the largest vehicle is split into parts.
   // Among vehicles that fit, the cheapest by tariff wins. In plans A and B Kamaz (and any vehicle without
   // a tariff) carries only cargo that fits no regular vehicle: Gazel first, Kamaz only when it does not fit.
-  // Plans A and B may load a Gazel above its body by a tolerance (bTolM3 / bTolKg), so Kamaz there only takes cargo bigger than that.
+  // Plan B may load a Gazel above its body by a tolerance (bTolM3 / bTolKg), so Kamaz there only takes cargo bigger than that.
+  // Plan A keeps every vehicle within its body: Gazel up to gazelM3 / gazelKg.
   const EPS = 1e-6, UNPRICED = 1e8, KM_COST = 1000;
   const known = s => (s.cbm || 0) > 0 || (s.kg || 0) > 0;
   function fleetOf(S, kinds, opt = {}) {
@@ -414,9 +415,9 @@
       return { trips: finish(build(items, fleet)), splits, fleet };
     };
     const ab = S.smartLabo !== 0 ? ['labo', 'gazel', 'kamaz'] : ['gazel', 'kamaz'];
-    const tol = { gazel: { m3: S.bTolM3, kg: S.bTolKg } };   // допуск Gazel — в планах A и B
-    const A = plan(ab, (items, fleet) => cheapest(items, fleet, S.aMaxStops || 99, S, depot), { onlyIfNeeded: ['kamaz'], tol });
-    const B = plan(ab, (items, fleet) => consolidate(items, fleet, S.bcMaxStops || 99, S, depot, evaluator(items, fleet, S.bcMaxStops || 99, S, depot).ev), { onlyIfNeeded: ['kamaz'], tol });
+    const A = plan(ab, (items, fleet) => cheapest(items, fleet, S.aMaxStops || 99, S, depot), { onlyIfNeeded: ['kamaz'] });   // строго по кузову
+    const B = plan(ab, (items, fleet) => consolidate(items, fleet, S.bcMaxStops || 99, S, depot, evaluator(items, fleet, S.bcMaxStops || 99, S, depot).ev),
+      { onlyIfNeeded: ['kamaz'], tol: { gazel: { m3: S.bTolM3, kg: S.bTolKg } } });   // Gazel с допуском
     const C = plan(['kamaz'], (items, fleet) => kamazRuns(items, fleet, S, depot));
     const sum = trips => {
       const priced = trips.filter(t => t.price.total != null), n = k => trips.filter(t => t.kind === k).length;
