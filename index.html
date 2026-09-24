@@ -780,6 +780,7 @@ class Component extends DCLogic {
       if (!(window.XlsxIO && window.LOGI_TEMPLATE_B64 && window.LogiEngine)) return setTimeout(tick, 60);
       try {
         const { tpl, data: fresh } = await window.XlsxIO.parse(window.XlsxIO.b64ToBuf(window.LOGI_TEMPLATE_B64));
+        if (!fresh.settings.baseIncludesPts) this.firstPointRule(fresh);
         this.tpl = tpl; this.fresh = fresh;
         let data = null;
         try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) {}
@@ -787,6 +788,8 @@ class Component extends DCLogic {
         if (!data || !data.shipments) data = JSON.parse(JSON.stringify(fresh));
         ['ring', 'lists', 'notes', 'warehouses'].forEach(k => { if (!data[k]) data[k] = fresh[k]; });
         data.settings = Object.assign({}, fresh.settings, data.settings || {});
+        let ptsFix = false; try { ptsFix = localStorage.getItem('logi-base-pts-v1') === '1'; } catch (e) {}
+        if (!ptsFix) { this.firstPointRule(data); try { localStorage.setItem('logi-base-pts-v1', '1'); } catch (e) {} }
         this.setReady(data);
         let gsu = null; try { gsu = localStorage.getItem('logi-gs-url'); } catch (e) {}
         if (gsu) this.gsStart(gsu, localStorage.getItem('logi-gs-token') || '');
@@ -794,6 +797,13 @@ class Component extends DCLogic {
       } catch (e) { this.setState({ loadError: String(e.message || e) }); }
     };
     tick();
+  }
+  // Первая точка входит в базовую цену рейса, доплата со второй (Sozlamalar B52 = 1).
+  // Во встроенном Excel и в данных, сохранённых на устройствах до этого правила, стоит 0:
+  // встроенные данные исправляются при каждой загрузке, сохранённые — один раз.
+  firstPointRule(d) {
+    d.settings.baseIncludesPts = 1;
+    d.notes = (d.notes || []).map(s => ({ ...s, items: s.items.filter(i => !/bazaviy narxga kiradimi/i.test(i.what)) }));
   }
   kelesFix(data) {
     let done = false; try { done = localStorage.getItem('logi-ring-v4') === '1'; } catch (e) {}
@@ -1150,9 +1160,9 @@ class Component extends DCLogic {
     const S = this.state.data.settings;
     const F = (key, label, unit, hint, type) => ({ key, label, unit: unit || '', hint: hint || '', type: type || 'number', value: S[key] ?? '' });
     return [
-      { title: 'Gazel', fields: [F('gazelBase', 'Базовая цена рейса', 'сум'), F('gazelHeavy', 'Базовая цена — тяжёлый груз', 'сум'), F('gazelHeavyKg', 'Порог тяжёлого груза', 'кг', 'Если вес рейса больше — тяжёлый тариф'), F('gazelPtIn', '1 точка внутри кольца', 'сум'), F('gazelPtOut', '1 точка снаружи кольца', 'сум')] },
+      { title: 'Gazel', fields: [F('baseIncludesPts', 'Точек в базовой цене', 'шт', '1 — первая точка входит в базу, доплата со 2-й; 0 — платная каждая. Для всех машин'), F('gazelBase', 'Базовая цена рейса', 'сум'), F('gazelHeavy', 'Базовая цена — тяжёлый груз', 'сум'), F('gazelHeavyKg', 'Порог тяжёлого груза', 'кг', 'Если вес рейса больше — тяжёлый тариф'), F('gazelPtIn', '1 точка внутри кольца', 'сум'), F('gazelPtOut', '1 точка снаружи кольца', 'сум')] },
       { title: 'Labo', fields: [F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём кузова', 'м³', 'Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг')] },
-      { title: 'Kamaz (план C)', fields: [F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — план C без цены'), F('kamazPt', '1 точка', 'сум'), F('baseIncludesPts', 'Точек включено в базу', 'шт', '0 — каждая точка платная; 1 — первая в базе')] },
+      { title: 'Kamaz (план C)', fields: [F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — план C без цены'), F('kamazPt', '1 точка', 'сум')] },
       { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), F('depotLat', 'Широта', '°', 'Внимание: в Excel помечено как примерное'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
       { title: 'Машины для планов', fields: [F('isuzuM3', 'Isuzu — объём (A, B)', 'м³'), F('isuzuKg', 'Isuzu — грузоподъёмность', 'кг'), F('cM3', 'Большая машина — объём (C)', 'м³'), F('cKg', 'Большая машина — грузоподъёмность', 'кг'), F('cTrucks', 'Больших машин', 'шт'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения')] },
       { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Мелкие грузы едут вместе в первой машине'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), { ...F('smartLabo', 'Авто-подбор Labo в планах A и B', '', '1 — вкл, 0 — выкл. Лёгкие части рейса едут на Labo, если дешевле'), value: S.smartLabo ?? 1 }] }

@@ -1,5 +1,6 @@
 /* Service worker: сайт открывается и работает без интернета.
-   Данные приложения живут в localStorage, здесь кэшируются только файлы сайта.
+   Данные приложения живут в localStorage, здесь кэшируются только файлы сайта
+   (данные для входа — только зашифрованный data/vault.json).
    BUILD подставляется при деплое (см. .github/workflows/pages.yml) — новая сборка
    получает новый кэш, старый удаляется. Запросы на другие домены (плитки карты,
    Google Таблица) не перехватываются. */
@@ -67,16 +68,11 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // Страница: сначала сеть (чтобы сразу получать обновления), без сети — из кэша.
+  // Страница — из кэша той же сборки, что и остальные файлы (иначе новая страница может
+  // встретиться со старыми скриптами и данными). Новая сборка ставится в фоне и
+  // включается со следующего открытия.
   if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req)
-        .then(res => {
-          if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put('index.html', copy)); }
-          return res;
-        })
-        .catch(() => caches.match('index.html'))
-    );
+    event.respondWith(caches.match('index.html').then(hit => hit || fetch(req)));
     return;
   }
 

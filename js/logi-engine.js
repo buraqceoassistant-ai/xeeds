@@ -65,8 +65,8 @@
     stops.forEach((s, i) => {
       if (seen[s.bl] != null) { pts.push({ dup: seen[s.bl] }); return; }
       seen[s.bl] = i; idx++;
-      const t = idx <= inc ? 0 : (s.zone === 'out' ? ptOut : ptIn);
-      pts.push({ tariff: t, zone: s.zone });
+      const w = s.zone === 'out' ? ptOut : ptIn;
+      pts.push({ tariff: idx <= inc ? 0 : w, weight: w, zone: s.zone });
     });
     const uniq = pts.filter(p => p.dup == null);
     const total = base + uniq.reduce((a, p) => a + p.tariff, 0);
@@ -74,13 +74,14 @@
     let formula = Math.round(base / 1000) + '';
     if (nIn) formula += ' + ' + nIn + '×' + Math.round(ptIn / 1000);
     if (nOut) formula += ' + ' + nOut + '×' + Math.round(ptOut / 1000);
-    // share: proportional to point tariff; duplicates split their point by cbm
-    const sumT = uniq.reduce((a, p) => a + p.tariff, 0) || uniq.length || 1;
+    // share: proportional to the zone tariff of the point (also for points included in the base,
+    // so the first client does not get a zero share); duplicates split their point by cbm
+    const sumW = uniq.reduce((a, p) => a + p.weight, 0);
     const perStop = stops.map(() => 0);
     stops.forEach((s, i) => {
       const p = pts[i]; if (p.dup != null) return;
       const group = stops.map((x, j) => j).filter(j => j === i || pts[j].dup === i);
-      const pointShare = total * ((sumT === uniq.length && !uniq.some(u => u.tariff)) ? 1 / uniq.length : p.tariff / sumT);
+      const pointShare = total * (sumW ? p.weight / sumW : 1 / uniq.length);
       const gc = group.reduce((a, j) => a + (stops[j].cbm || 0), 0);
       group.forEach(j => { perStop[j] = gc ? pointShare * (stops[j].cbm || 0) / gc : pointShare / group.length; });
     });
