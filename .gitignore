@@ -1,0 +1,9 @@
+# Открытые данные никогда не коммитим — только зашифрованный data/vault.json
+*.xlsx
+*.xls
+*.csv
+credentials*
+.env*
+
+node_modules/
+.DS_Store

@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="ru" class="locked">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Логистика — отгрузки и клиенты</title>
+<meta name="description" content="Журнал отгрузок, клиенты, карта точек, планы маршрутов и тарифы. Работает с Excel и Google Таблицей.">
+<meta name="theme-color" content="#0e2e54">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Логистика">
+<link rel="stylesheet" href="css/design-system.css">
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/mobile.css">
+<!-- dc-runtime берёт React из window, а не с CDN; пустая карта ресурсов отключает повторную загрузку страницы -->
+<script>window.__resources = {};</script>
+<script defer src="js/vendor/react.production.min.js"></script>
+<script defer src="js/vendor/react-dom.production.min.js"></script>
+<script defer src="js/dc-runtime.js"></script>
+<script defer src="js/logi-engine.js"></script>
+<script defer src="js/xlsx-io.js"></script>
+<script defer src="js/logi-gs-script.js"></script>
+<script defer src="js/auth.js"></script>
+<script defer src="js/app-shell.js"></script>
+</head>
+<body>
+<noscript><div style="padding:40px;text-align:center">Для работы сайта нужен JavaScript.</div></noscript>
+<!-- Вход: данные расшифровываются только после правильного логина и пароля (js/auth.js) -->
+<div id="auth" class="auth" data-state="checking">
+  <form id="auth-form" class="auth-card" autocomplete="on" novalidate>
+    <div class="auth-logo" role="img" aria-label="BURAQ logistics"></div>
+    <h1 class="auth-title">Вход</h1>
+    <p class="auth-sub">Логистика — отгрузки и клиенты</p>
+    <div class="field"><label for="auth-login">Логин</label><input class="input" id="auth-login" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
+    <div class="field"><label for="auth-pass">Пароль</label><input class="input" id="auth-pass" name="password" type="password" autocomplete="current-password"></div>
+    <label class="auth-remember"><input type="checkbox" id="auth-remember" checked> Запомнить на этом устройстве</label>
+    <div id="auth-error" class="auth-error" role="alert"></div>
+    <button id="auth-submit" class="btn btn-primary btn-block" type="submit">Войти</button>
+    <p class="auth-note">Данные зашифрованы и открываются только после входа.</p>
+  </form>
+  <div class="auth-wait">Открываю данные…</div>
+</div>
+<x-dc>
+<div class="app" style="min-height:100vh;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);font-size:14px">
+  <header class="app-header" style="position:sticky;top:0;z-index:1000;background:var(--color-bg);border-bottom:1px solid var(--color-divider)">
+    <div class="app-bar" style="max-width:1560px;margin:0 auto;display:flex;align-items:stretch;gap:20px;padding:0 20px;height:56px;overflow:hidden">
+      <div class="app-brand" style="display:flex;align-items:center;gap:10px;position:relative;flex:none">
+        <div class="app-logo" role="img" aria-label="BURAQ logistics" style="width:143px;height:73px;background:url(img/logo.png) center / cover no-repeat;border-radius:85px"></div>
+      </div>
+      <nav class="app-tabs" style="display:flex;align-items:stretch;gap:4px;margin-left:12px">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="6">
+          <button sc-camel-on-click="{{ t.go }}" style="background:none;border:0;border-bottom:2px solid {{ t.border }};padding:0 12px;font-family:var(--font-heading);font-weight:600;font-size:15px;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;color:{{ t.color }};cursor:pointer" style-hover="color:var(--color-accent)">{{ t.label }}</button>
+        </sc-for>
+      </nav>
+      <button class="app-logout" sc-camel-on-click="{{ logout }}" title="Выйти и удалить данные с этого устройства">Выйти</button>
+    </div>
+    <sc-if value="{{ showStrip }}" hint-placeholder-val="{{ true }}">
+    <div style="border-top:1px solid var(--color-divider);background:var(--color-surface)">
+      
+    <div class="app-strip" style="max-width:1560px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:6px 20px;min-height:44px">
+        <div style="width:8px;height:8px;border:1.5px solid var(--color-accent-700);background:{{ fileDot }}"></div>
+        <div style="display:flex;flex-direction:column;line-height:1.25;min-width:0;flex:1 1 200px">
+          <span style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fileTitle }}</span>
+          <span style="font-size:12px;color:{{ fileNoteColor }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fileNote }}</span>
+        </div>
+        <div class="app-strip-actions" style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:0 0 auto">
+          <sc-if value="{{ gsErr }}"><button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ gsRetry }}">Отправить снова</button></sc-if>
+          <sc-if value="{{ gsMode }}"><button class="btn btn-ghost" style="white-space:nowrap" sc-camel-on-click="{{ gsPullNow }}">Обновить из таблицы</button></sc-if>
+          <button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ openGs }}">{{ gsLabel }}</button>
+          <sc-if value="{{ fileErr }}"><button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ saveNow }}">Записать снова</button></sc-if>
+          <sc-if value="{{ showReload }}"><button class="btn btn-ghost" style="white-space:nowrap" sc-camel-on-click="{{ reloadFromFile }}" title="Прочитать изменения, сделанные в самом Excel">Обновить из файла</button></sc-if>
+          <sc-if value="{{ showConnect }}"><button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ connectFile }}">{{ connectLabel }}</button></sc-if>
+          <sc-if value="{{ showDisconnect }}"><button class="btn btn-ghost" style="white-space:nowrap" sc-camel-on-click="{{ disconnectFile }}">Отключить</button></sc-if>
+          <button class="btn btn-primary blueprint" style="white-space:nowrap" sc-camel-on-click="{{ exportXlsx }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ exportLabel }}</button>
+          <input type="file" accept=".xlsx" ref="{{ fileInputRef }}" sc-camel-on-change="{{ onFilePicked }}" style="display:none">
+        </div>
+      </div></div>
+    </sc-if>
+  </header>
+  <sc-if value="{{ hasLoadError }}"><div style="padding:40px;text-align:center;color:var(--color-accent-900)">{{ loadError }}</div></sc-if>
+
+  <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:80px;text-align:center;color:var(--color-neutral-700)">Загрузка данных…</div>
+  </sc-if>
+
+  <sc-if value="{{ isJournal }}" hint-placeholder-val="{{ true }}">
+    <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;position:relative">
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+        <div>
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Yuborishlar</div>
+          <h1 style="margin:2px 0 0;font-size:38px">Журнал отгрузок</h1>
+        </div>
+        <div class="page-tools" style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <sc-raw-select class="input" style="width:170px" value="{{ jDate }}" sc-camel-on-change="{{ onJDate }}">
+            <sc-for list="{{ jDateOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
+          </sc-raw-select>
+          <sc-raw-select class="input" style="width:190px" value="{{ jStatus }}" sc-camel-on-change="{{ onJStatus }}">
+            <option value="all">Все статусы</option>
+            <sc-for list="{{ statusOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
+          </sc-raw-select>
+          <input class="input" style="width:240px" placeholder="Поиск: BL, клиент, телефон…" value="{{ jSearch }}" sc-camel-on-change="{{ onJSearch }}">
+          <button class="btn btn-primary blueprint" style="white-space:nowrap" sc-camel-on-click="{{ newShipment }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>+ Добавить отгрузку</button>
+        </div>
+      </div>
+
+      <div class="kpi-strip" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--color-divider);margin-bottom:20px">
+        <sc-for list="{{ jStats }}" as="k" hint-placeholder-count="6">
+          <div style="padding:14px 16px;border-right:1px solid var(--color-divider)">
+            <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div>
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:26px;margin-top:2px">{{ k.value }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="overflow-x:auto;border:1px solid var(--color-divider)">
+        <sc-raw-table class="table tc" style="min-width:1400px">
+          <sc-raw-thead><sc-raw-tr>
+            <sc-raw-th>Дата</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">KG</sc-raw-th><sc-raw-th style="text-align:right">Мест</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Рейс №</sc-raw-th><sc-raw-th>Статус</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Доля, сум</sc-raw-th><sc-raw-th></sc-raw-th>
+          </sc-raw-tr></sc-raw-thead>
+          <sc-raw-tbody>
+            <sc-for list="{{ jRows }}" as="r" hint-placeholder-count="12">
+              <sc-raw-tr>
+                <sc-raw-td class="c2 o-1" style="white-space:nowrap;color:var(--color-neutral-700)">{{ r.date }}</sc-raw-td>
+                <sc-raw-td class="c2 o-1 c-strong" style="white-space:nowrap;font-weight:500">{{ r.bl }}</sc-raw-td>
+                <sc-raw-td class="cw c-title"><div style="font-weight:500">{{ r.brand }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ r.name }}</div></sc-raw-td>
+                <sc-raw-td data-label="Район" style="white-space:nowrap">{{ r.district }}</sc-raw-td>
+                <sc-raw-td data-label="Получатель"><div>{{ r.receiver }}</div><a href="{{ r.telHref }}" style="font-size:12px;white-space:nowrap">{{ r.tel }}</a></sc-raw-td>
+                <sc-raw-td class="c2" data-label="CBM" style="text-align:right;font-variant-numeric:tabular-nums">{{ r.cbm }}</sc-raw-td>
+                <sc-raw-td class="c2" data-label="KG" style="text-align:right;font-variant-numeric:tabular-nums">{{ r.kg }}</sc-raw-td>
+                <sc-raw-td class="c2" data-label="Мест" style="text-align:right;font-variant-numeric:tabular-nums">{{ r.places }}</sc-raw-td>
+                <sc-if value="{{ r.editing }}">
+                  <sc-raw-td data-label="Машина"><sc-raw-select class="input" style="min-height:30px;padding:3px 6px;font-size:13px;width:130px" value="{{ r.truck }}" sc-camel-on-change="{{ r.onTruck }}"><sc-for list="{{ truckOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></sc-raw-td>
+                  <sc-raw-td data-label="Рейс №"><input class="input" type="number" min="1" style="min-height:30px;padding:3px 6px;font-size:13px;width:64px" value="{{ r.route }}" sc-camel-on-change="{{ r.onRoute }}"></sc-raw-td>
+                  <sc-raw-td class="cw" data-label="Статус"><div style="display:flex;gap:4px;align-items:center"><sc-raw-select class="input" style="min-height:30px;padding:3px 6px;font-size:13px;width:150px" value="{{ r.status }}" sc-camel-on-change="{{ r.onStatus }}"><sc-for list="{{ statusOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select><button class="btn btn-ghost" sc-camel-on-click="{{ r.onDone }}">Готово</button></div></sc-raw-td>
+                </sc-if>
+                <sc-if value="{{ r.notEditing }}">
+                  <sc-raw-td class="c2" data-label="Машина"><button sc-camel-on-click="{{ r.onStartEdit }}" title="Нажмите, чтобы изменить" style="background:none;border:1px dashed var(--color-divider);padding:4px 8px;font:inherit;font-size:13px;color:inherit;cursor:pointer;white-space:nowrap" style-hover="border-color:var(--color-accent)">{{ r.truckLabel }}</button></sc-raw-td>
+                  <sc-raw-td class="c2" data-label="Рейс №"><button sc-camel-on-click="{{ r.onStartEdit }}" style="background:none;border:1px dashed var(--color-divider);padding:4px 8px;font:inherit;font-size:13px;color:inherit;cursor:pointer;min-width:40px" style-hover="border-color:var(--color-accent)">{{ r.routeLabel }}</button></sc-raw-td>
+                  <sc-raw-td class="c2" data-label="Статус"><button sc-camel-on-click="{{ r.onStartEdit }}" style="background:none;border:1px dashed var(--color-divider);padding:4px 8px;font:inherit;font-size:13px;color:inherit;cursor:pointer;white-space:nowrap" style-hover="border-color:var(--color-accent)">{{ r.statusLabel }}</button></sc-raw-td>
+                </sc-if>
+                <sc-raw-td class="c2 o-1 c-end" style="white-space:nowrap">
+                  <sc-if value="{{ r.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
+                  <sc-if value="{{ r.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
+                  <sc-if value="{{ r.zNone }}"><span class="tag tag-neutral">Нет коорд.</span></sc-if>
+                  <sc-if value="{{ r.border }}"><div style="font-size:11px;color:var(--color-neutral-700);margin-top:2px">у границы</div></sc-if>
+                </sc-raw-td>
+                <sc-raw-td data-label="Доля, сум" style="text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums"><div>{{ r.share }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ r.tripInfo }}</div></sc-raw-td>
+                <sc-raw-td class="c-actions c3" style="white-space:nowrap">
+                  <div style="display:flex;gap:4px">
+                    <sc-if value="{{ r.hasPoint }}"><a class="btn btn-ghost" href="{{ r.pointHref }}" target="_blank" title="Точка в Яндекс Картах" style="text-decoration:none">Карта</a></sc-if>
+                    <button class="btn btn-ghost" sc-camel-on-click="{{ r.onEdit }}">Изменить</button>
+                  </div>
+                </sc-raw-td>
+              </sc-raw-tr>
+            </sc-for>
+          </sc-raw-tbody>
+        </sc-raw-table>
+        <sc-if value="{{ jEmpty }}"><div style="padding:40px;text-align:center;color:var(--color-neutral-700)">Ничего не найдено</div></sc-if>
+        <sc-if value="{{ jHasMore }}"><div style="padding:14px;text-align:center;border-top:1px solid var(--color-divider)"><button class="btn btn-secondary" sc-camel-on-click="{{ jShowMore }}">{{ jMoreLabel }}</button></div></sc-if>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isClients }}" hint-placeholder-val="{{ false }}">
+    <main class="page" style="max-width:1560px;margin:0 auto;padding:28px">
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+        <div>
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Mijozlar</div>
+          <h1 style="margin:2px 0 0;font-size:38px">Клиенты</h1>
+        </div>
+        <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:8px">{{ cCount }}</div>
+        <div class="page-tools" style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <sc-raw-select class="input" style="width:190px" value="{{ cDistrict }}" sc-camel-on-change="{{ onCDistrict }}">
+            <option value="all">Все районы</option>
+            <sc-for list="{{ districtOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
+          </sc-raw-select>
+          <sc-raw-select class="input" style="width:170px" value="{{ cZone }}" sc-camel-on-change="{{ onCZone }}">
+            <option value="all">Любая зона</option>
+            <option value="in">Внутри кольца</option>
+            <option value="out">Снаружи кольца</option>
+            <option value="none">Без координат</option>
+          </sc-raw-select>
+          <input class="input" style="width:240px" placeholder="Поиск: BL, бренд, имя, телефон…" value="{{ cSearch }}" sc-camel-on-change="{{ onCSearch }}">
+          <button class="btn btn-primary blueprint" style="white-space:nowrap" sc-camel-on-click="{{ newClient }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>+ Добавить клиента</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;border:1px solid var(--color-divider)">
+        <sc-raw-table class="table tc" style="min-width:1300px">
+          <sc-raw-thead><sc-raw-tr><sc-raw-th>BL</sc-raw-th><sc-raw-th>Бренд / имя</sc-raw-th><sc-raw-th>Телефоны</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Адрес склада</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Полнота</sc-raw-th><sc-raw-th style="text-align:right">Отгрузок</sc-raw-th><sc-raw-th style="text-align:right">CBM / KG всего</sc-raw-th><sc-raw-th>Посл. партия</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
+          <sc-raw-tbody>
+            <sc-for list="{{ cRows }}" as="r" hint-placeholder-count="12">
+              <sc-raw-tr>
+                <sc-raw-td class="o-1 c-strong" style="white-space:nowrap;font-weight:500">{{ r.bl }}</sc-raw-td>
+                <sc-raw-td class="cw c-title"><div style="font-weight:500">{{ r.brand }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ r.name }}</div></sc-raw-td>
+                <sc-raw-td data-label="Телефоны" style="white-space:nowrap"><div><a href="{{ r.tel1Href }}">{{ r.tel1 }}</a></div><div style="font-size:12px"><a href="{{ r.tel2Href }}">{{ r.tel2 }}</a></div></sc-raw-td>
+                <sc-raw-td data-label="Получатель"><div>{{ r.receiver }}</div><a href="{{ r.rtelHref }}" style="font-size:12px;white-space:nowrap">{{ r.rtel }}</a></sc-raw-td>
+                <sc-raw-td data-label="Район" style="white-space:nowrap">{{ r.district }}</sc-raw-td>
+                <sc-raw-td class="cw o1" data-label="Адрес склада" style="max-width:320px;font-size:12px;color:var(--color-neutral-800);text-wrap:pretty"><div>{{ r.address }}</div><div style="color:var(--color-accent-700);margin-top:2px">{{ r.whNote }}</div></sc-raw-td>
+                <sc-raw-td class="o-1 c-end" style="white-space:nowrap">
+                  <sc-if value="{{ r.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
+                  <sc-if value="{{ r.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
+                  <sc-if value="{{ r.zNone }}"><span class="tag tag-neutral">Нет коорд.</span></sc-if>
+                  <div style="font-size:11px;color:var(--color-neutral-700);margin-top:2px">{{ r.zoneNote }}</div>
+                </sc-raw-td>
+                <sc-raw-td data-label="Полнота" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><sc-if value="{{ r.complLow }}"><span class="tag tag-neutral">{{ r.compl }}</span></sc-if><sc-if value="{{ r.complOk }}">{{ r.compl }}</sc-if></sc-raw-td>
+                <sc-raw-td class="c2" data-label="Отгрузок" style="text-align:right;font-variant-numeric:tabular-nums">{{ r.count }}</sc-raw-td>
+                <sc-raw-td class="c2" data-label="Всего" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><div>{{ r.cbm }} м³</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ r.kg }} кг</div></sc-raw-td>
+                <sc-raw-td class="c2" data-label="Посл. партия" style="white-space:nowrap;color:var(--color-neutral-700)">{{ r.last }}</sc-raw-td>
+                <sc-raw-td class="c-actions o2" style="white-space:nowrap"><div style="display:flex;gap:4px">
+                  <sc-if value="{{ r.hasPoint }}"><a class="btn btn-ghost" href="{{ r.pointHref }}" target="_blank" style="text-decoration:none">Яндекс Карты</a></sc-if>
+                  <sc-if value="{{ r.hasLink }}"><a class="btn btn-ghost" href="{{ r.link }}" target="_blank" title="Ссылка на локацию из Excel" style="text-decoration:none">Локация</a></sc-if>
+                  <button class="btn btn-ghost" sc-camel-on-click="{{ r.onEdit }}">Изменить</button>
+                </div></sc-raw-td>
+              </sc-raw-tr>
+            </sc-for>
+          </sc-raw-tbody>
+        </sc-raw-table>
+      </div>
+
+      <section style="margin-top:32px">
+        <div class="page-head" style="display:flex;align-items:flex-end;gap:14px;margin-bottom:12px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Qoshimcha omborlar</div>
+            <h2 style="margin:2px 0 0;font-size:28px">Дополнительные склады</h2>
+          </div>
+          <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:5px">{{ whCount }} · если у клиента несколько складов</div>
+          <button class="btn btn-secondary" style="margin-left:auto" sc-camel-on-click="{{ newWh }}">+ Добавить склад</button>
+        </div>
+        <div style="overflow-x:auto;border:1px solid var(--color-divider)">
+          <sc-raw-table class="table tc">
+            <sc-raw-thead><sc-raw-tr><sc-raw-th>BL</sc-raw-th><sc-raw-th>Бренд</sc-raw-th><sc-raw-th>Склад</sc-raw-th><sc-raw-th>Координаты</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">До кольца</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
+            <sc-raw-tbody>
+              <sc-for list="{{ whRows }}" as="w" hint-placeholder-count="4">
+                <sc-raw-tr>
+                  <sc-raw-td class="c-strong" style="font-weight:500;white-space:nowrap">{{ w.bl }}</sc-raw-td>
+                  <sc-raw-td data-label="Бренд">{{ w.brand }}</sc-raw-td>
+                  <sc-raw-td class="cw" data-label="Склад">{{ w.name }}</sc-raw-td>
+                  <sc-raw-td class="cw" data-label="Координаты" style="white-space:nowrap;font-variant-numeric:tabular-nums">{{ w.coord }}</sc-raw-td>
+                  <sc-raw-td data-label="Зона">
+                    <sc-if value="{{ w.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
+                    <sc-if value="{{ w.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
+                    <sc-if value="{{ w.zNone }}"><span class="tag tag-neutral">Нет коорд.</span></sc-if>
+                  </sc-raw-td>
+                  <sc-raw-td data-label="До кольца" style="text-align:right;white-space:nowrap">{{ w.dist }}</sc-raw-td>
+                  <sc-raw-td class="c-actions" style="white-space:nowrap"><div style="display:flex;gap:4px">
+                    <sc-if value="{{ w.hasPoint }}"><a class="btn btn-ghost" href="{{ w.pointHref }}" target="_blank" style="text-decoration:none">Яндекс Карты</a></sc-if>
+                    <button class="btn btn-ghost" sc-camel-on-click="{{ w.onEdit }}">Изменить</button>
+                  </div></sc-raw-td>
+                </sc-raw-tr>
+              </sc-for>
+            </sc-raw-tbody>
+          </sc-raw-table>
+        </div>
+      </section>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isCheck }}" hint-placeholder-val="{{ false }}">
+    <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:24px">
+      <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Tekshirish</div>
+          <h1 style="margin:2px 0 0;font-size:38px">Проверка данных</h1>
+        </div>
+        <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:8px;max-width:560px;text-wrap:pretty">Считается заново при каждом изменении. Нажмите на BL, чтобы исправить.</div>
+      </div>
+      <div class="grid-2" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px">
+        <section class="blueprint" style="padding:18px 20px;display:flex;flex-direction:column;gap:8px">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><h3 style="margin:0">Координаты склада отправки</h3><span class="tag tag-neutral">примерные</span></div>
+          <div style="font-size:14px;font-variant-numeric:tabular-nums">{{ depotInfo }}</div>
+          <div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">В Excel помечено как примерное: координата на севере города, а Chuqursoy — на западе. От неё считаются все расстояния, время и стоимость.</div>
+          <div style="display:flex;gap:8px"><a class="btn btn-ghost" href="{{ depotHref }}" target="_blank" style="text-decoration:none">Открыть на карте</a><button class="btn btn-secondary" sc-camel-on-click="{{ goTariffs }}">Исправить</button></div>
+        </section>
+        <sc-if value="{{ kamazMissing }}">
+          <section class="blueprint" style="padding:18px 20px;display:flex;flex-direction:column;gap:8px">
+            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <h3 style="margin:0">Нет тарифа Kamaz</h3>
+            <div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">План C и рейсы Kamaz в журнале считаются без цены.</div>
+            <div><button class="btn btn-secondary" sc-camel-on-click="{{ goTariffs }}">Заполнить тариф</button></div>
+          </section>
+        </sc-if>
+      </div>
+      <div style="border:1px solid var(--color-divider)">
+        <sc-for list="{{ checks }}" as="c" hint-placeholder-count="8">
+          <div class="check-row" style="display:grid;grid-template-columns:minmax(220px,300px) 70px minmax(0,1fr);gap:18px;padding:14px 18px;border-bottom:1px solid var(--color-divider);align-items:start">
+            <div>
+              <div style="font-weight:600;font-size:15px">{{ c.title }}</div>
+              <div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty;margin-top:2px">{{ c.desc }}</div>
+            </div>
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:28px;line-height:1;text-align:right">
+              <sc-if value="{{ c.warn }}"><span style="color:var(--color-accent-900)">{{ c.value }}</span></sc-if>
+              <sc-if value="{{ c.info }}"><span>{{ c.value }}</span></sc-if>
+              <sc-if value="{{ c.ok }}"><span style="color:var(--color-accent-700);font-size:18px">OK</span></sc-if>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+              <sc-for list="{{ c.items }}" as="i">
+                <button sc-camel-on-click="{{ i.go }}" title="{{ i.sub }}" style="border:1px solid var(--color-divider);background:var(--color-bg);padding:3px 8px;font:inherit;font-size:12px;color:inherit;cursor:pointer;display:flex;gap:6px" style-hover="border-color:var(--color-accent)"><span style="font-weight:600">{{ i.label }}</span><span style="color:var(--color-neutral-700);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ i.sub }}</span></button>
+              </sc-for>
+              <span style="font-size:12px;color:var(--color-neutral-700)">{{ c.more }}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ hasFileNotes }}">
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <sc-for list="{{ fileNotes }}" as="s">
+            <section>
+              <h3 style="margin:0 0 4px">Замечания из файла · {{ s.title }}</h3>
+              <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:10px">Лист «O‘zgarishlar», как в Excel</div>
+              <div style="border:1px solid var(--color-divider)">
+                <sc-for list="{{ s.items }}" as="i">
+                  <div class="note-row" style="display:grid;grid-template-columns:32px minmax(180px,280px) minmax(0,1fr);gap:14px;padding:10px 16px;border-bottom:1px solid var(--color-divider);font-size:13px">
+                    <span style="color:var(--color-neutral-700)">{{ i.n }}</span>
+                    <span style="font-weight:500">{{ i.what }}</span>
+                    <span style="color:var(--color-neutral-800);text-wrap:pretty">{{ i.why }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </section>
+          </sc-for>
+        </div>
+      </sc-if>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isMap }}" hint-placeholder-val="{{ false }}">
+    <main class="map-layout" style="display:grid;grid-template-columns:340px minmax(0,1fr);height:calc(100vh - {{ mapTopOffset }})">
+      <aside class="map-aside" style="border-right:1px solid var(--color-divider);padding:24px;overflow:auto;display:flex;flex-direction:column;gap:18px">
+        <div>
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Xarita</div>
+          <h1 style="margin:2px 0 0;font-size:34px">Карта точек</h1>
+        </div>
+        <div class="field"><label>Что показать</label>
+          <sc-raw-select class="input" value="{{ mapDate }}" sc-camel-on-change="{{ onMapDate }}">
+            <option value="all">Все клиенты</option>
+            <sc-for list="{{ dateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for>
+          </sc-raw-select>
+        </div>
+        <div class="field"><label>Подложка карты</label>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--color-divider)">
+            <sc-for list="{{ mapBaseOpts }}" as="o" hint-placeholder-count="4">
+              <button sc-camel-on-click="{{ o.go }}" style="border:0;border-right:1px solid var(--color-divider);padding:8px 0;font-size:13px;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <sc-if value="{{ mapHasDate }}">
+          <div class="field"><label>Маршруты плана</label>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--color-divider)">
+              <sc-for list="{{ mapPlanOpts }}" as="o">
+                <button sc-camel-on-click="{{ o.go }}" style="border:0;border-right:1px solid var(--color-divider);padding:8px 0;font-size:13px;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+        <div style="display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--color-divider)">
+          <sc-for list="{{ mapStats }}" as="k">
+            <div style="padding:10px 12px;border-bottom:1px solid var(--color-divider)">
+              <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div>
+              <div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ k.value }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;border-radius:50%;border:2px solid var(--color-accent);background:var(--color-bg)"></span>Внутри кольцевой (ТКАД)</div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;border-radius:50%;background:var(--color-accent-900)"></span>Снаружи кольцевой</div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:12px;height:12px;border:2px solid var(--color-text);transform:rotate(45deg)"></span>Склад отправки</div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border:2px solid var(--color-accent-900);background:var(--color-accent-200)"></span>Доп. склад клиента</div>
+          <div style="display:flex;align-items:center;gap:8px"><span style="width:18px;height:0;border-top:2px dashed var(--color-accent)"></span>Граница кольцевой</div>
+        </div>
+        <div class="field"><label>Зона большой кольцевой (ТКАД)</label>
+          <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:6px">{{ ringInfo }}</div>
+          <sc-if value="{{ ringNotEditing }}"><button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ ringEditStart }}">Редактировать границу</button></sc-if>
+          <sc-if value="{{ ringEditing }}">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="font-size:12px;color:var(--color-neutral-800);text-wrap:pretty">Совместите линию с кольцевой на карте Яндекса: тяните квадратные точки, клик по маленькой точке — добавить, двойной клик по точке — удалить.</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn btn-primary blueprint" style="white-space:nowrap" sc-camel-on-click="{{ ringSave }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Сохранить</button>
+                <button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ ringCancel }}">Отмена</button>
+                <sc-if value="{{ ringKelesMissing }}"><button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ ringAddKeles }}">Добавить Keles</button></sc-if>
+                <button class="btn btn-ghost" style="white-space:nowrap" sc-camel-on-click="{{ ringReset }}">Сбросить</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+        <sc-if value="{{ mapHasRoute }}">
+          <a class="btn btn-secondary" href="{{ mapRouteHref }}" target="_blank" style="text-decoration:none">Общий маршрут партии в Яндекс Картах</a>
+        </sc-if>
+        <sc-if value="{{ mapHasNoCoords }}">
+          <div>
+            <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700);margin-bottom:6px">Без координат — не на карте</div>
+            <sc-for list="{{ mapNoCoords }}" as="n">
+              <div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--color-divider);font-size:13px"><span style="font-weight:500">{{ n.bl }}</span><span style="color:var(--color-neutral-700);text-align:right">{{ n.name }}</span></div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </aside>
+      <div class="map-canvas" style="position:relative;min-height:400px">
+        <div style="position:absolute;inset:0;display:grid;place-items:center;color:var(--color-neutral-700);font-size:13px;background:var(--color-surface)">{{ mapLoadingText }}</div>
+        <div ref="{{ mapRef }}" style="position:absolute;inset:0"></div>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isDash }}" hint-placeholder-val="{{ false }}">
+    <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:28px">
+      <div>
+        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Boshqaruv paneli</div>
+        <h1 style="margin:2px 0 0;font-size:38px">Дашборд</h1>
+      </div>
+      <div class="kpi-cards" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:20px">
+        <sc-for list="{{ dKpis }}" as="k" hint-placeholder-count="6">
+          <div class="blueprint" style="padding:18px 18px 16px">
+            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div>
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1.1;margin-top:4px">{{ k.value }}</div>
+            <div style="font-size:12px;color:var(--color-neutral-700)">{{ k.sub }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div class="grid-split" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:28px;align-items:start">
+        <section>
+          <h3 style="margin:0 0 10px">Итоги по партиям</h3>
+          <div style="border:1px solid var(--color-divider);overflow-x:auto">
+            <sc-raw-table class="table tc">
+              <sc-raw-thead><sc-raw-tr><sc-raw-th>Партия</sc-raw-th><sc-raw-th style="text-align:right">Отгрузок</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">KG</sc-raw-th><sc-raw-th style="text-align:right">Мест</sc-raw-th><sc-raw-th style="text-align:right">Снаружи</sc-raw-th><sc-raw-th style="text-align:right">Без коорд.</sc-raw-th><sc-raw-th style="text-align:right">Без машины</sc-raw-th><sc-raw-th style="text-align:right">Стоимость (журнал)</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
+              <sc-raw-tbody>
+                <sc-for list="{{ dBatches }}" as="b" hint-placeholder-count="10">
+                  <sc-raw-tr>
+                    <sc-raw-td class="c3 o-1 c-strong" style="font-weight:500;white-space:nowrap">{{ b.label }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Отгрузок" style="text-align:right">{{ b.count }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="CBM" style="text-align:right">{{ b.cbm }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="KG" style="text-align:right">{{ b.kg }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Мест" style="text-align:right">{{ b.places }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Снаружи" style="text-align:right">{{ b.out }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Без коорд." style="text-align:right">{{ b.noc }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Без машины" style="text-align:right">{{ b.noTruck }}</sc-raw-td>
+                    <sc-raw-td class="c4" data-label="Стоимость (журнал)" style="text-align:right;white-space:nowrap">{{ b.price }}</sc-raw-td>
+                    <sc-raw-td class="c-actions c3 o-1" style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn btn-ghost" sc-camel-on-click="{{ b.openJ }}">Журнал</button><button class="btn btn-ghost" sc-camel-on-click="{{ b.openP }}">Планы</button></div></sc-raw-td>
+                  </sc-raw-tr>
+                </sc-for>
+              </sc-raw-tbody>
+            </sc-raw-table>
+          </div>
+        </section>
+        <section>
+          <h3 style="margin:0 0 10px">CBM по районам</h3>
+          <div style="border:1px solid var(--color-divider);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ dDistricts }}" as="d" hint-placeholder-count="10">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>{{ d.name }}</span><span style="color:var(--color-neutral-700);font-variant-numeric:tabular-nums">{{ d.cbm }} м³ · {{ d.count }}</span></div>
+                <div style="height:6px;background:var(--color-neutral-200)"><div style="height:6px;background:var(--color-accent);width:{{ d.pct }}"></div></div>
+              </div>
+            </sc-for>
+          </div>
+          <h3 style="margin:24px 0 10px">Статусы</h3>
+          <div style="border:1px solid var(--color-divider)">
+            <sc-for list="{{ dStatuses }}" as="s">
+              <div style="display:flex;justify-content:space-between;padding:9px 16px;border-bottom:1px solid var(--color-divider);font-size:14px"><span>{{ s.l }}</span><span style="font-weight:500">{{ s.n }}</span></div>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isPlans }}" hint-placeholder-val="{{ false }}">
+    <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:24px">
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Reja A / B / C</div>
+          <h1 style="margin:2px 0 0;font-size:38px">Планы маршрутов</h1>
+        </div>
+        <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:8px">{{ planSummary }}</div>
+        <div class="page-tools" style="margin-left:auto;display:flex;gap:10px;align-items:center">
+          <sc-raw-select class="input" style="width:200px" value="{{ planDate }}" sc-camel-on-change="{{ onPlanDate }}">
+            <sc-for list="{{ dateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for>
+          </sc-raw-select>
+          <a class="btn btn-secondary" href="{{ planRouteHref }}" target="_blank" style="text-decoration:none">Общий маршрут партии</a>
+          <button class="btn btn-secondary" sc-camel-on-click="{{ showPlanOnMap }}">Показать на карте</button>
+        </div>
+      </div>
+
+      <div class="plan-cards" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px">
+        <sc-for list="{{ planCards }}" as="p" hint-placeholder-count="3">
+          <button class="blueprint" sc-camel-on-click="{{ p.go }}" style="text-align:left;background:{{ p.bg }};color:inherit;font:inherit;padding:20px;cursor:pointer;display:flex;flex-direction:column;gap:12px;border-color:{{ p.border }}">
+            <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+              <div style="font-family:var(--font-heading);font-weight:600;font-size:24px">{{ p.title }}</div>
+              <sc-if value="{{ p.cheapest }}"><span class="tag tag-accent">самый дешёвый</span></sc-if>
+            </div>
+            <div style="font-size:13px;color:var(--color-neutral-800);text-wrap:pretty;min-height:40px">{{ p.desc }}</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--color-divider);padding-top:12px;gap:8px">
+              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Рейсов</div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ p.trips }}</div></div>
+              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Реальный км</div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ p.real }}</div></div>
+              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Снаружи</div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ p.outside }}</div></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--color-divider);padding-top:12px">
+              <span style="font-size:12px;color:var(--color-neutral-700)">Итого</span>
+              <span style="font-family:var(--font-heading);font-weight:600;font-size:26px">{{ p.price }}</span>
+            </div>
+            <div style="font-size:12px;color:var(--color-neutral-700);min-height:16px">{{ p.diff }}</div>
+          </button>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <sc-for list="{{ planTrips }}" as="t" hint-placeholder-count="3">
+          <section class="trip" style="border:1px solid var(--color-divider)">
+            <div class="trip-head" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
+              <div style="font-family:var(--font-heading);font-weight:600;font-size:22px;min-width:150px">{{ t.name }}</div>
+              <span class="tag tag-outline">{{ t.tariff }}</span>
+              <div style="display:flex;gap:18px;font-size:13px;flex-wrap:wrap">
+                <span>{{ t.stopsN }} точ.</span>
+                <span style="display:flex;align-items:center;gap:6px">{{ t.cbm }} м³<span style="display:inline-block;width:60px;height:5px;background:var(--color-neutral-300)"><span style="display:block;height:5px;width:{{ t.cbmPct }};background:var(--color-accent)"></span></span></span>
+                <span style="display:flex;align-items:center;gap:6px">{{ t.kg }} кг<span style="display:inline-block;width:60px;height:5px;background:var(--color-neutral-300)"><span style="display:block;height:5px;width:{{ t.kgPct }};background:var(--color-accent)"></span></span></span>
+                <span>{{ t.km }}</span>
+                <span>{{ t.time }}</span>
+              </div>
+              <div class="trip-price" style="margin-left:auto;display:flex;align-items:center;gap:16px">
+                <div style="text-align:right"><div style="font-family:var(--font-heading);font-weight:600;font-size:20px">{{ t.price }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ t.formula }}</div></div>
+                <a class="btn btn-primary blueprint" href="{{ t.yHref }}" target="_blank" style="text-decoration:none"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Открыть в Яндекс Картах</a>
+              </div>
+            </div>
+            <sc-raw-table class="table tc">
+              <sc-raw-thead><sc-raw-tr><sc-raw-th style="width:40px">№</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">KG</sc-raw-th><sc-raw-th style="text-align:right">Мест</sc-raw-th><sc-raw-th style="text-align:right">км</sc-raw-th><sc-raw-th>Прибытие</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Точка, сум</sc-raw-th></sc-raw-tr></sc-raw-thead>
+              <sc-raw-tbody>
+                <sc-for list="{{ t.stops }}" as="s">
+                  <sc-raw-tr>
+                    <sc-raw-td class="c1 o-1" style="color:var(--color-neutral-700)">{{ s.n }}</sc-raw-td>
+                    <sc-raw-td class="c3 o-1 c-strong" style="font-weight:500;white-space:nowrap"><a href="{{ s.pointHref }}" target="_blank">{{ s.bl }}</a></sc-raw-td>
+                    <sc-raw-td class="cw c-title"><div>{{ s.brand }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ s.name }}</div></sc-raw-td>
+                    <sc-raw-td data-label="Район">{{ s.district }}</sc-raw-td>
+                    <sc-raw-td data-label="Получатель"><div>{{ s.receiver }}</div><a href="{{ s.telHref }}" style="font-size:12px">{{ s.tel }}</a></sc-raw-td>
+                    <sc-raw-td class="c2" data-label="CBM" style="text-align:right">{{ s.cbm }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="KG" style="text-align:right">{{ s.kg }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Мест" style="text-align:right">{{ s.places }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="км" style="text-align:right">{{ s.leg }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Прибытие">{{ s.eta }}</sc-raw-td>
+                    <sc-raw-td class="c2 o-1 c-end">
+                      <sc-if value="{{ s.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
+                      <sc-if value="{{ s.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
+                    </sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Точка, сум" style="text-align:right">{{ s.pt }}</sc-raw-td>
+                  </sc-raw-tr>
+                </sc-for>
+              </sc-raw-tbody>
+            </sc-raw-table>
+          </section>
+        </sc-for>
+        <sc-if value="{{ planHasNoCoords }}">
+          <section style="border:1px dashed var(--color-neutral-500)">
+            <div style="padding:14px 18px;border-bottom:1px solid var(--color-divider)"><div style="font-family:var(--font-heading);font-weight:600;font-size:20px">Без координат — распределить вручную</div><div style="font-size:12px;color:var(--color-neutral-700)">Эти отгрузки не попали ни в один план и не входят в стоимость. Добавьте координаты клиенту.</div></div>
+            <sc-raw-table class="table tc"><sc-raw-tbody>
+              <sc-for list="{{ planNoCoords }}" as="s">
+                <sc-raw-tr><sc-raw-td class="c2 c-strong" style="font-weight:500;width:120px">{{ s.bl }}</sc-raw-td><sc-raw-td class="c4">{{ s.name }}</sc-raw-td><sc-raw-td class="c2" style="text-align:right">{{ s.cbm }} м³</sc-raw-td><sc-raw-td class="c2" style="text-align:right">{{ s.kg }} кг</sc-raw-td><sc-raw-td class="c2 c-actions" style="width:120px"><button class="btn btn-ghost" sc-camel-on-click="{{ s.onEdit }}">Клиент</button></sc-raw-td></sc-raw-tr>
+              </sc-for>
+            </sc-raw-tbody></sc-raw-table>
+          </section>
+        </sc-if>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isTariffs }}" hint-placeholder-val="{{ false }}">
+    <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:24px">
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Sozlamalar</div>
+          <h1 style="margin:2px 0 0;font-size:38px">Тарифы и расчёт цены</h1>
+        </div>
+        <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:8px;max-width:520px;text-wrap:pretty">Изменения сразу пересчитывают журнал, планы и дашборд.</div>
+        <button class="btn btn-secondary" style="margin-left:auto" sc-camel-on-click="{{ resetData }}">Сбросить к данным из Excel</button>
+      </div>
+      <div class="grid-split" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(320px,1fr);gap:28px;align-items:start">
+        <div class="grid-2" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px">
+          <sc-for list="{{ settingGroups }}" as="g" hint-placeholder-count="4">
+            <section class="blueprint" style="padding:18px 20px">
+              <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+              <h3 style="margin:0 0 12px">{{ g.title }}</h3>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{ g.fields }}" as="f">
+                  <div class="field" style="display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:10px;align-items:center">
+                    <label style="margin:0;font-size:13px">{{ f.label }}<span style="display:block;font-size:11px;color:var(--color-neutral-600)">{{ f.hint }}</span></label>
+                    <div style="display:flex;align-items:center;gap:6px"><input class="input" name="{{ f.key }}" type="{{ f.type }}" step="any" value="{{ f.value }}" sc-camel-on-change="{{ onSetting }}" style="text-align:right"><span style="font-size:11px;color:var(--color-neutral-700);width:28px">{{ f.unit }}</span></div>
+                  </div>
+                </sc-for>
+              </div>
+            </section>
+          </sc-for>
+        </div>
+        <aside class="blueprint calc-aside" style="padding:20px;position:sticky;top:80px;display:flex;flex-direction:column;gap:14px">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <h3 style="margin:0">Калькулятор рейса</h3>
+          <div class="field"><label>Машина</label>
+            <sc-raw-select class="input" name="kind" value="{{ calc.kind }}" sc-camel-on-change="{{ onCalc }}">
+              <option value="gazel">Gazel</option><option value="labo">Labo</option><option value="kamaz">Kamaz</option><option value="auto">Авто (по объёму/весу)</option>
+            </sc-raw-select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field"><label>Точек внутри</label><input class="input" type="number" min="0" name="nin" value="{{ calc.nin }}" sc-camel-on-change="{{ onCalc }}"></div>
+            <div class="field"><label>Точек снаружи</label><input class="input" type="number" min="0" name="nout" value="{{ calc.nout }}" sc-camel-on-change="{{ onCalc }}"></div>
+            <div class="field"><label>Вес рейса, кг</label><input class="input" type="number" min="0" name="kg" value="{{ calc.kg }}" sc-camel-on-change="{{ onCalc }}"></div>
+            <div class="field"><label>Объём, м³</label><input class="input" type="number" min="0" step="any" name="cbm" value="{{ calc.cbm }}" sc-camel-on-change="{{ onCalc }}"></div>
+          </div>
+          <div style="border-top:1px solid var(--color-divider);padding-top:14px">
+            <div style="font-size:12px;color:var(--color-neutral-700)">{{ calcRes.label }} · {{ calcRes.formula }}</div>
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:36px">{{ calcRes.total }}</div>
+          </div>
+          <div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty">Рейс = дата + машина + № рейса. Отменённые, «клиент забрал сам» и «осталось» в цену не входят. Одинаковый BL в рейсе — одна точка. Доля каждой отгрузки пропорциональна тарифу её точки.</div>
+        </aside>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isShipDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="z-index:3000" sc-camel-on-click="{{ closeDialogBg }}">
+      <div class="dialog blueprint" style="width:min(680px,100%);background:var(--color-bg)">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="dialog-title">{{ dialogTitle }}</div>
+        <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="field"><label>Дата партии</label><input class="input" type="date" name="date" value="{{ draft.date }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>BL код клиента</label><input class="input" list="bl-list" name="bl" value="{{ draft.bl }}" sc-camel-on-change="{{ onDraft }}" placeholder="BL-000"><datalist id="bl-list"><sc-for list="{{ blOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></datalist></div>
+          <div style="grid-column:1/-1;font-size:13px;color:var(--color-neutral-700);margin-top:-4px">{{ draftClientInfo }}</div>
+          <div class="field"><label>CBM (м³)</label><input class="input" type="number" step="any" name="cbm" value="{{ draft.cbm }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>KG</label><input class="input" type="number" step="any" name="kg" value="{{ draft.kg }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Мест</label><input class="input" type="number" name="places" value="{{ draft.places }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Статус</label><sc-raw-select class="input" name="status" value="{{ draft.status }}" sc-camel-on-change="{{ onDraft }}"><sc-for list="{{ statusOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></div>
+          <div class="field"><label>Машина</label><sc-raw-select class="input" name="truck" value="{{ draft.truck }}" sc-camel-on-change="{{ onDraft }}"><sc-for list="{{ truckOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></div>
+          <div class="field"><label>Рейс №</label><input class="input" type="number" min="1" name="route" value="{{ draft.route }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field" style="grid-column:1/-1"><label>Примечание</label><textarea class="input" name="note" value="{{ draft.note }}" sc-camel-on-change="{{ onDraft }}" style="min-height:64px"></textarea></div>
+        </div>
+        <div style="font-size:13px;color:var(--color-accent-700)">{{ dialogError }}</div>
+        <div class="dialog-actions">
+          <sc-if value="{{ canDelete }}"><button class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ deleteItem }}">Удалить</button></sc-if>
+          <button class="btn btn-secondary" sc-camel-on-click="{{ closeDialog }}">Отмена</button>
+          <button class="btn btn-primary" sc-camel-on-click="{{ saveShipment }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isGsDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="z-index:3000" sc-camel-on-click="{{ closeDialogBg }}">
+      <div class="dialog blueprint" style="width:min(820px,100%);background:var(--color-bg);max-height:92vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="dialog-title">Связь с Google Таблицей</div>
+        <div style="font-size:13px;color:var(--color-neutral-800);text-wrap:pretty">Таблица становится главной: новые партии, клиенты и склады из неё сами появляются на сайте, а правки на сайте записываются в неё. Формулы, планы и листы остаются в таблице.</div>
+        <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;font-size:14px">
+          <li>Откройте вашу Google Таблицу → меню <b>Расширения → Apps Script</b>.</li>
+          <li>Удалите всё в редакторе, вставьте код ниже и нажмите <b>Сохранить</b>.
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+              <textarea id="gs-code" class="input" readonly="readonly" value="{{ gsScript }}" style="min-height:120px;font-family:ui-monospace,monospace;font-size:11px;white-space:pre;box-sizing:border-box;width:100%"></textarea>
+              <div><button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ copyGs }}">Скопировать код</button></div>
+            </div>
+          </li>
+          <li><b>Развернуть → Новое развертывание</b> → шестерёнка → <b>Веб-приложение</b>. «Выполнять как»: <b>Я</b>, «Доступ»: <b>Все</b> → Развернуть → разрешите доступ к аккаунту.</li>
+          <li>Скопируйте ссылку веб-приложения (заканчивается на <b>/exec</b>) и вставьте сюда:</li>
+        </ol>
+        <div class="form-grid form-grid-1" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,200px);gap:12px">
+          <div class="field"><label>Ссылка веб-приложения</label><input class="input" name="url" value="{{ draft.url }}" sc-camel-on-change="{{ onDraft }}" placeholder="https://script.google.com/macros/s/…/exec"></div>
+          <div class="field"><label>Пароль (если задан в коде)</label><input class="input" name="token" value="{{ draft.token }}" sc-camel-on-change="{{ onDraft }}" placeholder="необязательно"></div>
+        </div>
+        <div style="font-size:13px;color:var(--color-accent-700)">{{ dialogError }}</div>
+        <div class="dialog-actions">
+          <sc-if value="{{ gsConnected }}"><button class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ gsDisconnect }}">Отключить таблицу</button></sc-if>
+          <button class="btn btn-secondary" sc-camel-on-click="{{ closeDialog }}">Закрыть</button>
+          <button class="btn btn-primary" sc-camel-on-click="{{ gsConnect }}">Подключить</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isWhDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="z-index:3000" sc-camel-on-click="{{ closeDialogBg }}">
+      <div class="dialog blueprint" style="width:min(560px,100%);background:var(--color-bg)">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="dialog-title">{{ dialogTitle }}</div>
+        <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="field"><label>BL код клиента</label><input class="input" list="bl-list-wh" name="bl" value="{{ draft.bl }}" sc-camel-on-change="{{ onDraft }}" placeholder="BL-000"><datalist id="bl-list-wh"><sc-for list="{{ blOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></datalist></div>
+          <div class="field"><label>Бренд</label><input class="input" name="brand" value="{{ draft.brand }}" sc-camel-on-change="{{ onDraft }}" placeholder="из справочника"></div>
+          <div class="field" style="grid-column:1/-1"><label>Название склада</label><input class="input" name="name" value="{{ draft.name }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Широта (lat)</label><input class="input" name="lat" value="{{ draft.lat }}" sc-camel-on-change="{{ onDraft }}" placeholder="41.311"></div>
+          <div class="field"><label>Долгота (lon)</label><input class="input" name="lon" value="{{ draft.lon }}" sc-camel-on-change="{{ onDraft }}" placeholder="69.279"></div>
+          <div style="grid-column:1/-1;font-size:13px"><sc-if value="{{ draftHasPoint }}"><a href="{{ draftPointHref }}" target="_blank">Проверить в Яндекс Картах →</a></sc-if></div>
+        </div>
+        <div style="font-size:13px;color:var(--color-accent-700)">{{ dialogError }}</div>
+        <div class="dialog-actions">
+          <sc-if value="{{ canDelete }}"><button class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ deleteItem }}">Удалить</button></sc-if>
+          <button class="btn btn-secondary" sc-camel-on-click="{{ closeDialog }}">Отмена</button>
+          <button class="btn btn-primary" sc-camel-on-click="{{ saveWh }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isClientDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="z-index:3000" sc-camel-on-click="{{ closeDialogBg }}">
+      <div class="dialog blueprint" style="width:min(760px,100%);background:var(--color-bg);max-height:92vh;overflow:auto">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="dialog-title">{{ dialogTitle }}</div>
+        <div class="form-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+          <div class="field"><label>BL код</label><input class="input" name="bl" value="{{ draft.bl }}" sc-camel-on-change="{{ onDraft }}" placeholder="BL-000"></div>
+          <div class="field"><label>Бренд</label><input class="input" name="brand" value="{{ draft.brand }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Имя клиента</label><input class="input" name="name" value="{{ draft.name }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Телефон 1</label><input class="input" name="tel1" value="{{ draft.tel1 }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Телефон 2</label><input class="input" name="tel2" value="{{ draft.tel2 }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Район <span style="font-weight:400;color:var(--color-neutral-700)">{{ draftDistrictInfo }}</span></label><sc-raw-select class="input" name="district" value="{{ draft.district }}" sc-camel-on-change="{{ onDraft }}"><option value="__auto">Авто по координатам</option><sc-for list="{{ districtOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></div>
+          <div class="field"><label>Получатель</label><input class="input" name="receiver" value="{{ draft.receiver }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Тел. получателя</label><input class="input" name="receiverTel" value="{{ draft.receiverTel }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Зона вручную</label><sc-raw-select class="input" name="manualZone" value="{{ draft.manualZone }}" sc-camel-on-change="{{ onDraft }}"><option value="">Авто по координатам</option><option value="Ichida">Внутри кольца</option><option value="Tashqarida">Снаружи кольца</option></sc-raw-select></div>
+          <div class="field" style="grid-column:1/-1"><label>Ссылка на локацию (Яндекс / Google)</label><input class="input" name="link" value="{{ draft.link }}" sc-camel-on-change="{{ onDraft }}" placeholder="https://yandex.uz/maps/…"></div>
+          <div class="field" style="grid-column:1/-1"><label>Адрес склада</label><textarea class="input" name="address" value="{{ draft.address }}" sc-camel-on-change="{{ onDraft }}" style="min-height:56px"></textarea></div>
+          <div class="field"><label>Широта (lat)</label><input class="input" name="lat" value="{{ draft.lat }}" sc-camel-on-change="{{ onDraft }}" placeholder="41.311"></div>
+          <div class="field"><label>Долгота (lon)</label><input class="input" name="lon" value="{{ draft.lon }}" sc-camel-on-change="{{ onDraft }}" placeholder="69.279"></div>
+          <div style="display:flex;align-items:flex-end;padding-bottom:6px;font-size:13px">
+            <sc-if value="{{ draftHasPoint }}"><a href="{{ draftPointHref }}" target="_blank">Проверить в Яндекс Картах →</a></sc-if>
+          </div>
+          <div style="grid-column:1/-1;font-size:12px;color:var(--color-neutral-700)">{{ draftZoneInfo }}</div>
+          <div class="field" style="grid-column:1/-1"><label>Примечание</label><textarea class="input" name="note" value="{{ draft.note }}" sc-camel-on-change="{{ onDraft }}" style="min-height:56px"></textarea></div>
+        </div>
+        <div style="font-size:13px;color:var(--color-accent-700)">{{ dialogError }}</div>
+        <div class="dialog-actions">
+          <sc-if value="{{ canDelete }}"><button class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ deleteItem }}">Удалить</button></sc-if>
+          <button class="btn btn-secondary" sc-camel-on-click="{{ closeDialog }}">Отмена</button>
+          <button class="btn btn-primary" sc-camel-on-click="{{ saveClient }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="">
+const LS_KEY = 'logi-site-v2';
+const ST = { 'Rejada': 'В плане', 'Yolda': 'В пути', 'Yetkazildi': 'Доставлено', 'Qolib ketgan': 'Осталось', 'Mijoz ozi oldi': 'Клиент забрал сам', 'Bekor qilindi': 'Отменено' };
+const TR = { 'Belgilanmagan': 'Не назначена', 'Mijoz ozi oladi': 'Клиент заберёт' };
+const PLAN_INFO = {
+  A: { title: 'A — обычный', desc: 'По направлениям от склада. Где груз лёгкий и маленький, рейс сам делится на Labo, если так дешевле.' },
+  B: { title: 'B — меньше машин', desc: 'Мелкие грузы вместе, остальное плотно упаковано. Лёгкие части маршрута автоматически уходят на Labo, если дешевле.' },
+  C: { title: 'C — 2 больших', desc: 'Две большие машины, каждая делает несколько рейсов на своей стороне города.' }
+};
+const f0 = n => (n == null || isNaN(n)) ? '—' : Math.round(n).toLocaleString('ru-RU');
+const f1 = (n, d = 1) => (n == null || isNaN(n)) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d });
+const money = n => n == null ? '—' : Math.round(n).toLocaleString('ru-RU') + ' сум';
+const dShort = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) : '';
+const dLong = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4) : '';
+const hhmm = m => { m = Math.round(m); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const telHref = t => t ? 'tel:' + String(t).replace(/[^\d+]/g, '').replace(/^998/, '+998') : '';
+
+class Component extends DCLogic {
+  state = { ready: false, tab: 'journal', data: null, ver: 0, savedAt: null,
+    jDate: 'all', jLimit: 60, editRow: null, jStatus: 'all', jSearch: '', cSearch: '', cDistrict: 'all', cZone: 'all',
+    mapDate: 'all', mapPlan: 'none', mapBase: (() => { try { return localStorage.getItem('logi-map-base') || 'yandex'; } catch (e) { return 'yandex'; } })(), planDate: '', planKey: 'A', dialog: null,
+    calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 } };
+  mapRef = React.createRef();
+
+  loadLeaflet() {
+    if (window.L || this._lfLoading) return;
+    this._lfLoading = true;
+    const cdns = ['js/vendor/leaflet/', 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/', 'https://unpkg.com/leaflet@1.9.4/dist/', 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/'];
+    const tryN = i => {
+      if (i >= cdns.length) { this.setState({ mapError: true }); return; }
+      const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = cdns[i] + 'leaflet.css'; document.head.appendChild(css);
+      const s = document.createElement('script'); s.src = cdns[i] + 'leaflet.js'; s.async = true;
+      let done = false;
+      const fail = () => { if (done) return; done = true; css.remove(); s.remove(); tryN(i + 1); };
+      s.onload = () => { if (done) return; done = true; this.forceUpdate(); };
+      s.onerror = fail; setTimeout(() => { if (!window.L) fail(); }, 8000);
+      document.head.appendChild(s);
+    };
+    tryN(0);
+  }
+  componentDidMount() {
+    this.loadLeaflet();
+    const tick = async () => {
+      if (!(window.XlsxIO && window.LOGI_TEMPLATE_B64 && window.LogiEngine)) return setTimeout(tick, 60);
+      try {
+        const { tpl, data: fresh } = await window.XlsxIO.parse(window.XlsxIO.b64ToBuf(window.LOGI_TEMPLATE_B64));
+        this.tpl = tpl; this.fresh = fresh;
+        let data = null;
+        try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) {}
+        if (!data) { try { const old = JSON.parse(localStorage.getItem('logi-site-v1') || 'null'); if (old && old.shipments) data = { ...fresh, clients: old.clients, shipments: old.shipments, settings: { ...fresh.settings, ...old.settings } }; } catch (e) {} }
+        if (!data || !data.shipments) data = JSON.parse(JSON.stringify(fresh));
+        ['ring', 'lists', 'notes', 'warehouses'].forEach(k => { if (!data[k]) data[k] = fresh[k]; });
+        data.settings = Object.assign({}, fresh.settings, data.settings || {});
+        this.setReady(data);
+        let gsu = null; try { gsu = localStorage.getItem('logi-gs-url'); } catch (e) {}
+        if (gsu) this.gsStart(gsu, localStorage.getItem('logi-gs-token') || '');
+        else this.restoreHandle();
+      } catch (e) { this.setState({ loadError: String(e.message || e) }); }
+    };
+    tick();
+  }
+  kelesFix(data) {
+    let done = false; try { done = localStorage.getItem('logi-ring-v4') === '1'; } catch (e) {}
+    if (done || !data.ring) return data;
+    const ring = window.LogiEngine.TKAD_V2.map(p => p.slice());
+    try { localStorage.setItem('logi-ring-v4', '1'); } catch (e) {}
+    if (JSON.stringify(ring) === JSON.stringify(data.ring)) return data;
+    try { localStorage.setItem('logi-ring-pending', JSON.stringify(ring)); } catch (e) {}
+    setTimeout(() => {
+      if (this.gsUrl) { if (!this.gsQueue.some(o => o.t === 'ring')) this.gsQueue.push({ t: 'ring', v: ring }); this.gsFlush(); }
+      else if (this.handle && ['linked', 'saved'].includes(this.state.fileStatus)) this.saveToFile();
+    }, 300);
+    return { ...data, ring };
+  }
+  setReady(data) {
+    data = this.kelesFix(data);
+    clearTimeout(this._autoD); this._autoD = setTimeout(() => this.runAutoDistrict(), 600);
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
+    const dates = [...new Set(data.shipments.map(s => s.date))].sort();
+    this.setState(s => ({ ready: true, data, ver: s.ver + 1, planDate: dates[dates.length - 1] || '', jDate: dates[dates.length - 1] || 'all' }));
+  }
+  componentDidUpdate() { this.syncMap(); }
+  componentWillUnmount() { if (this.map) this.map.remove(); }
+
+  commit(data, fromFile) {
+    if (this.gsUrl && !fromFile) { const ops = this.diffOps(this.state.data, data); if (ops.length) { this.gsQueue.push(...ops); setTimeout(() => this.gsFlush(), 0); } }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
+    this.setState(s => ({ data, ver: s.ver + 1, savedAt: new Date() }));
+    if (!fromFile && this.handle && ['linked', 'saved', 'saving', 'error'].includes(this.state.fileStatus)) {
+      clearTimeout(this._saveT); this._saveT = setTimeout(() => this.saveToFile(), 700);
+    }
+  }
+
+  // ---------- Google Таблица ----------
+  gsQueue = [];
+  gsStart(url, token) {
+    this.gsUrl = url; this.gsToken = token || '';
+    clearInterval(this._gsPoll);
+    this._gsPoll = setInterval(() => { if (document.visibilityState === 'visible') this.gsPull(); }, 30000);
+    if (!this._gsFocus) { this._gsFocus = () => this.gsUrl && this.gsPull(); window.addEventListener('focus', this._gsFocus); }
+    this.setState({ gsStatus: 'loading', gsMsg: '' });
+    try { const pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); if (pend) { this.gsOldScript = true; this.gsQueue.push({ t: 'ring', v: pend }); } } catch (e) {}
+    return this.gsQueue.length ? this.gsFlush() : this.gsPull(true);
+  }
+  gsStop = () => {
+    this.gsUrl = null; this.gsQueue = []; clearInterval(this._gsPoll);
+    try { localStorage.removeItem('logi-gs-url'); localStorage.removeItem('logi-gs-token'); } catch (e) {}
+    this.setState({ gsStatus: null, gsName: null, dialog: null });
+  };
+  gsApply(j, first) {
+    if (!j || j.error || !j.data) throw new Error((j && j.error) || 'Пустой ответ');
+    const data = window.XlsxIO.fromSheets(j.data);
+    const cur = this.state.data;
+    let pend = null; try { pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); } catch (e) {}
+    if (this.gsOldScript && cur && cur.ring && !pend) { pend = cur.ring; try { localStorage.setItem('logi-ring-pending', JSON.stringify(pend)); } catch (e) {} }
+    if (pend) { if (JSON.stringify(pend) === JSON.stringify(data.ring)) { try { localStorage.removeItem('logi-ring-pending'); } catch (e) {} this.gsOldScript = false; } else data.ring = pend; }
+    const same = cur && JSON.stringify([cur.clients, cur.shipments, cur.warehouses, cur.settings, cur.ring]) === JSON.stringify([data.clients, data.shipments, data.warehouses, data.settings, data.ring]);
+    if (!same) {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
+      if (first) this.setReady(data);
+      else { const dates = new Set(data.shipments.map(s => s.date)); this.setState(s => ({ data, ver: s.ver + 1, jDate: s.jDate === 'all' || dates.has(s.jDate) ? s.jDate : 'all' })); }
+    }
+    this.setState({ gsStatus: 'ok', gsName: j.data.name || 'Google Таблица', gsAt: new Date(), gsMsg: '' });
+    if (!same) { clearTimeout(this._autoD); this._autoD = setTimeout(() => this.runAutoDistrict(), 600); }
+  }
+  async gsPull(first) {
+    if (!this.gsUrl || this._gsBusy || this.gsQueue.length) return;
+    this._gsBusy = true;
+    try {
+      const r = await fetch(this.gsUrl + (this.gsUrl.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(this.gsToken) + '&t=' + Date.now());
+      const j = await r.json();
+      if (!this.gsQueue.length) this.gsApply(j, first);
+    } catch (e) { this.setState({ gsStatus: 'error', gsMsg: 'Нет связи с Google Таблицей: ' + (e.message || e) }); }
+    this._gsBusy = false;
+    if (this.gsQueue.length) this.gsFlush();
+  }
+  async gsFlush() {
+    if (!this.gsUrl || this._gsBusy || !this.gsQueue.length) return;
+    this._gsBusy = true;
+    const ops = this.gsQueue.splice(0);
+    this.setState({ gsStatus: 'saving' });
+    try {
+      const r = await fetch(this.gsUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: this.gsToken, ops }) });
+      const j = await r.json();
+      if ((j.results || []).some(x => x && x.error === 'unknown op')) this.gsOldScript = true;
+      this._gsBusy = false;
+      if (this.gsQueue.length) { if (j.error) throw new Error(j.error); this.gsFlush(); return; }
+      this.gsApply(j);
+    } catch (e) {
+      this._gsBusy = false;
+      this.gsQueue.unshift(...ops);
+      this.setState({ gsStatus: 'error', gsMsg: 'Не удалось записать в Google Таблицу — изменения ждут отправки. ' + (e.message || '') });
+    }
+  }
+  diffOps(prev, next) {
+    const ops = [], dels = [];
+    const rowOf = (id, p) => { const m = String(id || '').match(new RegExp('^' + p + '(\\d{1,5})$')); return m ? +m[1] : null; };
+    const pick = (o, keys) => keys.reduce((a, k) => (a[k] = o[k] ?? '', a), {});
+    const SK = ['date', 'bl', 'cbm', 'kg', 'places', 'truck', 'route', 'status', 'note'], CK = ['bl', 'brand', 'name', 'tel1', 'tel2', 'receiver', 'receiverTel', 'district', 'address', 'lat', 'lon', 'note', 'manualZone', 'link'], WK = ['bl', 'brand', 'name', 'lat', 'lon'];
+    const same = (a, b, K) => JSON.stringify(pick(a, K)) === JSON.stringify(pick(b, K));
+    const byId = a => Object.fromEntries((a || []).map(x => [x.id, x]));
+    const ps = byId(prev.shipments), ns = byId(next.shipments);
+    next.shipments.forEach(s => { const o = ps[s.id]; if (!o) ops.push({ t: 'ship.upsert', v: pick(s, SK) }); else if (!same(o, s, SK)) ops.push({ t: 'ship.upsert', row: rowOf(s.id, 's'), guard: { bl: o.bl, date: o.date }, v: pick(s, SK) }); });
+    prev.shipments.forEach(o => { if (!ns[o.id] && rowOf(o.id, 's')) dels.push({ t: 'ship.delete', row: rowOf(o.id, 's'), guard: { bl: o.bl, date: o.date } }); });
+    const pc = Object.fromEntries(prev.clients.map(c => [c.bl, c])), nc = Object.fromEntries(next.clients.map(c => [c.bl, c]));
+    const added = next.clients.filter(c => !pc[c.bl]), removed = prev.clients.filter(c => !nc[c.bl]);
+    if (added.length === 1 && removed.length === 1) ops.push({ t: 'cli.upsert', key: removed[0].bl, v: pick(added[0], CK) });
+    else { added.forEach(c => ops.push({ t: 'cli.upsert', v: pick(c, CK) })); removed.forEach(c => ops.push({ t: 'cli.delete', key: c.bl })); }
+    next.clients.forEach(c => { const o = pc[c.bl]; if (o && !same(o, c, CK)) ops.push({ t: 'cli.upsert', key: c.bl, v: pick(c, CK) }); });
+    const pw = byId(prev.warehouses), nw = byId(next.warehouses);
+    (next.warehouses || []).forEach(w => { const o = pw[w.id]; if (!o) ops.push({ t: 'wh.upsert', v: pick(w, WK) }); else if (!same(o, w, WK)) ops.push({ t: 'wh.upsert', row: rowOf(w.id, 'w'), guard: { bl: o.bl }, v: pick(w, WK) }); });
+    (prev.warehouses || []).forEach(o => { if (!nw[o.id] && rowOf(o.id, 'w')) dels.push({ t: 'wh.delete', row: rowOf(o.id, 'w'), guard: { bl: o.bl } }); });
+    const sv = {}; Object.keys(next.settings || {}).forEach(k => { if ((prev.settings || {})[k] !== next.settings[k]) sv[k] = next.settings[k]; });
+    if (Object.keys(sv).length) ops.push({ t: 'set', v: sv });
+    if (next.ring && JSON.stringify(prev.ring) !== JSON.stringify(next.ring)) ops.push({ t: 'ring', v: next.ring });
+    dels.sort((a, b) => b.row - a.row);
+    return ops.concat(dels);
+  }
+  openGs = () => { let u = '', t = ''; try { u = localStorage.getItem('logi-gs-url') || ''; t = localStorage.getItem('logi-gs-token') || ''; } catch (e) {} this.setState({ dialog: { type: 'gs', draft: { url: u, token: t }, error: '' } }); };
+
+  idb(mode, val) {
+    return new Promise(res => {
+      try {
+        const rq = indexedDB.open('logi-db', 1);
+        rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
+        rq.onsuccess = () => { const tx = rq.result.transaction('kv', mode === 'get' ? 'readonly' : 'readwrite'), os = tx.objectStore('kv');
+          const r = mode === 'get' ? os.get('handle') : mode === 'del' ? os.delete('handle') : os.put(val, 'handle');
+          r.onsuccess = () => res(r.result); r.onerror = () => res(null); };
+        rq.onerror = () => res(null);
+      } catch (e) { res(null); }
+    });
+  }
+  async restoreHandle() {
+    const h = await this.idb('get');
+    if (!h || !h.queryPermission) return;
+    this.handle = h;
+    const p = await h.queryPermission({ mode: 'readwrite' }).catch(() => 'denied');
+    if (p === 'granted') this.readFromHandle();
+    else this.setState({ fileName: h.name, fileStatus: 'needPerm' });
+  }
+  async readFromHandle() {
+    try {
+      const f = await this.handle.getFile();
+      const { tpl, data } = await window.XlsxIO.parse(await f.arrayBuffer());
+      this.tpl = tpl;
+      let pend = null; try { pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); } catch (e) {}
+      const needRing = pend && JSON.stringify(pend) !== JSON.stringify(data.ring);
+      if (needRing) data.ring = pend;
+      try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
+      this.setReady(data);
+      this.setState({ fileName: f.name, fileStatus: 'linked', fileAt: new Date(), fileMsg: '' });
+      if (needRing) setTimeout(() => this.saveToFile(), 300);
+    } catch (e) { this.setState({ fileStatus: 'error', fileMsg: 'Не удалось прочитать файл: ' + (e.message || e) }); }
+  }
+  connectFile = async () => {
+    if (this.handle && this.state.fileStatus === 'needPerm') {
+      const p = await this.handle.requestPermission({ mode: 'readwrite' }).catch(() => 'denied');
+      if (p === 'granted') return this.readFromHandle();
+    }
+    if (window.showOpenFilePicker) {
+      try {
+        const [h] = await window.showOpenFilePicker({ types: [{ description: 'Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }] });
+        const p = await h.requestPermission({ mode: 'readwrite' }).catch(() => 'denied');
+        if (p !== 'granted') throw new Error('нет разрешения на запись');
+        this.handle = h; await this.idb('put', h);
+        return this.readFromHandle();
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    this.fileInputRef.current && this.fileInputRef.current.click();
+  };
+  onFilePicked = async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try {
+      const { tpl, data } = await window.XlsxIO.parse(await f.arrayBuffer());
+      this.tpl = tpl; this.handle = null;
+      try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (er) {}
+      this.setReady(data);
+      this.setState({ fileName: f.name, fileStatus: 'imported', fileAt: new Date(), fileMsg: '' });
+    } catch (er) { this.setState({ fileStatus: 'error', fileMsg: 'Не удалось прочитать файл: ' + (er.message || er) }); }
+  };
+  async saveToFile() {
+    if (!this.handle) return;
+    this.setState({ fileStatus: 'saving' });
+    try {
+      const blob = await window.XlsxIO.write(this.tpl, this.state.data);
+      const w = await this.handle.createWritable();
+      await w.write(blob); await w.close();
+      if (!this.gsUrl) { try { localStorage.removeItem('logi-ring-pending'); } catch (e) {} }
+      this.setState({ fileStatus: 'saved', fileAt: new Date(), fileMsg: '' });
+    } catch (e) { this.setState({ fileStatus: 'error', fileMsg: 'Не удалось записать в файл. Закройте его в Excel и нажмите «Записать снова».' }); }
+  }
+  disconnectFile = async () => { this.handle = null; await this.idb('del'); this.setState({ fileStatus: null, fileName: null }); };
+  fileInputRef = React.createRef();
+  updShip(id, patch) {
+    const d = this.state.data;
+    this.commit({ ...d, shipments: d.shipments.map(s => s.id === id ? { ...s, ...patch } : s) });
+  }
+
+  derived() {
+    const { data, ver } = this.state;
+    if (this._memo && this._memo.ver === ver && this._memo.data === data) return this._memo;
+    const E = window.LogiEngine, S = data.settings, ring = data.ring;
+    const cmap = {}, zones = {};
+    data.clients.forEach(c => { cmap[c.bl] = c; zones[c.bl] = E.zoneOf(c, ring, S.ringBuffer); });
+    const share = {}, tripOf = {}, trips = {};
+    data.shipments.forEach(s => {
+      const kind = E.vehicleKind(s.truck);
+      if (!kind || s.route == null || s.route === '' || E.NO_PRICE.includes(s.status)) return;
+      const k = s.date + '|' + s.truck + '|' + s.route;
+      (trips[k] = trips[k] || { kind, items: [] }).items.push(s);
+    });
+    Object.entries(trips).forEach(([k, t]) => {
+      const stops = t.items.map(s => ({ bl: s.bl, cbm: s.cbm, kg: s.kg, zone: (zones[s.bl] || {}).zone }));
+      const p = E.priceTrip(stops, t.kind, S);
+      t.price = p;
+      t.items.forEach((s, i) => { share[s.id] = p.perStop[i]; tripOf[s.id] = k; });
+    });
+    const dates = [...new Set(data.shipments.map(s => s.date))].sort();
+    this._memo = { ver, data, cmap, zones, share, tripOf, trips, dates };
+    return this._memo;
+  }
+
+  plansFor(date) {
+    const { data } = this.state, D = this.derived(), E = window.LogiEngine;
+    const key = D.ver + '|' + date + '|' + JSON.stringify(data.settings);
+    if (this._plans && this._plans.key === key) return this._plans.res;
+    const stops = data.shipments.filter(s => s.date === date && !E.NO_PLAN.includes(s.status)).map(s => {
+      const c = D.cmap[s.bl] || {};
+      return { id: s.id, bl: s.bl, cbm: +s.cbm || 0, kg: +s.kg || 0, places: +s.places || 0, lat: c.lat ?? null, lon: c.lon ?? null, zone: (D.zones[s.bl] || {}).zone, client: c };
+    });
+    const res = E.buildPlans(stops, data.settings);
+    res.all = stops;
+    this._plans = { key, res };
+    return res;
+  }
+
+  syncMap() {
+    if (this.state.tab !== 'map' || !this.state.ready) { if (this.map) { this.map.remove(); this.map = null; this.mapEl = null; } return; }
+    const el = this.mapRef.current, L = window.L;
+    if (!el || !L) return;
+    const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+    const S = this.state.data.settings;
+    const base = this.state.mapBase;
+    if (!this.map || this.mapEl !== el || this.mapBaseCur !== base) {
+      let view = null;
+      if (this.map) { view = [this.map.getCenter(), this.map.getZoom()]; this.map.remove(); }
+      const B = {
+        yandex: { crs: L.CRS.EPSG3395, url: 'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU', attr: '© Яндекс', max: 19 },
+        ysat: { crs: L.CRS.EPSG3395, url: 'https://sat0{s}.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}', sub: '1234', attr: '© Яндекс', max: 19, labels: 'https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=1&lang=ru_RU' },
+        gis: { crs: L.CRS.EPSG3857, url: 'https://tile{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1', sub: '0123', attr: '© 2ГИС', max: 18 },
+        esri: { crs: L.CRS.EPSG3857, url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', attr: '© Esri', max: 19 }
+      }[base] || {};
+      this.map = L.map(el, { crs: B.crs, zoomControl: true, attributionControl: true });
+      if (view) this.map.setView(view[0], view[1]); else this.map.setView([S.depotLat, S.depotLon], 11);
+      L.tileLayer(B.url, { maxZoom: B.max, subdomains: B.sub || 'abc', attribution: B.attr }).addTo(this.map);
+      if (B.labels) L.tileLayer(B.labels, { maxZoom: B.max }).addTo(this.map);
+      this.mapBaseCur = base; this.keepView = !!view;
+      this.mapEl = el; this.mapKey = null; this.layer = L.layerGroup().addTo(this.map);
+      setTimeout(() => this.map && this.map.invalidateSize(), 50);
+    }
+    window.__logiMap = this.map;
+    const key = this.state.ver + '|' + this.state.mapDate + '|' + this.state.mapPlan + '|' + JSON.stringify(S) + '|' + (this.state.ringEdit ? 'E' + this.state.ringEditVer : '');
+    if (key === this.mapKey) return;
+    this.mapKey = key;
+    const D = this.derived(), E = window.LogiEngine, lay = this.layer;
+    lay.clearLayers();
+    const editing = !!this.state.ringEdit;
+    const ringPoly = L.polygon(editing ? this.ringDraft : this.state.data.ring, { color: v(editing ? '--color-accent-900' : '--color-accent'), weight: editing ? 2.5 : 1.5, dashArray: editing ? null : '6 5', fill: true, fillOpacity: editing ? 0.08 : 0.04, interactive: false }).addTo(lay);
+    if (editing) {
+      this.map.doubleClickZoom.disable();
+      const sq = (sz, bg, bd) => L.divIcon({ className: '', html: '<div style="width:' + sz + 'px;height:' + sz + 'px;background:' + bg + ';border:1.5px solid ' + bd + ';cursor:move"></div>', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2] });
+      const vIcon = sq(10, v('--color-bg'), v('--color-accent-900')), mIcon = sq(7, v('--color-accent-200'), v('--color-accent-700'));
+      const R = this.ringDraft, bump = () => this.setState(s => ({ ringEditVer: (s.ringEditVer || 0) + 1 }));
+      R.forEach((p, i) => {
+        const m = L.marker(p, { icon: vIcon, draggable: true, zIndexOffset: 1000, title: 'Тяните · двойной клик — удалить' }).addTo(lay);
+        m.on('drag', e => { const ll = e.target.getLatLng(); R[i] = [+ll.lat.toFixed(6), +ll.lng.toFixed(6)]; ringPoly.setLatLngs(R); });
+        m.on('dragend', bump);
+        m.on('dblclick contextmenu', ev => { L.DomEvent.stop(ev); if (R.length > 3) { R.splice(i, 1); bump(); } });
+        const q = R[(i + 1) % R.length];
+        L.marker([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], { icon: mIcon, zIndexOffset: 900, title: 'Клик — добавить точку' }).addTo(lay)
+          .on('click', () => { R.splice(i + 1, 0, [+((p[0] + q[0]) / 2).toFixed(6), +((p[1] + q[1]) / 2).toFixed(6)]); bump(); });
+      });
+    } else this.map.doubleClickZoom.enable();
+    const depot = [S.depotLat, S.depotLon];
+    L.marker(depot, { icon: L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border:2px solid ' + v('--color-text') + ';background:' + v('--color-bg') + ';transform:rotate(45deg)"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) }).bindTooltip('Склад: ' + S.depotName).addTo(lay);
+    const popup = (c, extra) => '<div style="font-family:Barlow,sans-serif;font-size:13px;line-height:1.4"><b>' + c.bl + '</b> ' + (c.brand || '') + '<br>' + (c.name || '') + (c.district ? ' · ' + c.district : '') + (c.receiverTel || c.tel1 ? '<br><a href="' + telHref(c.receiverTel || c.tel1) + '">' + (c.receiverTel || c.tel1) + '</a>' : '') + (extra || '') + '<br><a target="_blank" href="' + E.yPoint(c.lat, c.lon) + '">Открыть в Яндекс Картах</a></div>';
+    const dot = (c, extra) => {
+      const z = (D.zones[c.bl] || {}).zone;
+      L.circleMarker([c.lat, c.lon], { radius: 6, weight: 2, color: z === 'out' ? v('--color-accent-900') : v('--color-accent'), fillColor: z === 'out' ? v('--color-accent-900') : v('--color-bg'), fillOpacity: 1 }).bindPopup(popup(c, extra)).addTo(lay);
+    };
+    (this.state.data.warehouses || []).forEach(w => {
+      if (w.lat == null) return;
+      L.marker([w.lat, w.lon], { icon: L.divIcon({ className: '', html: '<div style="width:10px;height:10px;border:2px solid ' + v('--color-accent-900') + ';background:' + v('--color-accent-200') + '"></div>', iconSize: [10, 10], iconAnchor: [5, 5] }) })
+        .bindPopup('<div style="font-family:Barlow,sans-serif;font-size:13px;line-height:1.4"><b>' + w.bl + '</b> ' + (w.brand || '') + '<br>Доп. склад: ' + (w.name || '') + '<br><a target="_blank" href="' + E.yPoint(w.lat, w.lon) + '">Открыть в Яндекс Картах</a></div>').addTo(lay);
+    });
+    const pts = [];
+    if (this.state.mapDate === 'all') {
+      this.state.data.clients.forEach(c => { if (c.lat != null) { dot(c); pts.push([c.lat, c.lon]); } });
+    } else {
+      const P = this.plansFor(this.state.mapDate);
+      const shades = ['--color-accent-500', '--color-accent-800', '--color-accent-600', '--color-accent-900', '--color-accent-400', '--color-accent-700'];
+      const dashes = [null, '8 5', null, '2 5', '10 4 2 4', null];
+      if (this.state.mapPlan !== 'none') {
+        P[this.state.mapPlan].trips.forEach((t, i) => {
+          L.polyline([depot].concat(t.stops.map(s => [s.lat, s.lon])), { color: v(shades[i % 6]), weight: 3, opacity: 0.9, dashArray: dashes[i % 6] }).bindTooltip(t.name).addTo(lay);
+          t.stops.forEach((s, j) => L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div style="font:600 11px Barlow,sans-serif;color:' + v('--color-bg') + ';background:' + v(shades[i % 6]) + ';min-width:18px;height:18px;line-height:18px;text-align:center;padding:0 3px">' + (i + 1) + '.' + (j + 1) + '</div>', iconSize: [24, 18], iconAnchor: [12, 22] }) }).addTo(lay));
+        });
+      }
+      const seen = {};
+      P.all.forEach(s => { if (s.lat == null || seen[s.bl]) return; seen[s.bl] = 1; dot(s.client, '<br>' + f1(s.cbm, 2) + ' м³ · ' + f0(s.kg) + ' кг'); pts.push([s.lat, s.lon]); });
+    }
+    pts.push(depot);
+    if (this.keepView) this.keepView = false;
+    else if (pts.length > 1) this.map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 });
+  }
+
+  exportXlsx = async () => {
+    this.setState({ exporting: true });
+    try {
+      const blob = await window.XlsxIO.write(this.tpl, this.state.data);
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = this.state.fileName || 'Mijozlar_omborlari_ro_yxati.xlsx';
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    } catch (e) { alert('Не удалось собрать Excel: ' + (e.message || e)); }
+    this.setState({ exporting: false });
+  };
+  exportXlsxOld = () => {
+    const { data } = this.state, D = this.derived(), E = window.LogiEngine, S = data.settings;
+    const ship = [['Дата', 'BL код', 'Бренд', 'Клиент', 'Район', 'Получатель', 'Тел. получателя', 'Координаты', 'CBM', 'KG', 'Мест', 'Машина', 'Рейс №', 'Статус', 'Примечание', 'Зона', 'Тариф рейса', 'Цена рейса', 'Доля, сум']];
+    data.shipments.slice().sort((a, b) => a.date.localeCompare(b.date)).forEach(s => {
+      const c = D.cmap[s.bl] || {}, z = (D.zones[s.bl] || {}).zone, t = D.trips[D.tripOf[s.id]];
+      ship.push([dLong(s.date), s.bl, c.brand || '', c.name || '', c.district || '', c.receiver || '', c.receiverTel || '', c.lat != null ? c.lat + ', ' + c.lon : '', +s.cbm || 0, +s.kg || 0, +s.places || 0, TR[s.truck] || s.truck, s.route ?? '', ST[s.status] || s.status, s.note || '', z === 'in' ? 'Внутри' : z === 'out' ? 'Снаружи' : '', t ? t.price.label : '', t && t.price.total != null ? t.price.total : '', D.share[s.id] != null ? Math.round(D.share[s.id]) : '']);
+    });
+    const cl = [['BL код', 'Бренд', 'Имя', 'Тел 1', 'Тел 2', 'Получатель', 'Тел. получателя', 'Район', 'Адрес', 'Lat', 'Lon', 'Зона', 'Зона вручную', 'Примечание', 'Яндекс Карты']];
+    data.clients.forEach(c => { const z = (D.zones[c.bl] || {}).zone; cl.push([c.bl, c.brand, c.name, c.tel1, c.tel2, c.receiver, c.receiverTel, c.district, c.address, c.lat ?? '', c.lon ?? '', z === 'in' ? 'Внутри' : z === 'out' ? 'Снаружи' : '', c.manualZone, c.note, c.lat != null ? E.yPoint(c.lat, c.lon) : '']); });
+    const st = [['Параметр', 'Значение']];
+    this.settingDefs().forEach(g => g.fields.forEach(f => st.push([g.title + ' — ' + f.label, S[f.key] ?? ''])));
+    const sheets = [{ name: 'Отгрузки', rows: ship }, { name: 'Клиенты', rows: cl }, { name: 'Настройки', rows: st }];
+    if (this.state.planDate) {
+      const P = this.plansFor(this.state.planDate);
+      ['A', 'B', 'C'].forEach(k => {
+        const rows = [['Рейс', '№', 'BL код', 'Клиент', 'Район', 'Получатель', 'Тел.', 'CBM', 'KG', 'Прибытие', 'Зона', 'Тариф', 'Цена рейса', 'Маршрут Яндекс']];
+        P[k].trips.forEach(t => t.stops.forEach((s, j) => rows.push([t.name, j + 1, s.bl, (s.client.brand || '') + ' ' + (s.client.name || ''), s.client.district || '', s.client.receiver || '', s.client.receiverTel || '', s.cbm, s.kg, hhmm(t.arrivals[j]), s.zone === 'out' ? 'Снаружи' : 'Внутри', j === 0 ? t.price.label : '', j === 0 && t.price.total != null ? t.price.total : '', j === 0 ? E.yRoute([S.depotLat, S.depotLon], t.stops.map(x => [x.lat, x.lon])) : ''])));
+        sheets.push({ name: 'План ' + k + ' ' + dShort(this.state.planDate), rows });
+      });
+    }
+    const blob = E.xlsx(sheets);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Логистика_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  };
+
+  settingDefs() {
+    const S = this.state.data.settings;
+    const F = (key, label, unit, hint, type) => ({ key, label, unit: unit || '', hint: hint || '', type: type || 'number', value: S[key] ?? '' });
+    return [
+      { title: 'Gazel', fields: [F('gazelBase', 'Базовая цена рейса', 'сум'), F('gazelHeavy', 'Базовая цена — тяжёлый груз', 'сум'), F('gazelHeavyKg', 'Порог тяжёлого груза', 'кг', 'Если вес рейса больше — тяжёлый тариф'), F('gazelPtIn', '1 точка внутри кольца', 'сум'), F('gazelPtOut', '1 точка снаружи кольца', 'сум')] },
+      { title: 'Labo', fields: [F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём кузова', 'м³', 'Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг')] },
+      { title: 'Kamaz (план C)', fields: [F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — план C без цены'), F('kamazPt', '1 точка', 'сум'), F('baseIncludesPts', 'Точек включено в базу', 'шт', '0 — каждая точка платная; 1 — первая в базе')] },
+      { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), F('depotLat', 'Широта', '°', 'Внимание: в Excel помечено как примерное'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
+      { title: 'Машины для планов', fields: [F('isuzuM3', 'Isuzu — объём (A, B)', 'м³'), F('isuzuKg', 'Isuzu — грузоподъёмность', 'кг'), F('cM3', 'Большая машина — объём (C)', 'м³'), F('cKg', 'Большая машина — грузоподъёмность', 'кг'), F('cTrucks', 'Больших машин', 'шт'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения')] },
+      { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Мелкие грузы едут вместе в первой машине'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), { ...F('smartLabo', 'Авто-подбор Labo в планах A и B', '', '1 — вкл, 0 — выкл. Лёгкие части рейса едут на Labo, если дешевле'), value: S.smartLabo ?? 1 }] }
+    ];
+  }
+
+  openShipment(s) { this.setState({ dialog: { type: 'ship', mode: s ? 'edit' : 'new', id: s && s.id, draft: s ? { ...s, route: s.route ?? '' } : { date: this.state.jDate !== 'all' ? this.state.jDate : new Date().toISOString().slice(0, 10), bl: '', cbm: '', kg: '', places: '', truck: 'Belgilanmagan', route: '', status: 'Rejada', note: '' }, error: '' } }); }
+  openWh(w) { this.setState({ dialog: { type: 'wh', mode: w ? 'edit' : 'new', id: w && w.id, draft: w ? { ...w, lat: w.lat ?? '', lon: w.lon ?? '' } : { bl: '', brand: '', name: '', lat: '', lon: '' }, error: '' } }); }
+  openClient(c) { this.setState({ dialog: { type: 'client', mode: c ? 'edit' : 'new', id: c && c.bl, draft: c ? { ...c, lat: c.lat ?? '', lon: c.lon ?? '' } : { bl: '', brand: '', name: '', tel1: '', tel2: '', receiver: '', receiverTel: '', district: '__auto', address: '', lat: '', lon: '', note: '', manualZone: '' }, error: '' } }); }
+  runAutoDistrict() {
+    const d = this.state.data; if (!d || !window.LogiEngine) return;
+    let changed = false;
+    const clients = d.clients.map(c => {
+      if (c.lat == null || (c.district && c.district !== 'Aniqlanmagan')) return c;
+      const g = window.LogiEngine.guessDistrict(c.lat, c.lon, d.clients, c.bl);
+      if (!g) return c; changed = true; return { ...c, district: g.district };
+    });
+    if (changed) this.commit({ ...d, clients });
+  }
+
+  renderVals() {
+    const st = this.state;
+    const tabsDef = [['journal', 'Журнал'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['plans', 'Планы A/B/C'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
+    const tabs = tabsDef.map(([k, l]) => ({ label: l, go: () => this.setState({ tab: k }), color: st.tab === k ? 'var(--color-accent-700)' : 'var(--color-text)', border: st.tab === k ? 'var(--color-accent)' : 'transparent' }));
+    const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isTariffs: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef,
+      fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
+      logout: () => window.LogiAuth && window.LogiAuth.logout() };
+    const fs = st.fileStatus, fat = st.fileAt ? hhmm(st.fileAt.getHours() * 60 + st.fileAt.getMinutes()) : '';
+    Object.assign(base, {
+      fileTitle: st.fileName ? 'Excel: ' + st.fileName : 'Excel-файл не подключён',
+      fileNote: fs === 'saving' ? 'Записываю изменения в файл…' : fs === 'saved' ? 'Все изменения записаны в файл · ' + fat : fs === 'linked' ? 'Подключён · изменения на сайте сразу записываются в файл' : fs === 'imported' ? 'Загружен ' + fat + ' · только чтение: сохраняйте кнопкой «Скачать Excel»' : fs === 'needPerm' ? 'Нажмите «Подключить снова», чтобы разрешить запись' : fs === 'error' ? (st.fileMsg || 'Ошибка') : 'Данные взяты из вашего Excel. Подключите файл — правки будут записываться в него.',
+      fileDot: ['linked', 'saved', 'saving'].includes(fs) ? 'var(--color-accent)' : 'transparent',
+      fileNoteColor: fs === 'error' ? 'var(--color-accent-900)' : 'var(--color-neutral-700)', fileErr: fs === 'error' && !!this.handle,
+      showConnect: !['linked', 'saved', 'saving'].includes(fs), connectLabel: fs === 'needPerm' ? 'Подключить снова' : 'Подключить Excel-файл',
+      showReload: ['linked', 'saved'].includes(fs) && !!this.handle, showDisconnect: !!this.handle, exportLabel: st.exporting ? 'Собираю…' : 'Скачать Excel',
+      loadError: st.loadError || '', hasLoadError: !!st.loadError, openGs: this.openGs, gsLabel: 'Google Таблица', gsPullNow: () => this.gsPull(), gsRetry: () => this.gsFlush(), gsMode: false, gsErr: false });
+    if (this.gsUrl) {
+      const gs = st.gsStatus, gat = st.gsAt ? hhmm(st.gsAt.getHours() * 60 + st.gsAt.getMinutes()) : '';
+      Object.assign(base, {
+        gsMode: true, showConnect: false, showReload: false, showDisconnect: false, fileErr: false, gsErr: gs === 'error' && this.gsQueue.length > 0,
+        fileTitle: 'Google Таблица: ' + (st.gsName || '…'),
+        fileNote: gs === 'loading' ? 'Загружаю данные из таблицы…' : gs === 'saving' ? 'Записываю изменения в таблицу…' : gs === 'error' ? st.gsMsg : this.gsOldScript ? 'Обновите код скрипта в таблице («Настройки связи» → скопировать код → Развернуть → Управление → новая версия), чтобы новая граница ТКАД записалась в таблицу' : 'Синхронизировано ' + gat + ' · правки сразу уходят в таблицу, новые строки из таблицы подтягиваются каждые 30 сек',
+        fileDot: gs === 'error' ? 'transparent' : 'var(--color-accent)', fileNoteColor: gs === 'error' ? 'var(--color-accent-900)' : 'var(--color-neutral-700)', gsLabel: 'Настройки связи' });
+    }
+    base.showStrip = st.tab === 'journal' || base.fileErr || base.gsErr || st.gsStatus === 'error' || st.fileStatus === 'error' || st.fileStatus === 'needPerm';
+    base.mapTopOffset = base.showStrip ? '102px' : '57px';
+    if (!st.ready) return base;
+    const E = window.LogiEngine, data = st.data, S = data.settings, D = this.derived();
+    const depot = [S.depotLat, S.depotLon];
+    const lists = data.lists;
+    const statusOpts = lists.statuses.map(v => ({ v, l: ST[v] || v }));
+    const truckOpts = lists.trucks.map(v => ({ v, l: TR[v] || v }));
+    const districtOpts = lists.districts.map(v => ({ v, l: v === 'Aniqlanmagan' ? 'Не определён' : v }));
+    const dateOpts = D.dates.slice().reverse().map(v => ({ v, l: dLong(v) }));
+    const zf = bl => { const z = D.zones[bl] || {}; return { zIn: z.zone === 'in', zOut: z.zone === 'out', zNone: !z.zone, border: !!z.border }; };
+    const distName = d => d === 'Aniqlanmagan' ? 'Не определён' : (d || '—');
+    const out = { ...base, depotName: S.depotName, statusOpts, truckOpts, districtOpts, dateOpts,
+      savedNote: st.savedAt ? 'Сохранено ' + hhmm(st.savedAt.getHours() * 60 + st.savedAt.getMinutes()) : '',
+      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isTariffs: st.tab === 'tariffs', isCheck: st.tab === 'check' };
+
+    if (st.tab === 'journal') {
+      const q = st.jSearch.trim().toLowerCase();
+      const rows = data.shipments.filter(s => (st.jDate === 'all' || s.date === st.jDate) && (st.jStatus === 'all' || s.status === st.jStatus) && (!q || [s.bl, s.note, ...(Object.values(D.cmap[s.bl] || {}))].join(' ').toLowerCase().includes(q)))
+        .sort((a, b) => b.date.localeCompare(a.date) || a.bl.localeCompare(b.bl, 'ru', { numeric: true }));
+      const tripSet = new Set();
+      rows.forEach(s => D.tripOf[s.id] && tripSet.add(D.tripOf[s.id]));
+      const priceSum = [...tripSet].reduce((a, k) => a + (D.trips[k].price.total || 0), 0);
+      out.jStats = [
+        { label: 'Отгрузок', value: f0(rows.length) },
+        { label: 'CBM, м³', value: f1(rows.reduce((a, s) => a + (+s.cbm || 0), 0), 1) },
+        { label: 'KG', value: f0(rows.reduce((a, s) => a + (+s.kg || 0), 0)) },
+        { label: 'Мест', value: f0(rows.reduce((a, s) => a + (+s.places || 0), 0)) },
+        { label: 'Рейсов / стоимость', value: tripSet.size + ' · ' + (priceSum ? f0(priceSum) : '—') },
+        { label: 'Без машины', value: f0(rows.filter(s => !E.vehicleKind(s.truck) && !E.NO_PRICE.includes(s.status)).length) }
+      ];
+      const shown = rows.slice(0, st.jLimit);
+      out.jHasMore = rows.length > shown.length;
+      out.jMoreLabel = 'Показать ещё (' + (rows.length - shown.length) + ')';
+      out.jShowMore = () => this.setState(s => ({ jLimit: s.jLimit + 60 }));
+      out.jRows = shown.map(s => {
+        const c = D.cmap[s.bl] || {}, t = D.trips[D.tripOf[s.id]], sh = D.share[s.id];
+        return { date: dShort(s.date), bl: s.bl, brand: c.brand || '—', name: c.name || (D.cmap[s.bl] ? '' : 'нет в справочнике'), district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1),
+          cbm: s.cbm ? f1(s.cbm, 3) : '—', kg: s.kg ? f1(s.kg, 1) : '—', places: s.places || '—', truck: s.truck, route: s.route ?? '', status: s.status, ...zf(s.bl), editing: st.editRow === s.id, notEditing: st.editRow !== s.id, truckLabel: TR[s.truck] || s.truck, routeLabel: s.route ?? '—', statusLabel: ST[s.status] || s.status, onStartEdit: () => this.setState({ editRow: s.id }), onDone: () => this.setState({ editRow: null }),
+          share: sh != null ? f0(sh) : '—', tripInfo: t ? (t.price.total != null ? 'рейс ' + f0(t.price.total) : t.price.label + ': нет тарифа') : '',
+          hasPoint: c.lat != null, pointHref: c.lat != null ? E.yPoint(c.lat, c.lon) : '',
+          onTruck: e => this.updShip(s.id, { truck: e.target.value }), onRoute: e => this.updShip(s.id, { route: e.target.value === '' ? null : +e.target.value }), onStatus: e => this.updShip(s.id, { status: e.target.value }), onEdit: () => this.openShipment(s) };
+      });
+      out.jEmpty = !rows.length;
+      out.jDateOpts = [{ v: 'all', l: 'Все партии' }].concat(dateOpts);
+      out.jDateKey = 'jd-' + st.jDate;
+      Object.assign(out, { jDate: st.jDate, jStatus: st.jStatus, jSearch: st.jSearch, onJDate: e => this.setState({ jDate: e.target.value, jLimit: 60 }), onJStatus: e => this.setState({ jStatus: e.target.value, jLimit: 60 }), onJSearch: e => this.setState({ jSearch: e.target.value, jLimit: 60 }), newShipment: () => this.openShipment(null) });
+    }
+
+    if (st.tab === 'clients' || st.tab === 'dash') {
+      var agg = {};
+      data.shipments.forEach(s => { const a = agg[s.bl] = agg[s.bl] || { n: 0, cbm: 0, kg: 0, last: '' }; a.n++; a.cbm += +s.cbm || 0; a.kg += +s.kg || 0; if (s.date > a.last) a.last = s.date; });
+      var whBy = {}; (data.warehouses || []).forEach(w => (whBy[w.bl] = whBy[w.bl] || []).push(w));
+    }
+    const compl = c => ([c.brand, c.name, c.tel1, c.receiver, c.address].filter(Boolean).length + (c.lat != null ? 1 : 0)) / 6;
+
+    if (st.tab === 'check') {
+      const chip = c => ({ label: c.bl, sub: c.brand || c.name || '', go: () => this.openClient(c) });
+      const schip = s => ({ label: s.bl, sub: dShort(s.date), go: () => this.openShipment(s) });
+      const lim = a => a.slice(0, 40);
+      const noC = data.clients.filter(c => c.lat == null), border = data.clients.filter(c => (D.zones[c.bl] || {}).border),
+        outC = data.clients.filter(c => (D.zones[c.bl] || {}).zone === 'out'), undef = data.clients.filter(c => !c.district || c.district === 'Aniqlanmagan'),
+        low = data.clients.filter(c => compl(c) < 0.67), active = data.shipments.filter(s => !E.NO_PLAN.includes(s.status)),
+        noCbm = active.filter(s => !+s.cbm), noKg = active.filter(s => !+s.kg), noPl = active.filter(s => !+s.places), unknown = data.shipments.filter(s => !D.cmap[s.bl]);
+      const blDup = Object.entries(data.clients.reduce((a, c) => (a[c.bl] = (a[c.bl] || 0) + 1, a), {})).filter(([, n]) => n > 1);
+      const mk = (title, list, desc, level, map) => ({ title, value: list.length, desc, items: lim(list).map(map || chip), more: list.length > 40 ? 'и ещё ' + (list.length - 40) : '', warn: level === 'warn' && list.length > 0, info: level !== 'warn' && list.length > 0, ok: list.length === 0 });
+      out.checks = [
+        mk('Клиенты без координат', noC, 'Не попадают ни в один план и зона кольцевой для них не считается.', 'warn'),
+        mk('У границы кольцевой — проверьте', border, 'Ближе ' + f1(S.ringBuffer, 1) + ' км к ТКАД. Посмотрите на карте и задайте зону вручную в карточке клиента.', 'warn'),
+        mk('Отгрузки с BL не из справочника', unknown, 'Нет клиента с таким BL — нет адреса, координат и зоны.', 'warn', schip),
+        mk('Отгрузки без CBM', noCbm, 'Планы B и C строятся по объёму — без CBM они неточны.', 'warn', schip),
+        mk('Отгрузки без KG', noKg, 'Вес ограничивает рейсы так же, как объём.', 'warn', schip),
+        mk('Отгрузки без мест', noPl, 'Влияет на планы, только если задан лимит мест на машину.', 'info', schip),
+        mk('Район не определён', undef, 'Клиенты с районом «Aniqlanmagan».', 'info'),
+        mk('Неполные карточки (< 67%)', low, 'Не хватает бренда, имени, телефона, получателя, адреса или координат.', 'info'),
+        mk('Снаружи кольцевой', outC, 'Для них действует тариф точки снаружи кольца.', 'info'),
+        mk('Повторяющиеся BL в справочнике', blDup.map(([bl]) => D.cmap[bl]), 'Один BL должен быть одной строкой.', 'warn')
+      ];
+      out.checkWarn = out.checks.filter(c => c.warn).length;
+      out.depotInfo = S.depotName + ' → ' + S.depotLat + ', ' + S.depotLon;
+      out.depotHref = E.yPoint(S.depotLat, S.depotLon);
+      out.kamazMissing = S.kamazBase == null || S.kamazPt == null;
+      out.goTariffs = () => this.setState({ tab: 'tariffs' });
+      out.fileNotes = data.notes || [];
+      out.hasFileNotes = out.fileNotes.length > 0;
+    }
+    if (st.tab === 'clients') {
+      const q = st.cSearch.trim().toLowerCase();
+      const rows = data.clients.filter(c => (st.cDistrict === 'all' || c.district === st.cDistrict) && (st.cZone === 'all' || ((D.zones[c.bl] || {}).zone || 'none') === st.cZone) && (!q || Object.values(c).join(' ').toLowerCase().includes(q)))
+        .sort((a, b) => a.bl.localeCompare(b.bl, 'ru', { numeric: true }));
+      out.cCount = rows.length + ' из ' + data.clients.length;
+      out.cRows = rows.map(c => { const z = D.zones[c.bl] || {}, a = agg[c.bl] || { n: 0, cbm: 0 };
+        return { bl: c.bl, brand: c.brand || '—', name: c.name, tel1: c.tel1, tel1Href: telHref(c.tel1), tel2: c.tel2, tel2Href: telHref(c.tel2), receiver: c.receiver, rtel: c.receiverTel, rtelHref: telHref(c.receiverTel), district: distName(c.district), address: c.address || '—', ...zf(c.bl),
+          zoneNote: z.manual ? 'вручную' : z.border ? 'у границы — проверьте' : (z.dist != null ? f1(z.dist, 1) + ' км до кольца' : ''), count: a.n, cbm: f1(a.cbm, 1), last: a.last ? dLong(a.last) : '—',
+          hasPoint: c.lat != null, pointHref: c.lat != null ? E.yPoint(c.lat, c.lon) : '', onEdit: () => this.openClient(c),
+          hasLink: !!c.link, link: c.link, kg: f0(a.kg || 0), compl: Math.round(compl(c) * 100) + '%', complLow: compl(c) < 0.67, complOk: compl(c) >= 0.67,
+          whNote: (whBy[c.bl] || []).length ? '+ доп. склады: ' + whBy[c.bl].map(w => w.name).join(', ') : '' }; });
+      out.whRows = (data.warehouses || []).map(w => { const z = w.lat != null ? E.zoneOf({ lat: w.lat, lon: w.lon }, data.ring, S.ringBuffer) : {};
+        return { bl: w.bl, brand: w.brand || (D.cmap[w.bl] || {}).brand || '—', name: w.name || '—', coord: w.lat != null ? w.lat.toFixed(6) + ', ' + w.lon.toFixed(6) : '—', zIn: z.zone === 'in', zOut: z.zone === 'out', zNone: !z.zone,
+          dist: z.dist != null ? f1(z.dist, 1) + ' км' : '—', hasPoint: w.lat != null, pointHref: w.lat != null ? E.yPoint(w.lat, w.lon) : '', onEdit: () => this.openWh(w) }; });
+      out.whCount = (data.warehouses || []).length;
+      out.newWh = () => this.openWh(null);
+      Object.assign(out, { cSearch: st.cSearch, cDistrict: st.cDistrict, cZone: st.cZone, onCSearch: e => this.setState({ cSearch: e.target.value }), onCDistrict: e => this.setState({ cDistrict: e.target.value }), onCZone: e => this.setState({ cZone: e.target.value }), newClient: () => this.openClient(null) });
+    }
+
+    if (st.tab === 'map') {
+      out.mapDate = st.mapDate; out.onMapDate = e => this.setState({ mapDate: e.target.value });
+      out.mapHasDate = st.mapDate !== 'all';
+      const ringNow = st.ringEdit ? this.ringDraft : data.ring;
+      out.ringEditing = !!st.ringEdit; out.ringNotEditing = !st.ringEdit;
+      out.ringInfo = ringNow.length + ' точек · ' + f1(E.ringLength(ringNow), 1) + ' км · Keles ' + (E.inside(E.KELES, ringNow) ? 'внутри зоны' : 'снаружи');
+      out.ringEditStart = () => { this.ringDraft = data.ring.map(p => p.slice()); this.setState(s => ({ ringEdit: true, ringEditVer: (s.ringEditVer || 0) + 1, mapBase: s.mapBase === 'esri' ? 'yandex' : s.mapBase })); };
+      out.ringCancel = () => { this.ringDraft = null; this.setState({ ringEdit: false }); };
+      out.ringSave = () => { const ring = this.ringDraft.map(p => p.slice()); try { localStorage.setItem('logi-ring-pending', JSON.stringify(ring)); } catch (e) {} this.ringDraft = null; this.setState({ ringEdit: false }); this.commit({ ...data, ring }); };
+      out.ringAddKeles = () => { this.ringDraft = E.withKeles(this.ringDraft); this.setState(s => ({ ringEditVer: (s.ringEditVer || 0) + 1 })); };
+      out.ringKelesMissing = st.ringEdit && !E.inside(E.KELES, this.ringDraft);
+      out.ringReset = () => { if (confirm('Вернуть уточнённую границу ТКАД (по карте, с Keles)?')) { this.ringDraft = E.TKAD_V2.map(p => p.slice()); this.setState(s => ({ ringEditVer: (s.ringEditVer || 0) + 1 })); } };
+      out.mapLoadingText = window.L ? '' : (st.mapError ? 'Не удалось загрузить библиотеку карты — проверьте интернет' : 'Загрузка карты…');
+      out.mapBaseOpts = [['yandex', 'Яндекс'], ['gis', '2ГИС'], ['ysat', 'Спутник'], ['esri', 'Esri']].map(([k, l]) => ({ l, go: () => { try { localStorage.setItem('logi-map-base', k); } catch (e) {} this.setState({ mapBase: k }); }, bg: st.mapBase === k ? 'var(--color-accent)' : 'transparent', fg: st.mapBase === k ? 'var(--color-bg)' : 'var(--color-text)' }));
+      out.mapPlanOpts = [['none', 'Без'], ['A', 'A'], ['B', 'B'], ['C', 'C']].map(([k, l]) => ({ l, go: () => this.setState({ mapPlan: k }), bg: st.mapPlan === k ? 'var(--color-accent)' : 'transparent', fg: st.mapPlan === k ? 'var(--color-bg)' : 'var(--color-text)' }));
+      if (st.mapDate === 'all') {
+        const wc = data.clients.filter(c => c.lat != null);
+        out.mapStats = [{ label: 'Клиентов', value: data.clients.length }, { label: 'На карте', value: wc.length }, { label: 'Снаружи', value: wc.filter(c => (D.zones[c.bl] || {}).zone === 'out').length }, { label: 'Без коорд.', value: data.clients.length - wc.length }];
+        out.mapNoCoords = data.clients.filter(c => c.lat == null).map(c => ({ bl: c.bl, name: c.brand || c.name }));
+        out.mapHasRoute = false;
+      } else {
+        const P = this.plansFor(st.mapDate);
+        const wc = P.all.filter(s => s.lat != null);
+        out.mapStats = [{ label: 'Отгрузок', value: P.all.length }, { label: 'На карте', value: wc.length }, { label: 'Снаружи', value: wc.filter(s => s.zone === 'out').length }, { label: 'Рейсов в плане', value: st.mapPlan === 'none' ? '—' : P[st.mapPlan].trips.length }];
+        out.mapNoCoords = P.noCoords.map(s => ({ bl: s.bl, name: s.client.brand || s.client.name || '' }));
+        out.mapHasRoute = wc.length > 0;
+        out.mapRouteHref = E.yRoute(depot, wc.slice().sort((a, b) => E.bearing(depot, [a.lat, a.lon]) - E.bearing(depot, [b.lat, b.lon])).map(s => [s.lat, s.lon]));
+      }
+      out.mapHasNoCoords = out.mapNoCoords.length > 0;
+    }
+
+    if (st.tab === 'dash') {
+      const wc = data.clients.filter(c => c.lat != null).length;
+      const tot = data.shipments.reduce((a, s) => ({ cbm: a.cbm + (+s.cbm || 0), kg: a.kg + (+s.kg || 0) }), { cbm: 0, kg: 0 });
+      const priceAll = Object.values(D.trips).reduce((a, t) => a + (t.price.total || 0), 0);
+      out.dKpis = [
+        { label: 'Клиентов', value: f0(data.clients.length), sub: wc + ' с координатами' },
+        { label: 'Отгрузок', value: f0(data.shipments.length), sub: D.dates.length + ' партий' },
+        { label: 'Объём', value: f1(tot.cbm, 0), sub: 'м³ всего' },
+        { label: 'Вес', value: f1(tot.kg / 1000, 1), sub: 'тонн всего' },
+        { label: 'Осталось', value: f0(data.shipments.filter(s => s.status === 'Qolib ketgan').length), sub: 'не доставлено' },
+        { label: 'Стоимость (журнал)', value: priceAll ? f1(priceAll / 1e6, 2) : '0', sub: 'млн сум по назначенным рейсам' }
+      ];
+      out.dBatches = D.dates.slice().reverse().map(d => {
+        const sh = data.shipments.filter(s => s.date === d);
+        const tk = new Set(sh.map(s => D.tripOf[s.id]).filter(Boolean));
+        const pr = [...tk].reduce((a, k) => a + (D.trips[k].price.total || 0), 0);
+        return { label: dLong(d), count: sh.length, cbm: f1(sh.reduce((a, s) => a + (+s.cbm || 0), 0), 1), kg: f0(sh.reduce((a, s) => a + (+s.kg || 0), 0)), places: f0(sh.reduce((a, s) => a + (+s.places || 0), 0)),
+          out: sh.filter(s => (D.zones[s.bl] || {}).zone === 'out').length, noc: sh.filter(s => !(D.zones[s.bl] || {}).zone).length, noTruck: sh.filter(s => !E.vehicleKind(s.truck) && !E.NO_PRICE.includes(s.status)).length,
+          price: pr ? money(pr) : '—', openJ: () => this.setState({ tab: 'journal', jDate: d }), openP: () => this.setState({ tab: 'plans', planDate: d }) };
+      });
+      const byD = {};
+      data.shipments.forEach(s => { const dn = distName((D.cmap[s.bl] || {}).district || 'Aniqlanmagan'); const x = byD[dn] = byD[dn] || { cbm: 0, n: 0 }; x.cbm += +s.cbm || 0; x.n++; });
+      const arr = Object.entries(byD).sort((a, b) => b[1].cbm - a[1].cbm), mx = Math.max(1, ...arr.map(a => a[1].cbm));
+      out.dDistricts = arr.map(([name, x]) => ({ name, cbm: f1(x.cbm, 1), count: x.n + ' отгр.', pct: (x.cbm / mx * 100).toFixed(1) + '%' }));
+      out.dStatuses = lists.statuses.map(v => ({ l: ST[v], n: data.shipments.filter(s => s.status === v).length })).filter(x => x.n);
+    }
+
+    if (st.tab === 'plans' && st.planDate) {
+      const P = this.plansFor(st.planDate);
+      const prices = ['A', 'B', 'C'].map(k => P[k].sum.price).filter(p => p != null);
+      const minP = prices.length ? Math.min(...prices) : null;
+      out.planCards = ['A', 'B', 'C'].map(k => { const s = P[k].sum, sel = st.planKey === k;
+        return { title: PLAN_INFO[k].title, desc: PLAN_INFO[k].desc, trips: s.trips + (s.labo ? ' · ' + s.labo + ' Labo' : ''), real: f0(s.real) + ' км', outside: s.outside + ' · ' + f1(s.outsideCbm, 1) + ' м³', price: s.price != null ? money(s.price) : 'нет тарифа',
+          cheapest: s.price != null && s.price === minP && prices.length > 1, diff: s.price == null ? 'Заполните тариф Kamaz во вкладке «Тарифы»' : (s.price === minP ? '' : '+' + f0(s.price - minP) + ' сум к самому дешёвому'),
+          bg: sel ? 'var(--color-accent-100)' : 'transparent', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', go: () => this.setState({ planKey: k }) }; });
+      const plan = P[st.planKey];
+      out.planTrips = plan.trips.map(t => {
+        const isL = t.kind === 'labo', capM3 = isL ? S.laboM3 : st.planKey === 'C' ? S.cM3 : S.isuzuM3, capKg = isL ? S.laboKg : st.planKey === 'C' ? S.cKg : S.isuzuKg;
+        let prev = depot;
+        return { name: t.name, tariff: t.price.label, stopsN: t.stops.length, cbm: f1(t.cbm, 2), kg: f0(t.kg), cbmPct: Math.min(100, t.cbm / capM3 * 100).toFixed(0) + '%', kgPct: Math.min(100, t.kg / capKg * 100).toFixed(0) + '%',
+          km: f1(t.real, 1) + ' км (реальн.)', time: hhmm(S.dayStart * 1440) + '–' + hhmm(t.finish + t.back / S.speed * 60 * S.roadK), price: t.price.total != null ? money(t.price.total) : 'нет тарифа', formula: t.price.formula,
+          yHref: E.yRoute(depot, t.stops.map(s => [s.lat, s.lon])),
+          stops: t.stops.map((s, j) => { const c = s.client, leg = E.km(prev, [s.lat, s.lon]); prev = [s.lat, s.lon];
+            return { n: j + 1, bl: s.bl, brand: c.brand || '—', name: c.name || '', district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', pointHref: E.yPoint(s.lat, s.lon), pt: t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') }; }) };
+      });
+      out.planNoCoords = P.noCoords.map(s => ({ bl: s.bl, name: (s.client.brand || '') + ' ' + (s.client.name || ''), cbm: f1(s.cbm, 2), kg: f0(s.kg), onEdit: () => { const c = D.cmap[s.bl]; if (c) this.openClient(c); } }));
+      out.planHasNoCoords = P.noCoords.length > 0;
+      const wc = P.all.filter(s => s.lat != null);
+      out.planRouteHref = E.yRoute(depot, wc.slice().sort((a, b) => E.bearing(depot, [a.lat, a.lon]) - E.bearing(depot, [b.lat, b.lon])).map(s => [s.lat, s.lon]));
+      const unk = P.all.filter(s => s.lat != null && !(s.cbm > 0) && !(s.kg > 0)).length;
+      out.planSummary = (unk ? unk + ' без CBM/KG — считаются на Gazel · ' : '') + P.all.length + ' отгрузок · ' + f1(P.all.reduce((a, s) => a + s.cbm, 0), 1) + ' м³ · ' + f0(P.all.reduce((a, s) => a + s.kg, 0)) + ' кг';
+      Object.assign(out, { planDate: st.planDate, onPlanDate: e => this.setState({ planDate: e.target.value }), showPlanOnMap: () => this.setState({ tab: 'map', mapDate: st.planDate, mapPlan: st.planKey }) });
+    }
+
+    if (st.tab === 'tariffs') {
+      out.settingGroups = this.settingDefs();
+      out.onSetting = e => { const { name, value, type } = e.target; const v = type === 'number' ? (value === '' ? null : +value) : value; this.commit({ ...data, settings: { ...S, [name]: v } }); };
+      out.calc = st.calc;
+      out.onCalc = e => { const { name, value } = e.target; this.setState(s => ({ calc: { ...s.calc, [name]: name === 'kind' ? value : +value } })); };
+      const c = st.calc, stops = [];
+      for (let i = 0; i < (c.nin || 0); i++) stops.push({ bl: 'i' + i, zone: 'in', kg: i === 0 ? c.kg : 0, cbm: i === 0 ? c.cbm : 0 });
+      for (let i = 0; i < (c.nout || 0); i++) stops.push({ bl: 'o' + i, zone: 'out', kg: stops.length ? 0 : c.kg, cbm: stops.length ? 0 : c.cbm });
+      const r = E.priceTrip(stops, c.kind, S);
+      out.calcRes = { label: r.label, formula: r.formula, total: r.total != null ? money(r.total) : 'нет тарифа' };
+      out.resetData = () => { if (confirm('Вернуть все данные к исходному Excel? Ваши правки будут удалены.')) { if (this.handle && ['linked', 'saved', 'error'].includes(st.fileStatus)) this.readFromHandle(); else { const d = JSON.parse(JSON.stringify(this.fresh)); this.commit(d); this.setReady(d); } } };
+    }
+
+    const dl = st.dialog;
+    if (dl) {
+      const dr = dl.draft;
+      out.draft = dr;
+      out.dialogError = dl.error || '';
+      out.canDelete = dl.mode === 'edit';
+      out.closeDialog = () => this.setState({ dialog: null });
+      out.closeDialogBg = e => { if (e.target === e.currentTarget) this.setState({ dialog: null }); };
+      out.onDraft = e => { const { name, value } = e.target; this.setState(s => ({ dialog: { ...s.dialog, error: '', draft: { ...s.dialog.draft, [name]: value, ...(name === 'district' ? { _distTouched: true } : {}) } } })); };
+      if (dl.type === 'ship') {
+        out.isShipDialog = true;
+        out.dialogTitle = dl.mode === 'new' ? 'Новая отгрузка' : 'Отгрузка ' + dr.bl;
+        out.blOpts = data.clients.map(c => ({ v: c.bl, l: (c.brand || '') + ' ' + (c.name || '') }));
+        const c = D.cmap[(dr.bl || '').trim()];
+        out.draftClientInfo = !dr.bl ? 'Начните вводить BL — появится подсказка' : c ? [c.brand, c.name, distName(c.district), c.receiverTel].filter(Boolean).join(' · ') : 'Клиента с таким BL нет в справочнике — добавьте его во вкладке «Клиенты»';
+        out.saveShipment = () => {
+          if (!dr.date || !String(dr.bl).trim()) return this.setState({ dialog: { ...dl, error: 'Укажите дату и BL код' } });
+          const rec = { ...dr, bl: String(dr.bl).trim(), cbm: +dr.cbm || 0, kg: +dr.kg || 0, places: +dr.places || 0, route: dr.route === '' || dr.route == null ? null : +dr.route };
+          const list = dl.mode === 'new' ? [...data.shipments, { ...rec, id: 's' + Date.now() }] : data.shipments.map(s => s.id === dl.id ? { ...rec, id: dl.id } : s);
+          this.commit({ ...data, shipments: list }); this.setState({ dialog: null });
+        };
+        out.deleteItem = () => { if (confirm('Удалить отгрузку?')) { this.commit({ ...data, shipments: data.shipments.filter(s => s.id !== dl.id) }); this.setState({ dialog: null }); } };
+      } else if (dl.type === 'gs') {
+        out.isGsDialog = true;
+        out.gsScript = window.LOGI_GS_SCRIPT || '';
+        out.gsConnected = !!this.gsUrl;
+        out.copyGs = e => { const b = e.currentTarget; navigator.clipboard.writeText(window.LOGI_GS_SCRIPT || '').then(() => { b.textContent = 'Скопировано ✓'; setTimeout(() => { b.textContent = 'Скопировать код'; }, 1800); }).catch(() => { const ta = document.getElementById('gs-code'); ta && ta.select(); document.execCommand('copy'); }); };
+        out.gsDisconnect = this.gsStop;
+        out.gsConnect = async () => {
+          const url = String(dr.url || '').trim();
+          if (!/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(url)) return this.setState({ dialog: { ...dl, error: 'Нужна ссылка веб-приложения вида https://script.google.com/macros/s/…/exec' } });
+          this.setState({ dialog: { ...dl, error: 'Подключаюсь…' } });
+          try {
+            const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(dr.token || '') + '&t=' + Date.now());
+            const j = await r.json();
+            if (j.error) throw new Error(j.error);
+            window.XlsxIO.fromSheets(j.data);
+            try { localStorage.setItem('logi-gs-url', url); localStorage.setItem('logi-gs-token', dr.token || ''); } catch (e) {}
+            this.handle = null;
+            this.gsUrl = url; this.gsToken = dr.token || '';
+            this.gsApply(j, true);
+            this.gsStart(url, dr.token || '');
+            this.setState({ dialog: null });
+          } catch (e) { this.setState({ dialog: { ...dl, error: 'Не получилось: ' + (e.message || e) + '. Проверьте, что при развертывании выбран доступ «Все».' } }); }
+        };
+      } else if (dl.type === 'wh') {
+        out.isWhDialog = true;
+        out.dialogTitle = dl.mode === 'new' ? 'Новый доп. склад' : 'Склад ' + (dr.name || dr.bl);
+        out.blOpts = data.clients.map(c => ({ v: c.bl, l: (c.brand || '') + ' ' + (c.name || '') }));
+        const la = parseFloat(String(dr.lat).replace(',', '.')), lo = parseFloat(String(dr.lon).replace(',', '.'));
+        out.draftHasPoint = !isNaN(la) && !isNaN(lo);
+        out.draftPointHref = out.draftHasPoint ? E.yPoint(la, lo) : '';
+        out.saveWh = () => {
+          let a = String(dr.lat).trim(), b = String(dr.lon).trim();
+          if (a.includes(',') && !b) { const p = a.split(',').map(x => x.trim()); a = p[0]; b = p[1]; }
+          if (!String(dr.bl).trim()) return this.setState({ dialog: { ...dl, error: 'Укажите BL код клиента' } });
+          const rec = { ...dr, bl: String(dr.bl).trim(), brand: dr.brand || (D.cmap[String(dr.bl).trim()] || {}).brand || '', lat: a === '' || isNaN(+a) ? null : +a, lon: b === '' || isNaN(+b) ? null : +b };
+          const ws = data.warehouses || [];
+          this.commit({ ...data, warehouses: dl.mode === 'new' ? [...ws, { ...rec, id: 'w' + Date.now() }] : ws.map(w => w.id === dl.id ? { ...rec, id: dl.id } : w) }); this.setState({ dialog: null });
+        };
+        out.deleteItem = () => { if (confirm('Удалить склад?')) { this.commit({ ...data, warehouses: (data.warehouses || []).filter(w => w.id !== dl.id) }); this.setState({ dialog: null }); } };
+      } else {
+        out.isClientDialog = true;
+        out.dialogTitle = dl.mode === 'new' ? 'Новый клиент' : 'Клиент ' + dr.bl;
+        const lat = parseFloat(String(dr.lat).replace(',', '.')), lon = parseFloat(String(dr.lon).replace(',', '.'));
+        out.draftHasPoint = !isNaN(lat) && !isNaN(lon);
+        out.draftPointHref = out.draftHasPoint ? E.yPoint(lat, lon) : '';
+        const z = out.draftHasPoint ? E.zoneOf({ lat, lon }, data.ring, S.ringBuffer) : null;
+        out.draftZoneInfo = z ? 'По координатам: ' + (z.zone === 'in' ? 'внутри' : 'снаружи') + ' кольцевой, ' + f1(z.dist, 1) + ' км до границы' + (z.border ? ' — у границы, проверьте на карте' : '') : 'Без координат клиент не попадёт в планы маршрутов. Можно вставить «41.31, 69.27» в поле широты.';
+        { const g = out.draftHasPoint ? E.guessDistrict(lat, lon, data.clients, dl.id) : null;
+          out.draftDistrictInfo = g ? '· по координатам: ' + distName(g.district) : '· определится по координатам'; }
+        out.saveClient = () => {
+          let la = String(dr.lat).trim(), lo = String(dr.lon).trim();
+          if (la.includes(',') && !lo) { const p = la.split(',').map(x => x.trim()); la = p[0]; lo = p[1]; }
+          const bl = String(dr.bl).trim();
+          if (!bl) return this.setState({ dialog: { ...dl, error: 'Укажите BL код' } });
+          if (dl.mode === 'new' && D.cmap[bl]) return this.setState({ dialog: { ...dl, error: 'Клиент с таким BL уже есть' } });
+          const rec = { ...dr, bl, lat: la === '' || isNaN(+la) ? null : +la, lon: lo === '' || isNaN(+lo) ? null : +lo };
+          const old = dl.mode === 'edit' ? D.cmap[dl.id] : null;
+          const moved = !old || old.lat !== rec.lat || old.lon !== rec.lon;
+          if (rec.district === '__auto' || (!dr._distTouched && moved && rec.lat != null)) { const g = E.guessDistrict(rec.lat, rec.lon, data.clients, dl.id); rec.district = g ? g.district : 'Aniqlanmagan'; }
+          delete rec._distTouched;
+          const list = dl.mode === 'new' ? [...data.clients, rec] : data.clients.map(c => c.bl === dl.id ? rec : c);
+          const ships = dl.mode === 'edit' && bl !== dl.id ? data.shipments.map(s => s.bl === dl.id ? { ...s, bl } : s) : data.shipments;
+          this.commit({ ...data, clients: list, shipments: ships }); this.setState({ dialog: null });
+        };
+        out.deleteItem = () => { if (confirm('Удалить клиента ' + dl.id + '? Отгрузки останутся.')) { this.commit({ ...data, clients: data.clients.filter(c => c.bl !== dl.id) }); this.setState({ dialog: null }); } };
+      }
+    }
+    return out;
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+/* Базовые стили страницы (раньше лежали в <helmet> экспорта) и обвязка сайта:
+   экран входа, кнопка «Выйти», плашка установки приложения. */
+x-dc { display: none !important; }
+body { margin: 0; background: var(--color-bg); }
+a { color: var(--color-accent-700); }
+a:hover { color: var(--color-accent-900); }
+
+/* ── Экран входа ── */
+html.locked, html.locked body { overflow: hidden; }
+.auth {
+  position: fixed; inset: 0; z-index: 5000;
+  display: grid; place-items: center; overflow-y: auto;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  background: #0e2e54; color: var(--color-text); font-family: var(--font-body);
+  transition: opacity .2s ease;
+}
+.auth[data-state="open"] { opacity: 0; pointer-events: none; }
+.auth-card {
+  width: min(380px, 100%); display: flex; flex-direction: column; gap: 14px;
+  padding: 0 24px 24px; background: var(--color-bg); box-shadow: var(--shadow-lg);
+}
+.auth[data-state="checking"] .auth-card, .auth[data-state="open"] .auth-card { display: none; }
+.auth-logo {
+  height: 132px; margin: 0 -24px 4px;
+  background: #0e2e54 url(../img/logo.png) center / 264px 264px no-repeat;
+}
+.auth-title { margin: 0; font-size: 28px; }
+.auth-sub { margin: -10px 0 4px; font-size: 13px; color: var(--color-neutral-700); }
+.auth .input { font-size: 16px; min-height: 44px; }
+.auth-remember { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.auth-remember input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); }
+.auth-error { min-height: 0; font-size: 13px; color: #9b1c1c; }
+.auth-error:empty { display: none; }
+.auth .btn-block { min-height: 44px; margin-top: 2px; font-size: 16px; }
+.auth-note { margin: 0; font-size: 12px; color: var(--color-neutral-600); text-align: center; }
+.auth-wait { display: none; color: #fff; font-size: 15px; letter-spacing: .02em; }
+.auth[data-state="checking"] .auth-wait { display: block; }
+
+/* ── Кнопка «Выйти» в шапке ── */
+.app-logout {
+  flex: none; align-self: center; margin-left: auto;
+  padding: 6px 10px; background: none; border: 1px solid var(--color-divider);
+  font: 600 13px/1.2 var(--font-heading); letter-spacing: .02em; text-transform: uppercase;
+  color: var(--color-neutral-700); cursor: pointer;
+}
+.app-logout:hover { color: var(--color-accent-700); border-color: var(--color-accent); }
+
+/* ── Плашка «Установить приложение» ── */
+.install-app {
+  position: fixed; z-index: 2500;
+  right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 4px; padding: 6px;
+  background: var(--color-bg); border: 1px solid var(--color-divider); box-shadow: var(--shadow-md);
+  font-family: var(--font-body);
+}
