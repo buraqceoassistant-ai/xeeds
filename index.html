@@ -659,7 +659,8 @@
               <div><button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ copyGs }}">Скопировать код</button></div>
             </div>
           </li>
-          <li><b>Развернуть → Новое развертывание</b> → шестерёнка → <b>Веб-приложение</b>. «Выполнять как»: <b>Я</b>, «Доступ»: <b>Все</b> → Развернуть → разрешите доступ к аккаунту.</li>
+          <li><b>Развернуть → Новое развертывание</b> → шестерёнка → <b>Веб-приложение</b>. «Выполнять как»: <b>Я</b>, «Доступ»: <b>Все</b> → Развернуть → разрешите доступ к аккаунту.
+            <div style="font-size:12px;color:var(--color-neutral-700);margin-top:4px">Если скрипт уже подключён и нужно обновить код: вставьте новый код → <b>Развернуть → Управление развертываниями</b> → ✎ → Версия: <b>новая</b> → Развернуть. Ссылка останется прежней.</div></li>
           <li>Скопируйте ссылку веб-приложения (заканчивается на <b>/exec</b>) и вставьте сюда:</li>
         </ol>
         <div class="form-grid form-grid-1" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,200px);gap:12px">
@@ -914,6 +915,11 @@ class Component extends DCLogic {
     if (!j || j.error || !j.data) throw new Error((j && j.error) || 'Пустой ответ');
     const data = window.XlsxIO.fromSheets(j.data);
     this.staleNotes(data);
+    // Скрипт в таблице старее версии 2 не записывает «точек в базовой цене» для Labo и Kamaz (B55, B56):
+    // оставляем значения сайта и просим обновить код скрипта.
+    this.gsScriptOld = !(j.v >= 2);
+    const cur0 = this.state.data;
+    if (this.gsScriptOld && cur0) ['laboBaseIncludesPts', 'kamazBaseIncludesPts'].forEach(k => { if (cur0.settings[k] != null) data.settings[k] = cur0.settings[k]; });
     const mig = this.gsMigrations(data);
     const cur = this.state.data;
     let pend = null; try { pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); } catch (e) {}
@@ -1226,9 +1232,9 @@ class Component extends DCLogic {
     const S = this.state.data.settings;
     const F = (key, label, unit, hint, type) => ({ key, label, unit: unit || '', hint: hint || '', type: type || 'number', value: S[key] ?? '' });
     return [
-      { title: 'Gazel', fields: [F('baseIncludesPts', 'Точек в базовой цене', 'шт', '1 — первая точка входит в базу, доплата со 2-й; 0 — платная каждая. Для всех машин'), F('gazelBase', 'Базовая цена рейса', 'сум'), F('gazelHeavy', 'Базовая цена — тяжёлый груз', 'сум'), F('gazelHeavyKg', 'Порог тяжёлого груза', 'кг', 'Если вес рейса больше — тяжёлый тариф'), F('gazelPtIn', '1 точка внутри кольца', 'сум'), F('gazelPtOut', '1 точка снаружи кольца', 'сум')] },
-      { title: 'Labo', fields: [F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём кузова', 'м³', 'Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг')] },
-      { title: 'Kamaz (план C)', fields: [F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — план C без цены'), F('kamazPt', '1 точка', 'сум')] },
+      { title: 'Gazel', fields: [F('baseIncludesPts', 'Точек в базовой цене', 'шт', '1 — первая точка входит в базу, доплата со 2-й; 0 — платная каждая'), F('gazelBase', 'Базовая цена рейса', 'сум'), F('gazelHeavy', 'Базовая цена — тяжёлый груз', 'сум'), F('gazelHeavyKg', 'Порог тяжёлого груза', 'кг', 'Если вес рейса больше — тяжёлый тариф'), F('gazelPtIn', '1 точка внутри кольца', 'сум'), F('gazelPtOut', '1 точка снаружи кольца', 'сум')] },
+      { title: 'Labo', fields: [F('laboBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём кузова', 'м³', 'Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг')] },
+      { title: 'Kamaz (план C)', fields: [F('kamazBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — план C без цены'), F('kamazPt', '1 точка', 'сум')] },
       { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), F('depotLat', 'Широта', '°', 'Внимание: в Excel помечено как примерное'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
       { title: 'Машины для планов', fields: [F('isuzuM3', 'Isuzu — объём (A, B)', 'м³'), F('isuzuKg', 'Isuzu — грузоподъёмность', 'кг'), F('cM3', 'Большая машина — объём (C)', 'м³'), F('cKg', 'Большая машина — грузоподъёмность', 'кг'), F('cTrucks', 'Больших машин', 'шт'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения')] },
       { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Мелкие грузы едут вместе в первой машине'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), { ...F('smartLabo', 'Авто-подбор Labo в планах A и B', '', '1 — вкл, 0 — выкл. Лёгкие части рейса едут на Labo, если дешевле'), value: S.smartLabo ?? 1 }] }
@@ -1270,7 +1276,7 @@ class Component extends DCLogic {
       Object.assign(base, {
         gsMode: true, showConnect: false, showReload: false, showDisconnect: false, fileErr: false, gsErr: gs === 'error' && this.gsQueue.length > 0,
         fileTitle: 'Google Таблица: ' + (st.gsName || '…'),
-        fileNote: gs === 'loading' ? 'Загружаю данные из таблицы…' : gs === 'saving' ? 'Записываю изменения в таблицу…' : gs === 'error' ? st.gsMsg : this.gsOldScript ? 'Обновите код скрипта в таблице («Настройки связи» → скопировать код → Развернуть → Управление → новая версия), чтобы новая граница ТКАД записалась в таблицу' : 'Синхронизировано ' + gat + (this.gsShared ? ' · одна таблица на всех устройствах' : ' · только на этом устройстве') + ' · правки сразу уходят в таблицу, новые строки подтягиваются каждые 30 сек',
+        fileNote: gs === 'loading' ? 'Загружаю данные из таблицы…' : gs === 'saving' ? 'Записываю изменения в таблицу…' : gs === 'error' ? st.gsMsg : this.gsOldScript || this.gsScriptOld ? 'Обновите код скрипта в таблице: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → Управление развертываниями → ✎ → Версия: новая. Без этого часть настроек не записывается в таблицу' : 'Синхронизировано ' + gat + (this.gsShared ? ' · одна таблица на всех устройствах' : ' · только на этом устройстве') + ' · правки сразу уходят в таблицу, новые строки подтягиваются каждые 30 сек',
         fileDot: gs === 'error' ? 'transparent' : 'var(--color-accent)', fileNoteColor: gs === 'error' ? 'var(--color-accent-900)' : 'var(--color-neutral-700)', gsLabel: 'Настройки связи' });
     }
     base.showStrip = st.tab === 'journal' || base.fileErr || base.gsErr || st.gsStatus === 'error' || st.fileStatus === 'error' || st.fileStatus === 'needPerm';

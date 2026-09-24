@@ -60,7 +60,9 @@
     else if (kind === 'kamaz') { label = 'Kamaz'; base = S.kamazBase; ptIn = ptOut = S.kamazPt; }
     else { const heavy = kg > S.gazelHeavyKg; label = heavy ? 'Gazel (тяжёлый)' : 'Gazel'; base = heavy ? S.gazelHeavy : S.gazelBase; ptIn = S.gazelPtIn; ptOut = S.gazelPtOut; }
     if (base == null || ptIn == null) return { label, total: null, points: 0, formula: 'нет тарифа', perStop: stops.map(() => null) };
-    const seen = {}; let idx = 0; const inc = +S.baseIncludesPts || 0;
+    // points already included in the base price: separate setting per vehicle (Gazel B52, Labo B55, Kamaz B56)
+    const inc = +(kind === 'labo' ? S.laboBaseIncludesPts : kind === 'kamaz' ? S.kamazBaseIncludesPts : S.baseIncludesPts) || 0;
+    const seen = {}; let idx = 0;
     const pts = [];
     stops.forEach((s, i) => {
       if (seen[s.bl] != null) { pts.push({ dup: seen[s.bl] }); return; }
