@@ -113,7 +113,7 @@
   // places and number of points. A shipment bigger than the largest vehicle is split into parts.
   // Among vehicles that fit, the cheapest by tariff wins. In plans A and B Kamaz (and any vehicle without
   // a tariff) carries only cargo that fits no regular vehicle: Gazel first, Kamaz only when it does not fit.
-  // Plan B may load a Gazel above its body by a tolerance (bTolM3 / bTolKg), so Kamaz there only takes cargo bigger than that.
+  // Plans A and B may load a Gazel above its body by a tolerance (bTolM3 / bTolKg), so Kamaz there only takes cargo bigger than that.
   const EPS = 1e-6, UNPRICED = 1e8, KM_COST = 1000;
   const known = s => (s.cbm || 0) > 0 || (s.kg || 0) > 0;
   function fleetOf(S, kinds, opt = {}) {
@@ -193,8 +193,19 @@
     seq.forEach((s, i) => { const g = (seq[(i + 1) % seq.length].angle - s.angle + 360) % 360; if (g > gap) { gap = g; cut = (i + 1) % seq.length; } });
     return seq.slice(cut).concat(seq.slice(0, cut));
   }
-  // plan A: cut the sweep into consecutive arcs, each with its best vehicle, at the lowest total cost (dynamic programming)
-  function partition(seq, fleet, maxStops, S, depot) {
+  // A trip depends only on its set of points: each set is evaluated once (key — sorted item numbers)
+  function evaluator(items, fleet, maxStops, S, depot) {
+    const id = new Map(items.map((s, i) => [s, i])), memo = new Map();
+    const key = stops => stops.map(s => id.get(s)).sort((a, b) => a - b).join(',');
+    const ev = stops => {
+      const k = key(stops);
+      if (!memo.has(k)) memo.set(k, evalTrip(k.split(',').map(i => items[+i]), fleet, maxStops, S, depot));
+      return memo.get(k);
+    };
+    return { ev, key, id: s => id.get(s) };
+  }
+  // cut the sweep into consecutive arcs, each with its best vehicle, at the lowest total cost (dynamic programming)
+  function partition(seq, fleet, maxStops, S, depot, ev = stops => evalTrip(stops, fleet, maxStops, S, depot)) {
     const n = seq.length, best = new Array(n + 1).fill(Infinity), prev = new Array(n + 1);
     best[0] = 0;
     for (let j = 1; j <= n; j++) {
@@ -202,7 +213,7 @@
         const seg = seq.slice(i, j);
         if (i < j - 1 && tooBig(load(seg), fleet, maxStops)) break;
         if (best[i] === Infinity) continue;
-        const t = evalTrip(seg, fleet, maxStops, S, depot);
+        const t = ev(seg);
         if (t && best[i] + t.val < best[j]) { best[j] = best[i] + t.val; prev[j] = { i, t }; }
       }
       if (best[j] === Infinity) { const t = overTrip(seq[j - 1], fleet, S, depot); best[j] = best[j - 1] + t.val; prev[j] = { i: j - 1, t }; }
@@ -213,8 +224,8 @@
   }
   // plan B: start with one trip per cargo and keep merging the pair that saves the most (savings method),
   // then move single points between trips while that lowers the total
-  function consolidate(items, fleet, maxStops, S, depot) {
-    const mk = stops => evalTrip(stops, fleet, maxStops, S, depot) || (stops.length === 1 ? overTrip(stops[0], fleet, S, depot) : null);
+  function consolidate(items, fleet, maxStops, S, depot, ev = stops => evalTrip(stops, fleet, maxStops, S, depot)) {
+    const mk = stops => ev(stops) || (stops.length === 1 ? overTrip(stops[0], fleet, S, depot) : null);
     let trips = items.map(s => mk([s]));
     const maxM3 = Math.max(...fleet.map(v => v.m3)), maxKg = Math.max(...fleet.map(v => v.kg));
     for (;;) {
@@ -222,7 +233,7 @@
       for (let a = 0; a < trips.length; a++) for (let b = a + 1; b < trips.length; b++) {
         const A = trips[a], B = trips[b];
         if (A.over || B.over || A.l.cbm + B.l.cbm > maxM3 + EPS || A.l.kg + B.l.kg > maxKg + EPS) continue;
-        const m = evalTrip(A.stops.concat(B.stops), fleet, maxStops, S, depot);
+        const m = ev(A.stops.concat(B.stops));
         if (!m) continue;
         const gain = A.val + B.val - m.val;
         if (gain > EPS && (!best || gain > best.gain + EPS)) best = { a, b, m, gain };
@@ -233,16 +244,142 @@
     for (let pass = 0, moved = true; moved && pass < 4; pass++) {
       moved = false;
       for (let a = 0; a < trips.length; a++) for (let k = 0; k < trips[a].stops.length && trips[a].stops.length > 1; k++) {
-        const s = trips[a].stops[k], rest = trips[a].stops.filter((_, i) => i !== k), A2 = evalTrip(rest, fleet, maxStops, S, depot);
+        const s = trips[a].stops[k], rest = trips[a].stops.filter((_, i) => i !== k), A2 = ev(rest);
         if (!A2) continue;
         for (let b = 0; b < trips.length; b++) {
           if (b === a || trips[b].over) continue;
-          const B2 = evalTrip(trips[b].stops.concat([s]), fleet, maxStops, S, depot);
+          const B2 = ev(trips[b].stops.concat([s]));
           if (B2 && A2.val + B2.val < trips[a].val + trips[b].val - EPS) { trips[a] = A2; trips[b] = B2; moved = true; k = -1; break; }
         }
       }
     }
     return trips;
+  }
+  // plan A — the cheapest: many starting plans (the sweep cut at different directions, the savings method), then local search
+  // while the total goes down: empty a whole trip into the others, move one point, swap two points of different trips.
+  // The total is the tariff sum plus a small cost per km, so fewer trips come first and routes stay compact.
+  function cheapest(items, fleet, maxStops, S, depot) {
+    if (!items.length) return [];
+    const { ev, key, id } = evaluator(items, fleet, maxStops, S, depot), n = items.length;
+    const total = ts => ts.reduce((a, t) => a + t.val, 0);
+    const size = s => Math.max((s.cbm || 0) / (+S.gazelM3 || 1), (s.kg || 0) / (+S.gazelKg || 1));
+    // quick check before the full evaluation: the load must fit the biggest vehicle and the point limit
+    const M3 = Math.max(...fleet.map(v => v.m3)), KG = Math.max(...fleet.map(v => v.kg)), PL = fleet[0].places;
+    const has = (t, s) => t.stops.some(x => x !== s && x.bl === s.bl);
+    const can = (t, add, rem) => {
+      const cbm = t.l.cbm + (add ? add.cbm || 0 : 0) - (rem ? rem.cbm || 0 : 0), kg = t.l.kg + (add ? add.kg || 0 : 0) - (rem ? rem.kg || 0 : 0);
+      const pts = t.l.points + (add && !has(t, add) ? 1 : 0), pl = t.l.places + (add ? add.places || 0 : 0) - (rem ? rem.places || 0 : 0);
+      return cbm <= M3 + EPS && kg <= KG + EPS && pts <= maxStops + (rem && !has(t, rem) ? 1 : 0) && (!PL || pl <= PL + EPS);
+    };
+    const EMPTY = { val: 0, empty: true }, evOr = st => st.length ? ev(st) : EMPTY;
+    function improve(start) {
+      const fixed = start.filter(t => t.over);   // a cargo that fits no vehicle stays as it is
+      let ts = start.filter(t => !t.over), cur = total(ts);
+      const set = (a, A2, b, B2) => { ts = ts.map((t, i) => i === a ? A2 : i === b ? B2 : t).filter(t => !t.empty); cur = total(ts); };
+      // 1) empty a trip: its points go where they add least, the biggest first
+      const emptyOne = () => {
+        const order = ts.map((_, i) => i).sort((a, b) => ts[a].stops.length - ts[b].stops.length || ts[a].l.cbm - ts[b].l.cbm || a - b);
+        for (const r of order) {
+          const rest = ts.filter((_, i) => i !== r);
+          let ok = true;
+          for (const s of ts[r].stops.slice().sort((a, b) => size(b) - size(a))) {
+            let bi = -1, bd = Infinity, bt = null;
+            rest.forEach((t, i) => { if (!can(t, s)) return; const t2 = ev(t.stops.concat([s])); if (t2 && t2.val - t.val < bd - EPS) { bd = t2.val - t.val; bi = i; bt = t2; } });
+            if (bi < 0) { ok = false; break; }
+            rest[bi] = bt;
+          }
+          if (ok && total(rest) < cur - EPS) { ts = rest; cur = total(rest); return true; }
+        }
+        return false;
+      };
+      // 2) move one point to another trip (a full pass, improvements applied as found)
+      const moveAll = () => {
+        let any = false;
+        for (let a = 0; a < ts.length; a++) for (let k = 0; k < ts[a].stops.length; k++) {
+          const s = ts[a].stops[k], A2 = evOr(ts[a].stops.filter(x => x !== s));
+          if (!A2) continue;
+          for (let b = 0; b < ts.length; b++) {
+            if (b === a || !can(ts[b], s)) continue;
+            const B2 = ev(ts[b].stops.concat([s]));
+            if (B2 && A2.val + B2.val < ts[a].val + ts[b].val - EPS) { const gone = A2.empty; set(a, A2, b, B2); any = true; if (gone) return true; k = -1; break; }
+          }
+        }
+        return any;
+      };
+      // 3) swap two points of different trips
+      const swapAll = () => {
+        let any = false;
+        for (let a = 0; a < ts.length; a++) for (let b = a + 1; b < ts.length; b++) {
+          scan: for (const s of ts[a].stops) for (const u of ts[b].stops) {
+            if (!can(ts[a], u, s) || !can(ts[b], s, u)) continue;
+            const A2 = ev(ts[a].stops.filter(x => x !== s).concat([u])), B2 = A2 && ev(ts[b].stops.filter(x => x !== u).concat([s]));
+            if (B2 && A2.val + B2.val < ts[a].val + ts[b].val - EPS) { set(a, A2, b, B2); any = true; break scan; }
+          }
+        }
+        return any;
+      };
+      for (let round = 0; round < 30; round++) {
+        if (emptyOne()) continue;
+        const moved = moveAll(), swapped = swapAll();
+        if (!moved && !swapped) break;
+      }
+      return ts.concat(fixed);
+    }
+    // the tightest packing: the fewest vehicles that hold the cargo (search with a node limit); each point goes first
+    // to the trip whose points are nearest, so the trips stay compact. Cargo for Kamaz is packed separately.
+    function packStart() {
+      const regular = fleet.filter(v => v.priced && !v.onlyIfNeeded), cap = regular.length ? regular.reduce((a, v) => (v.m3 + v.kg / 1000 > a.m3 + a.kg / 1000 ? v : a)) : null;
+      const fitsCap = (s, c) => (s.cbm || 0) <= c.m3 + EPS && (s.kg || 0) <= c.kg + EPS;
+      const big = fleet.reduce((a, v) => (v.m3 + v.kg / 1000 > a.m3 + a.kg / 1000 ? v : a));
+      const groups = cap ? [[items.filter(s => fitsCap(s, cap)), cap], [items.filter(s => !fitsCap(s, cap)), big]] : [[items, big]];
+      const out = [];
+      for (const [list, c] of groups) {
+        if (!list.length) continue;
+        const its = list.slice().sort((a, b) => Math.max(b.cbm / c.m3, b.kg / c.kg) - Math.max(a.cbm / c.m3, a.kg / c.kg) || id(a) - id(b));
+        const pts = new Set(its.map(s => s.bl)).size;
+        const lb = Math.max(1, Math.ceil(its.reduce((a, s) => a + (s.cbm || 0), 0) / c.m3 - EPS), Math.ceil(its.reduce((a, s) => a + (s.kg || 0), 0) / c.kg - EPS), Math.ceil(pts / maxStops));
+        let found = null;
+        for (let K = lb; K <= its.length && !found; K++) {
+          const bins = Array.from({ length: K }, () => ({ c: 0, k: 0, p: 0, bl: new Map(), lat: 0, lon: 0, m: 0, st: [] }));
+          let nodes = 0;
+          const put = (b, s, sign) => { b.c += sign * (s.cbm || 0); b.k += sign * (s.kg || 0); b.p += sign * (s.places || 0); b.lat += sign * s.lat; b.lon += sign * s.lon; b.m += sign; b.bl.set(s.bl, (b.bl.get(s.bl) || 0) + sign); if (!b.bl.get(s.bl)) b.bl.delete(s.bl); if (sign > 0) b.st.push(s); else b.st.pop(); };
+          const rec = i => {
+            if (i === its.length) return true;
+            if (++nodes > 20000) return false;
+            const s = its[i], d = b => b.m ? Math.hypot(b.lat / b.m - s.lat, (b.lon / b.m - s.lon) * 0.75) : Infinity;
+            let emptyTried = false;
+            for (const b of bins.slice().sort((x, y) => d(x) - d(y))) {
+              if (!b.m) { if (emptyTried) continue; emptyTried = true; }
+              if (b.c + (s.cbm || 0) > c.m3 + EPS || b.k + (s.kg || 0) > c.kg + EPS || (PL && b.p + (s.places || 0) > PL + EPS) || (!b.bl.has(s.bl) && b.bl.size >= maxStops)) continue;
+              put(b, s, 1);
+              if (rec(i + 1)) return true;
+              put(b, s, -1);
+            }
+            return false;
+          };
+          if (rec(0)) found = bins.filter(b => b.m).map(b => b.st.slice());
+          else if (nodes > 20000) break;   // too hard to prove — the other starts will do
+        }
+        if (!found) return null;
+        for (const st of found) { const t = ev(st); if (!t) return null; out.push(t); }
+      }
+      return out;
+    }
+    const seq = sweepOrder(items), starts = Math.min(n, 24), cands = [];
+    const packed = packStart();
+    if (packed) cands.push(packed);
+    for (let k = 0; k < starts; k++) { const r = Math.floor(k * n / starts); cands.push(partition(seq.slice(r).concat(seq.slice(0, r)), fleet, maxStops, S, depot, ev)); }
+    cands.push(consolidate(items, fleet, maxStops, S, depot, ev));
+    const sig = ts => ts.map(t => key(t.stops)).sort().join('|'), tried = new Set(), tries = n <= 30 ? 4 : 2;
+    let best = null;
+    for (const c of cands.map((ts, i) => ({ ts, v: total(ts), i })).sort((x, y) => x.v - y.v || x.i - y.i)) {
+      if (tried.has(sig(c.ts))) continue;
+      tried.add(sig(c.ts));
+      const ts = improve(c.ts), v = total(ts);
+      if (!best || v < best.v - EPS) best = { ts, v };
+      if (tried.size >= tries) break;
+    }
+    return best.ts;
   }
   // plan C: only Kamaz; the trucks share the sweep into sectors of similar load, each truck makes several trips
   function kamazRuns(items, fleet, S, depot) {
@@ -277,9 +414,9 @@
       return { trips: finish(build(items, fleet)), splits, fleet };
     };
     const ab = S.smartLabo !== 0 ? ['labo', 'gazel', 'kamaz'] : ['gazel', 'kamaz'];
-    const A = plan(ab, (items, fleet) => partition(sweepOrder(items), fleet, S.aMaxStops || 99, S, depot), { onlyIfNeeded: ['kamaz'] });
-    const B = plan(ab, (items, fleet) => consolidate(items, fleet, S.bcMaxStops || 99, S, depot),
-      { onlyIfNeeded: ['kamaz'], tol: { gazel: { m3: S.bTolM3, kg: S.bTolKg } } });
+    const tol = { gazel: { m3: S.bTolM3, kg: S.bTolKg } };   // допуск Gazel — в планах A и B
+    const A = plan(ab, (items, fleet) => cheapest(items, fleet, S.aMaxStops || 99, S, depot), { onlyIfNeeded: ['kamaz'], tol });
+    const B = plan(ab, (items, fleet) => consolidate(items, fleet, S.bcMaxStops || 99, S, depot, evaluator(items, fleet, S.bcMaxStops || 99, S, depot).ev), { onlyIfNeeded: ['kamaz'], tol });
     const C = plan(['kamaz'], (items, fleet) => kamazRuns(items, fleet, S, depot));
     const sum = trips => {
       const priced = trips.filter(t => t.price.total != null), n = k => trips.filter(t => t.kind === k).length;

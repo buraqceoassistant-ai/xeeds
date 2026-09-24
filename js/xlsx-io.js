@@ -131,7 +131,7 @@
     for (const [k, r] of Object.entries(SET_ROWS)) { const v = (Ss[r] || {}).B; settings[k] = k === 'depotName' ? str(v) : num(v); }
     settings.ringBuffer = num((Hs[4] || {}).B) ?? 1;
     // older workbooks have no rows 55–60 yet: Labo/Kamaz charge every point (0), Gazel holds 23 m³ / 4 000 kg,
-    // plan B may load a Gazel 5 m³ / 500 kg above that. `defaults` lists what was filled in, so it can be written back.
+    // plans A and B may load a Gazel 5 m³ / 500 kg above that. `defaults` lists what was filled in, so it can be written back.
     const DEF = { laboBaseIncludesPts: 0, kamazBaseIncludesPts: 0, gazelM3: 23, gazelKg: 4000, bTolM3: 5, bTolKg: 500 };
     const defaults = Object.keys(DEF).filter(k => settings[k] == null);
     defaults.forEach(k => { settings[k] = DEF[k]; });
