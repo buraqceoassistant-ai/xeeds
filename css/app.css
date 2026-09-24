@@ -11,7 +11,7 @@ html.locked, html.locked body { overflow: hidden; }
   position: fixed; inset: 0; z-index: 5000;
   display: grid; place-items: center; overflow-y: auto;
   padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
-  background: #0e2e54; color: var(--color-text); font-family: var(--font-body);
+  background: var(--color-brand); color: var(--color-text); font-family: var(--font-body);
   transition: opacity .2s ease;
 }
 .auth[data-state="open"] { opacity: 0; pointer-events: none; }
@@ -22,18 +22,18 @@ html.locked, html.locked body { overflow: hidden; }
 .auth[data-state="checking"] .auth-card, .auth[data-state="open"] .auth-card { display: none; }
 .auth-logo {
   height: 132px; margin: 0 -24px 4px;
-  background: #0e2e54 url(../img/logo.png) center / 264px 264px no-repeat;
+  background: var(--color-brand) url(../img/logo.png) center / 264px 264px no-repeat;
 }
 .auth-title { margin: 0; font-size: 28px; }
 .auth-sub { margin: -10px 0 4px; font-size: 13px; color: var(--color-neutral-700); }
 .auth .input { font-size: 16px; min-height: 44px; }
 .auth-remember { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
 .auth-remember input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent); }
-.auth-error { min-height: 0; font-size: 13px; color: #9b1c1c; }
+.auth-error { min-height: 0; font-size: 13px; color: var(--color-danger-ink); }
 .auth-error:empty { display: none; }
 .auth .btn-block { min-height: 44px; margin-top: 2px; font-size: 16px; }
 .auth-note { margin: 0; font-size: 12px; color: var(--color-neutral-600); text-align: center; }
-.auth-wait { display: none; color: #fff; font-size: 15px; letter-spacing: .02em; }
+.auth-wait { display: none; color: var(--color-on-brand); font-size: 15px; letter-spacing: .02em; }
 .auth[data-state="checking"] .auth-wait { display: block; }
 
 /* ── Кнопка «Аккаунт» в шапке и её диалоги ── */

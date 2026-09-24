@@ -93,6 +93,9 @@
     if (!T) throw new Error('3D ещё не загружен');
     const css = getComputedStyle(document.documentElement), tok = (name, d) => css.getPropertyValue(name).trim() || d;
     const font = tok('--font-heading', 'system-ui, sans-serif');
+    // цвета сцены — из токенов design-system.css, чтобы 3D менялся вместе с оформлением сайта
+    const C = { danger: tok('--color-danger', '#c0392b'), ink: tok('--color-accent-900', '#1d2d3d'), shell: tok('--color-accent', '#5980a6'), edge: tok('--color-accent-700', '#416180'),
+      envelope: tok('--color-accent-500', '#749dc4'), glass: tok('--color-accent-800', '#2c455d'), grid1: tok('--color-neutral-400', '#b7b7ba'), grid2: tok('--color-neutral-300', '#d4d4d7') };
     const renderer = new T.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = T.SRGBColorSpace;
@@ -142,7 +145,7 @@
       const box = (sx, sy, sz, x, y, z, m) => { const ms = new T.Mesh(new T.BoxGeometry(sx, sy, sz), m); ms.position.set(x, y, z); g.add(ms); meshes.push(ms); return ms; };
       const dark = lam('#3b3f45');
       box(L, 0.06, W, L / 2, -0.03, 0, lam('#a3a8ae'));                                     // пол кузова
-      const CW = B.cabW || W * 0.97, glass = lam('#2c455d'), k = Math.min(1, Math.max(0.5, (L + B.cab) / 7.5));   // подписи мельче у маленькой машины
+      const CW = B.cabW || W * 0.97, glass = lam(C.glass), k = Math.min(1, Math.max(0.5, (L + B.cab) / 7.5));   // подписи мельче у маленькой машины
       box(L + B.cab + 0.25, 0.14, W * 0.8, (L - B.cab - 0.08) / 2, -0.17, 0, dark);          // рама
       box(B.cab, B.cabH, CW, -B.cab / 2 - 0.08, B.cabH / 2 - 0.3, 0, lam(B.cabColor));        // кабина
       box(0.03, B.cabH * 0.36, CW * 0.87, -B.cab - 0.095, B.cabH * 0.6 - 0.3, 0, glass);        // лобовое стекло
@@ -156,13 +159,13 @@
         const sideM = lam('#d5d9de'), sh = B.side;
         [-1, 1].forEach(sd => box(L, sh, 0.03, L / 2, sh / 2, sd * (W / 2 - 0.015), sideM));
         box(0.03, sh, W, 0.015, sh / 2, 0, sideM); box(0.03, sh, W, L - 0.015, sh / 2, 0, sideM);
-        const env = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L, H, W)), new T.LineBasicMaterial({ color: '#749dc4', transparent: true, opacity: 0.7 }));
+        const env = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L, H, W)), new T.LineBasicMaterial({ color: C.envelope, transparent: true, opacity: 0.7 }));
         env.position.set(L / 2, H / 2, 0); g.add(env);
       } else {
         // фургон: прозрачные стенки и рёбра
-        const shell = new T.Mesh(new T.BoxGeometry(L, H, W), lam('#5980a6', { transparent: true, opacity: 0.07, depthWrite: false, side: T.DoubleSide }));
+        const shell = new T.Mesh(new T.BoxGeometry(L, H, W), lam(C.shell, { transparent: true, opacity: 0.07, depthWrite: false, side: T.DoubleSide }));
         shell.position.set(L / 2, H / 2, 0); g.add(shell);
-        const edges = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L, H, W)), new T.LineBasicMaterial({ color: '#416180' }));
+        const edges = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L, H, W)), new T.LineBasicMaterial({ color: C.edge }));
         edges.position.copy(shell.position); g.add(edges);
       }
       // груз
@@ -185,16 +188,16 @@
       inst(outC, lam('#ffffff', { transparent: true, opacity: 0.5, depthWrite: false }));
       if (outC.length) {
         const x0 = lay.n.x * cell.x, x1 = (Math.max(...outC.map(q => q.ix)) + 1) * cell.x;
-        const ob = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(x1 - x0, H, W)), new T.LineBasicMaterial({ color: '#c0392b' }));
+        const ob = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(x1 - x0, H, W)), new T.LineBasicMaterial({ color: C.danger }));
         ob.position.set((x0 + x1) / 2, H / 2, 0); g.add(ob);
-        if (o.labels) { const s = sprite('сверх кузова ' + (Math.round(lay.overM3 * 10) / 10).toString().replace('.', ',') + ' м³', { bg: '#c0392b', fg: '#ffffff', size: 0.34 * k }); s.position.set((x0 + x1) / 2 + 0.4, -0.45, 0); g.add(s); }   // под грузом за дверями — не закрывает номера точек
+        if (o.labels) { const s = sprite('сверх кузова ' + (Math.round(lay.overM3 * 10) / 10).toString().replace('.', ',') + ' м³', { bg: C.danger, fg: '#ffffff', size: 0.34 * k }); s.position.set((x0 + x1) / 2 + 0.4, -0.45, 0); g.add(s); }   // под грузом за дверями — не закрывает номера точек
       }
       if (o.labels) {
         const sz = Math.min(0.62, Math.max(0.34, cell.y * 1.5)) * Math.max(0.7, k);
         lay.points.forEach(p => { if (hidden(p.n)) return; const s = sprite(String(p.n), { round: true, bg: colorOf(p.n), fg: light(colorOf(p.n)) ? '#1d1f20' : '#ffffff', size: sz }); s.position.set(p.x, p.top + sz * 0.55, 0); g.add(s); });
-        const d = sprite(B.flat ? 'задний борт' : 'двери', { bg: '#1d2d3d', fg: '#ffffff', size: 0.3 * k }); d.position.set(L + 0.15, H + 0.3 * k, 0); g.add(d);
+        const d = sprite(B.flat ? 'задний борт' : 'двери', { bg: C.ink, fg: '#ffffff', size: 0.3 * k }); d.position.set(L + 0.15, H + 0.3 * k, 0); g.add(d);
       }
-      if (o.title) { const s = sprite(o.title, { bg: '#1d2d3d', fg: '#ffffff', size: 0.5 }); s.position.set(L / 2 - B.cab / 2, Math.max(H, B.cabH) + 0.75, 0); g.add(s); }
+      if (o.title) { const s = sprite(o.title, { bg: C.ink, fg: '#ffffff', size: 0.5 }); s.position.set(L / 2 - B.cab / 2, Math.max(H, B.cabH) + 0.75, 0); g.add(s); }
       g.userData.meshes = meshes;
       return g;
     }
@@ -230,7 +233,7 @@
       if (items.length) {
         const bb = new T.Box3().setFromObject(root), sz = bb.getSize(new T.Vector3()), c = bb.getCenter(new T.Vector3());
         const size = Math.ceil(Math.max(sz.x, sz.z) + 8);
-        ground = new T.GridHelper(size, size, 0xbfc1c5, 0xd3d4d7);
+        ground = new T.GridHelper(size, size, C.grid1, C.grid2);
         ground.position.set(c.x, minY, c.z); scene.add(ground);
       }
     }

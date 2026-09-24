@@ -631,7 +631,7 @@
                 </div>
               </sc-for>
               <div style="color:var(--color-neutral-700)">{{ vizCg }}</div>
-              <sc-if value="{{ vizHasOver }}"><div style="color:#c0392b;text-wrap:pretty">{{ vizOver }}</div></sc-if>
+              <sc-if value="{{ vizHasOver }}"><div style="color:var(--color-danger);text-wrap:pretty">{{ vizOver }}</div></sc-if>
             </div>
             <div style="border-top:1px solid var(--color-divider);padding-top:12px;display:flex;flex-direction:column;gap:6px">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -662,7 +662,7 @@
                 <span style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">{{ r.name }}</span><span style="font-size:12px;color:var(--color-neutral-700)">{{ r.pts }}</span></span>
                 <span style="display:flex;gap:10px;align-items:center;font-size:12px"><span style="width:88px">{{ r.cbm }}</span><span style="flex:1;height:5px;background:var(--color-neutral-300)"><span style="display:block;height:5px;width:{{ r.cbmPct }};background:{{ r.cbmBar }}"></span></span></span>
                 <span style="display:flex;gap:10px;align-items:center;font-size:12px"><span style="width:88px">{{ r.kg }}</span><span style="flex:1;height:5px;background:var(--color-neutral-300)"><span style="display:block;height:5px;width:{{ r.kgPct }};background:{{ r.kgBar }}"></span></span></span>
-                <sc-if value="{{ r.hasOver }}"><span style="font-size:12px;color:#c0392b">{{ r.over }}</span></sc-if>
+                <sc-if value="{{ r.hasOver }}"><span style="font-size:12px;color:var(--color-danger)">{{ r.over }}</span></sc-if>
               </button>
             </sc-for>
           </sc-if>
@@ -1659,7 +1659,7 @@ class Component extends DCLogic {
 
     if (st.tab === 'viz') {
       const V = window.LogiViz, M = this.vizModel(), pct = x => Math.round(x * 100) + '%', over = x => x > 1 + 1e-9;
-      const barCol = x => over(x) ? '#c0392b' : 'var(--color-accent)';
+      const barCol = x => over(x) ? 'var(--color-danger)' : 'var(--color-accent)';
       const dims = b => b.flat ? 'бортовой кузов ' + f1(b.l, 2) + ' × ' + f1(b.w, 2) + ' м, борт ' + f1(b.side, 2) + ' м, груз до ' + f1(b.h, 2) + ' м' : 'кузов ≈ ' + f1(b.l, 1) + ' × ' + f1(b.w, 1) + ' × ' + f1(b.h, 1) + ' м';
       Object.assign(out, { planDate: st.planDate, onVizDate: e => this.setState({ planDate: e.target.value, vizTrip: 'all', vizStep: 0, vizSel: null }),
         vizTripOpts: [], vizIsAll: false, vizIsOne: false, vizSummary: '', vizNote: '', vizTitle: '',
@@ -1674,7 +1674,7 @@ class Component extends DCLogic {
         const one = this.vizOne(M), lays = M.lays;
         out.vizTripOpts = [{ l: 'Все рейсы', sub: lays.length + ' ' + reys(lays.length), go: () => this.setState({ vizTrip: 'all', vizStep: 0, vizSel: null }), sel: one === 'all' }]
           .concat(lays.map((l, i) => ({ l: l.name, sub: l.label + ' · ' + pct(l.fill) + (l.overM3 > 0 ? ' · сверх кузова' : ''), go: () => this.setState({ vizTrip: i, vizStep: 0, vizSel: null }), sel: one === i, warn: l.overM3 > 0 })))
-          .map(o => ({ ...o, bg: o.sel ? 'var(--color-accent-100)' : 'var(--color-bg)', border: o.sel ? 'var(--color-accent)' : 'var(--color-divider)', subColor: o.warn ? '#c0392b' : 'var(--color-neutral-700)' }));
+          .map(o => ({ ...o, bg: o.sel ? 'var(--color-accent-100)' : 'var(--color-bg)', border: o.sel ? 'var(--color-accent)' : 'var(--color-divider)', subColor: o.warn ? 'var(--color-danger)' : 'var(--color-neutral-700)' }));
         if (one === 'all') {
           out.vizIsAll = true;
           out.vizTitle = PLAN_INFO[M.key].title;
@@ -1693,7 +1693,7 @@ class Component extends DCLogic {
           out.vizPrice = t.price.total != null ? money(t.price.total) : 'нет тарифа';
           out.vizSummary = l.label + ' · ' + dims(l.body) + ' · ' + n + ' точ.';
           out.vizBars = [[' Объём', f1(l.cbm, 1) + ' из ' + f1(l.body.v, 1) + ' м³ · ' + pct(l.fill), l.fill], ['Вес', f0(l.kg) + ' из ' + f0(l.maxKg) + ' кг · ' + pct(kgF), kgF]]
-            .map(([lb, v, x]) => ({ l: lb.trim(), v, pct: Math.min(100, x * 100).toFixed(0) + '%', bar: barCol(x), color: over(x) ? '#c0392b' : 'inherit' }));
+            .map(([lb, v, x]) => ({ l: lb.trim(), v, pct: Math.min(100, x * 100).toFixed(0) + '%', bar: barCol(x), color: over(x) ? 'var(--color-danger)' : 'inherit' }));
           out.vizCg = l.cg != null && n ? 'Центр тяжести груза: ' + f1(l.cg, 1) + ' м от кабины (' + pct(l.cg / l.body.l) + ' длины кузова)' : '';
           out.vizHasOver = l.overM3 > 0;
           out.vizOver = 'Сверх кузова ' + f1(l.overM3, 1) + ' м³ — показано ' + (l.body.flat ? 'за задним бортом' : 'за дверями') + ' полупрозрачным.' + (M.key === 'B' && l.kind === 'gazel' ? ' В плане B это допуск Gazel.' : '');
