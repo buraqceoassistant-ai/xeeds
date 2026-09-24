@@ -3,7 +3,8 @@
  * Размеров мест в данных нет, поэтому груз каждой точки раскладывается кубиками по его объёму (CBM):
  * кузов делится на ячейки, груз заполняет их стенка за стенкой от кабины к дверям, в стенке — снизу вверх.
  * Порядок — как при разгрузке: последнюю точку грузят первой (к кабине), точка 1 оказывается у дверей.
- * Кузов: ширина и высота типичные для машины, длина — из объёма во «Тарифах».
+ * Кузов: Labo — бортовой, размеры производителя, высота груза — из объёма во «Тарифах»;
+ * Gazel и Kamaz — фургоны с типичными шириной и высотой, длина — из объёма во «Тарифах».
  * Груз больше кузова (допуск плана B) показан за дверями полупрозрачным.
  *
  * layout() — чистый расчёт, работает и без 3D. Сцену рисует three.js
@@ -11,8 +12,11 @@
  */
 (function () {
   'use strict';
+  // flat — бортовой кузов: длина и ширина заданы, высота груза = объём / площадь пола.
+  // Иначе фургон: ширина и высота заданы, длина = объём / (ширина × высота).
+  // Labo (UzAuto): кузов 1,94 × 1,33 м, борт 0,29 м; машина 3,495 × 1,4 × 1,8 м, колёсная база 1,84 м.
   const BODY = {
-    labo: { w: 1.4, h: 1.1, cab: 1.15, cabH: 1.45, wheel: 0.27, cabColor: '#f1f2f4' },
+    labo: { flat: true, l: 1.94, w: 1.33, side: 0.29, cab: 1.45, cabW: 1.4, cabH: 1.47, wheel: 0.27, front: 0.55, base: 1.84, cabColor: '#f1f2f4' },
     gazel: { w: 2.1, h: 1.9, cab: 1.75, cabH: 2.15, wheel: 0.36, cabColor: '#f1f2f4' },
     kamaz: { w: 2.45, h: 2.6, cab: 2.2, cabH: 3.0, wheel: 0.5, cabColor: '#d9772b' }
   };
@@ -23,7 +27,7 @@
 
   function bodyOf(kind, m3) {
     const b = BODY[kind] || BODY.gazel, v = Math.max(+m3 || 0, 0.5);
-    return { ...b, v, l: v / (b.w * b.h) };
+    return b.flat ? { ...b, v, h: v / (b.l * b.w) } : { ...b, v, l: v / (b.w * b.h) };
   }
 
   // точки рейса в порядке разгрузки; один BL — одна точка (части одной отгрузки и повторы складываются)
@@ -138,19 +142,29 @@
       const box = (sx, sy, sz, x, y, z, m) => { const ms = new T.Mesh(new T.BoxGeometry(sx, sy, sz), m); ms.position.set(x, y, z); g.add(ms); meshes.push(ms); return ms; };
       const dark = lam('#3b3f45');
       box(L, 0.06, W, L / 2, -0.03, 0, lam('#a3a8ae'));                                     // пол кузова
+      const CW = B.cabW || W * 0.97, glass = lam('#2c455d'), k = Math.min(1, Math.max(0.5, (L + B.cab) / 7.5));   // подписи мельче у маленькой машины
       box(L + B.cab + 0.25, 0.14, W * 0.8, (L - B.cab - 0.08) / 2, -0.17, 0, dark);          // рама
-      box(B.cab, B.cabH, W * 0.97, -B.cab / 2 - 0.08, B.cabH / 2 - 0.3, 0, lam(B.cabColor));   // кабина
-      box(0.03, B.cabH * 0.36, W * 0.84, -B.cab - 0.095, B.cabH * 0.6 - 0.3, 0, lam('#2c455d')); // лобовое стекло
-      box(B.cab * 0.45, B.cabH * 0.3, 0.02, -B.cab * 0.45 - 0.08, B.cabH * 0.6 - 0.3, W * 0.485 + 0.005, lam('#2c455d'));
-      box(B.cab * 0.45, B.cabH * 0.3, 0.02, -B.cab * 0.45 - 0.08, B.cabH * 0.6 - 0.3, -W * 0.485 - 0.005, lam('#2c455d'));
+      box(B.cab, B.cabH, CW, -B.cab / 2 - 0.08, B.cabH / 2 - 0.3, 0, lam(B.cabColor));        // кабина
+      box(0.03, B.cabH * 0.36, CW * 0.87, -B.cab - 0.095, B.cabH * 0.6 - 0.3, 0, glass);        // лобовое стекло
+      [-1, 1].forEach(sd => box(B.cab * 0.45, B.cabH * 0.3, 0.02, -B.cab * 0.45 - 0.08, B.cabH * 0.6 - 0.3, sd * (CW / 2 + 0.005), glass));
       const r = B.wheel, wy = -0.24 - r * 0.45, wheelGeo = new T.CylinderGeometry(r, r, 0.26 + r * 0.2, 22);
-      const axles = [-B.cab * 0.55, L * 0.7].concat(lay.kind === 'kamaz' ? [L * 0.7 + r * 2.3] : []);
-      axles.forEach(ax => [-1, 1].forEach(sd => { const w = new T.Mesh(wheelGeo, dark); w.rotation.x = Math.PI / 2; w.position.set(ax, wy, sd * (W / 2 - 0.18)); g.add(w); meshes.push(w); }));
-      // кузов: прозрачные стенки и рёбра
-      const shell = new T.Mesh(new T.BoxGeometry(L, H, W), lam('#5980a6', { transparent: true, opacity: 0.07, depthWrite: false, side: T.DoubleSide }));
-      shell.position.set(L / 2, H / 2, 0); g.add(shell);
-      const edges = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L, H, W)), new T.LineBasicMaterial({ color: '#416180' }));
-      edges.position.copy(shell.position); g.add(edges);
+      const fa = B.base ? -B.cab - 0.08 + B.front : -B.cab * 0.55, ra = B.base ? fa + B.base : L * 0.7;   // оси: у Labo по колёсной базе
+      const axles = [fa, ra].concat(lay.kind === 'kamaz' ? [ra + r * 2.3] : []), track = Math.max(W, CW) / 2 - 0.16;
+      axles.forEach(ax => [-1, 1].forEach(sd => { const w = new T.Mesh(wheelGeo, dark); w.rotation.x = Math.PI / 2; w.position.set(ax, wy, sd * track); g.add(w); meshes.push(w); }));
+      if (B.flat) {
+        // бортовой кузов: низкие борта, над ними — контур, до какой высоты уложен груз по объёму из «Тарифов»
+        const sideM = lam('#d5d9de'), sh = B.side;
+        [-1, 1].forEach(sd => box(L, sh, 0.03, L / 2, sh / 2, sd * (W / 2 - 0.015), sideM));
+        box(0.03, sh, W, 0.015, sh / 2, 0, sideM); box(0.03, sh, W, L - 0.015, sh / 2, 0, sideM);
+        const env = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L, H, W)), new T.LineBasicMaterial({ color: '#749dc4', transparent: true, opacity: 0.7 }));
+        env.position.set(L / 2, H / 2, 0); g.add(env);
+      } else {
+        // фургон: прозрачные стенки и рёбра
+        const shell = new T.Mesh(new T.BoxGeometry(L, H, W), lam('#5980a6', { transparent: true, opacity: 0.07, depthWrite: false, side: T.DoubleSide }));
+        shell.position.set(L / 2, H / 2, 0); g.add(shell);
+        const edges = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(L, H, W)), new T.LineBasicMaterial({ color: '#416180' }));
+        edges.position.copy(shell.position); g.add(edges);
+      }
       // груз
       const hidden = p => o.step && p <= o.step;   // уже выгруженные точки
       const vis = lay.cells.filter(q => !hidden(q.p)), inC = vis.filter(q => q.ix < lay.n.x), outC = vis.filter(q => q.ix >= lay.n.x);
@@ -173,12 +187,12 @@
         const x0 = lay.n.x * cell.x, x1 = (Math.max(...outC.map(q => q.ix)) + 1) * cell.x;
         const ob = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(x1 - x0, H, W)), new T.LineBasicMaterial({ color: '#c0392b' }));
         ob.position.set((x0 + x1) / 2, H / 2, 0); g.add(ob);
-        if (o.labels) { const s = sprite('сверх кузова ' + (Math.round(lay.overM3 * 10) / 10).toString().replace('.', ',') + ' м³', { bg: '#c0392b', fg: '#ffffff', size: 0.34 }); s.position.set((x0 + x1) / 2 + 0.4, -0.45, 0); g.add(s); }   // под грузом за дверями — не закрывает номера точек
+        if (o.labels) { const s = sprite('сверх кузова ' + (Math.round(lay.overM3 * 10) / 10).toString().replace('.', ',') + ' м³', { bg: '#c0392b', fg: '#ffffff', size: 0.34 * k }); s.position.set((x0 + x1) / 2 + 0.4, -0.45, 0); g.add(s); }   // под грузом за дверями — не закрывает номера точек
       }
       if (o.labels) {
-        const sz = Math.min(0.62, Math.max(0.34, cell.y * 1.5));
+        const sz = Math.min(0.62, Math.max(0.34, cell.y * 1.5)) * Math.max(0.7, k);
         lay.points.forEach(p => { if (hidden(p.n)) return; const s = sprite(String(p.n), { round: true, bg: colorOf(p.n), fg: light(colorOf(p.n)) ? '#1d1f20' : '#ffffff', size: sz }); s.position.set(p.x, p.top + sz * 0.55, 0); g.add(s); });
-        const d = sprite('двери', { bg: '#1d2d3d', fg: '#ffffff', size: 0.3 }); d.position.set(L + 0.15, H + 0.3, 0); g.add(d);
+        const d = sprite(B.flat ? 'задний борт' : 'двери', { bg: '#1d2d3d', fg: '#ffffff', size: 0.3 * k }); d.position.set(L + 0.15, H + 0.3 * k, 0); g.add(d);
       }
       if (o.title) { const s = sprite(o.title, { bg: '#1d2d3d', fg: '#ffffff', size: 0.5 }); s.position.set(L / 2 - B.cab / 2, Math.max(H, B.cabH) + 0.75, 0); g.add(s); }
       g.userData.meshes = meshes;

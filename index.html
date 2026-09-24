@@ -642,7 +642,7 @@
               <div style="font-size:13px;text-wrap:pretty">{{ vizStepLabel }}</div>
             </div>
             <div style="border-top:1px solid var(--color-divider);padding-top:12px;display:flex;flex-direction:column;gap:4px">
-              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Точки · 1 — у дверей</div>
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">{{ vizPointsTitle }}</div>
               <sc-for list="{{ vizPoints }}" as="p">
                 <button sc-camel-on-click="{{ p.go }}" style="display:flex;gap:10px;align-items:flex-start;text-align:left;border:1px solid {{ p.border }};background:{{ p.bg }};color:inherit;font:inherit;padding:8px;cursor:pointer;opacity:{{ p.opacity }}">
                   <span style="flex:none;width:26px;height:26px;border-radius:50%;background:{{ p.color }};color:{{ p.fg }};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">{{ p.n }}</span>
@@ -932,12 +932,13 @@ class Component extends DCLogic {
     d.settings.baseIncludesPts = 1;
     this.staleNotes(d);
   }
-  // Вместимость машин со слов владельца (24.09): Gazel 23 м³ / 4 000 кг, Kamaz 50 м³ / 15 000 кг.
+  // Вместимость машин со слов владельца (24.09): Gazel 23 м³ / 4 000 кг, Kamaz 50 м³ / 15 000 кг, Labo 550 кг (было примерно 800).
   // Меняем только старые значения из файла и прежнюю прикидку, поэтому выбор, сделанный позже во «Тарифах», не трогается.
   capacityFix(S) {
     const changed = {};
     if (S.cM3 === 35 && S.cKg === 5000) Object.assign(changed, { cM3: 50, cKg: 15000 });
     if (S.gazelM3 == null || (S.gazelM3 === 18 && S.gazelKg === 2000)) Object.assign(changed, { gazelM3: 23, gazelKg: 4000 });
+    if (S.laboKg === 800) changed.laboKg = 550;
     Object.assign(S, changed);
     return changed;
   }
@@ -1396,7 +1397,7 @@ class Component extends DCLogic {
     const F = (key, label, unit, hint, type) => ({ key, label, unit: unit || '', hint: hint || '', type: type || 'number', value: S[key] ?? '' });
     return [
       { title: 'Gazel', fields: [F('baseIncludesPts', 'Точек в базовой цене', 'шт', '1 — первая точка входит в базу, доплата со 2-й; 0 — платная каждая'), F('gazelBase', 'Базовая цена рейса', 'сум'), F('gazelHeavy', 'Базовая цена — тяжёлый груз', 'сум'), F('gazelHeavyKg', 'Порог тяжёлого груза', 'кг', 'Если вес рейса больше — тяжёлый тариф'), F('gazelPtIn', '1 точка внутри кольца', 'сум'), F('gazelPtOut', '1 точка снаружи кольца', 'сум')] },
-      { title: 'Labo', fields: [F('laboBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём кузова', 'м³', 'Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг')] },
+      { title: 'Labo', fields: [F('laboBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём груза', 'м³', 'Кузов 1,94 × 1,33 м, борт 0,29 м: ' + f1(S.laboM3, 1) + ' м³ — груз до ' + f1((+S.laboM3 || 0) / (1.94 * 1.33), 2) + ' м высотой. Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг', 'Labo UzAuto — 550 кг')] },
       { title: 'Kamaz', fields: [F('kamazBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — рейсы Kamaz без цены'), F('kamazPt', '1 точка', 'сум')] },
       { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), F('depotLat', 'Широта', '°', 'Внимание: в Excel помечено как примерное'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
       { title: 'Машины для планов', fields: [F('gazelM3', 'Gazel — объём кузова', 'м³', 'Сколько реально помещается. В плане A груз больше — на Kamaz'), F('gazelKg', 'Gazel — грузоподъёмность', 'кг'), F('bTolM3', 'План B — допуск Gazel по объёму', 'м³', 'Сверх объёма кузова. 5 → в плане B Gazel берёт до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³; 0 — без допуска'), F('bTolKg', 'План B — допуск Gazel по весу', 'кг', 'Сверх грузоподъёмности. Груз больше Gazel с допуском едет на Kamaz'), F('cM3', 'Kamaz — объём кузова', 'м³'), F('cKg', 'Kamaz — грузоподъёмность', 'кг', 'Груз больше Kamaz делится на несколько рейсов'), F('cTrucks', 'Kamaz — машин для плана C', 'шт'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения'), F('isuzuM3', 'Isuzu — объём', 'м³', 'Только для листов планов в Excel'), F('isuzuKg', 'Isuzu — грузоподъёмность', 'кг', 'Только для листов планов в Excel')] },
@@ -1658,7 +1659,8 @@ class Component extends DCLogic {
 
     if (st.tab === 'viz') {
       const V = window.LogiViz, M = this.vizModel(), pct = x => Math.round(x * 100) + '%', over = x => x > 1 + 1e-9;
-      const barCol = x => over(x) ? '#c0392b' : 'var(--color-accent)', dims = b => f1(b.l, 1) + ' × ' + f1(b.w, 1) + ' × ' + f1(b.h, 1) + ' м';
+      const barCol = x => over(x) ? '#c0392b' : 'var(--color-accent)';
+      const dims = b => b.flat ? 'бортовой кузов ' + f1(b.l, 2) + ' × ' + f1(b.w, 2) + ' м, борт ' + f1(b.side, 2) + ' м, груз до ' + f1(b.h, 2) + ' м' : 'кузов ≈ ' + f1(b.l, 1) + ' × ' + f1(b.w, 1) + ' × ' + f1(b.h, 1) + ' м';
       Object.assign(out, { planDate: st.planDate, onVizDate: e => this.setState({ planDate: e.target.value, vizTrip: 'all', vizStep: 0, vizSel: null }),
         vizTripOpts: [], vizIsAll: false, vizIsOne: false, vizSummary: '', vizNote: '', vizTitle: '',
         vizHint: 'Вращать — пальцем или мышью · масштаб — щипком или колесом · нажмите на груз — покажет точку' });
@@ -1684,27 +1686,30 @@ class Component extends DCLogic {
           out.vizNote = 'Машины стоят рядом, кабиной влево. Кузов — по объёму из «Тарифов». Кубики условные: размеров мест нет, груз каждой точки показан по его объёму.';
         } else {
           const l = lays[one], t = M.plan.trips[one], n = l.points.length, step = Math.min(st.vizStep, n), kgF = l.maxKg ? l.kg / l.maxKg : 0;
+          const atDoor = l.body.flat ? 'у заднего борта' : 'у дверей';
+          out.vizPointsTitle = 'Точки · 1 — ' + atDoor;
           out.vizIsOne = true;
           out.vizTitle = l.name;
           out.vizPrice = t.price.total != null ? money(t.price.total) : 'нет тарифа';
-          out.vizSummary = l.label + ' · кузов ≈ ' + dims(l.body) + ' · ' + n + ' точ.';
+          out.vizSummary = l.label + ' · ' + dims(l.body) + ' · ' + n + ' точ.';
           out.vizBars = [[' Объём', f1(l.cbm, 1) + ' из ' + f1(l.body.v, 1) + ' м³ · ' + pct(l.fill), l.fill], ['Вес', f0(l.kg) + ' из ' + f0(l.maxKg) + ' кг · ' + pct(kgF), kgF]]
             .map(([lb, v, x]) => ({ l: lb.trim(), v, pct: Math.min(100, x * 100).toFixed(0) + '%', bar: barCol(x), color: over(x) ? '#c0392b' : 'inherit' }));
           out.vizCg = l.cg != null && n ? 'Центр тяжести груза: ' + f1(l.cg, 1) + ' м от кабины (' + pct(l.cg / l.body.l) + ' длины кузова)' : '';
           out.vizHasOver = l.overM3 > 0;
-          out.vizOver = 'Сверх кузова ' + f1(l.overM3, 1) + ' м³ — показано за дверями полупрозрачным.' + (M.key === 'B' && l.kind === 'gazel' ? ' В плане B это допуск Gazel.' : '');
+          out.vizOver = 'Сверх кузова ' + f1(l.overM3, 1) + ' м³ — показано ' + (l.body.flat ? 'за задним бортом' : 'за дверями') + ' полупрозрачным.' + (M.key === 'B' && l.kind === 'gazel' ? ' В плане B это допуск Gazel.' : '');
           out.vizStepMax = n; out.vizStep = step;
           out.onVizStep = e => this.setState({ vizStep: +e.target.value, vizSel: null });
           out.vizPrev = () => this.setState({ vizStep: Math.max(0, step - 1), vizSel: null });
           out.vizNext = () => this.setState({ vizStep: Math.min(n, step + 1), vizSel: null });
-          out.vizStepLabel = step === 0 ? 'Всё загружено. ▶ — выгрузить точку 1, она у дверей.' : step >= n ? 'Все точки выгружены.'
+          out.vizStepLabel = step === 0 ? 'Всё загружено. ▶ — выгрузить точку 1, она ' + atDoor + '.' : step >= n ? 'Все точки выгружены.'
             : 'Выгружено точек: ' + step + ' (последняя — ' + l.points[step - 1].bl + '). В кузове ' + f1(l.points.slice(step).reduce((a, p) => a + p.cbm, 0), 1) + ' м³, дальше точка ' + (step + 1) + '.';
           out.vizPoints = l.points.map(p => { const c = V.colorOf(p.n), sel = st.vizSel === p.n, done = p.n <= step, cl = p.client || {};
             return { n: p.n, color: c, fg: V.isLight(c) ? '#1d1f20' : '#ffffff', bl: p.bl + (p.parts.length ? ' · часть ' + p.parts.join(', ') : ''), name: [cl.brand, cl.name].filter(Boolean).join(' '),
               info: f1(p.cbm, 2) + ' м³ · ' + f0(p.kg) + ' кг' + (p.places ? ' · ' + p.places + ' мест' : '') + (done ? ' · выгружено' : ''),
               bg: sel ? 'var(--color-accent-100)' : 'var(--color-bg)', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', opacity: done ? '0.45' : '1',
               go: () => this.setState({ vizSel: sel ? null : p.n }) }; });
-          out.vizNote = 'Кузов ≈ ' + dims(l.body) + ': ширина и высота типичные для ' + l.label + ', длина — из объёма во «Тарифах». Кубики условные: размеров мест нет, груз каждой точки разложен по объёму. Последнюю точку грузят первой — к кабине.';
+          out.vizNote = (l.body.flat ? l.label + ': ' + dims(l.body).replace(', груз до', ' — по данным производителя; груз до') + ' высотой — из объёма ' + f1(l.body.v, 1) + ' м³ во «Тарифах».'
+            : 'К' + dims(l.body).slice(1) + ': ширина и высота типичные для ' + l.label + ', длина — из объёма во «Тарифах».') + ' Кубики условные: размеров мест нет, груз каждой точки разложен по объёму. Последнюю точку грузят первой — к кабине.';
         }
       }
     }
