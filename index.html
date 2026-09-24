@@ -649,7 +649,8 @@
       <div class="dialog blueprint" style="width:min(820px,100%);background:var(--color-bg);max-height:92vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box">
         <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
         <div class="dialog-title">Связь с Google Таблицей</div>
-        <div style="font-size:13px;color:var(--color-neutral-800);text-wrap:pretty">Таблица становится главной: новые партии, клиенты и склады из неё сами появляются на сайте, а правки на сайте записываются в неё. Формулы, планы и листы остаются в таблице.</div>
+        <div style="font-size:13px;color:var(--color-neutral-800);text-wrap:pretty">Таблица становится главной: новые партии, клиенты и склады из неё сами появляются на сайте, а правки на сайте записываются в неё. Формулы, планы и листы остаются в таблице. Ссылка сохраняется для всех устройств: телефон и компьютер после входа работают с одной таблицей.</div>
+        <sc-if value="{{ gsConnected }}"><div style="font-size:13px;font-weight:500">{{ gsWhere }}</div></sc-if>
         <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;font-size:14px">
           <li>Откройте вашу Google Таблицу → меню <b>Расширения → Apps Script</b>.</li>
           <li>Удалите всё в редакторе, вставьте код ниже и нажмите <b>Сохранить</b>.
@@ -664,7 +665,19 @@
         <div class="form-grid form-grid-1" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,200px);gap:12px">
           <div class="field"><label>Ссылка веб-приложения</label><input class="input" name="url" value="{{ draft.url }}" sc-camel-on-change="{{ onDraft }}" placeholder="https://script.google.com/macros/s/…/exec"></div>
           <div class="field"><label>Пароль (если задан в коде)</label><input class="input" name="token" value="{{ draft.token }}" sc-camel-on-change="{{ onDraft }}" placeholder="необязательно"></div>
+          <sc-if value="{{ gsNeedGh }}"><div class="field" style="grid-column:1/-1"><label>GitHub-токен — чтобы таблица подключилась на всех устройствах (тот же, что для смены пароля)</label><input class="input" name="gh" type="password" autocomplete="off" value="{{ draft.gh }}" sc-camel-on-change="{{ onDraft }}" placeholder="github_pat_…"></div></sc-if>
         </div>
+        <sc-if value="{{ gsAsk }}">
+          <div class="gs-ask" style="border:1px solid var(--color-accent);background:var(--color-accent-100);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-weight:600">Данные в таблице и на сайте отличаются</div>
+            <div style="font-size:13px;text-wrap:pretty">{{ gsAskInfo }}</div>
+            <div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty">«Взять из таблицы» — сайт покажет то, что в таблице. «Записать сайт в таблицу» — таблица станет такой же, как сайт.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary" sc-camel-on-click="{{ gsTakeSheet }}">Взять из таблицы</button>
+              <button class="btn btn-primary" sc-camel-on-click="{{ gsPushSite }}">Записать сайт в таблицу</button>
+            </div>
+          </div>
+        </sc-if>
         <div style="font-size:13px;color:var(--color-accent-700)">{{ dialogError }}</div>
         <div class="dialog-actions">
           <sc-if value="{{ gsConnected }}"><button class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ gsDisconnect }}">Отключить таблицу</button></sc-if>
@@ -791,8 +804,8 @@ class Component extends DCLogic {
         let ptsFix = false; try { ptsFix = localStorage.getItem('logi-base-pts-v1') === '1'; } catch (e) {}
         if (!ptsFix) { this.firstPointRule(data); try { localStorage.setItem('logi-base-pts-v1', '1'); } catch (e) {} }
         this.setReady(data);
-        let gsu = null; try { gsu = localStorage.getItem('logi-gs-url'); } catch (e) {}
-        if (gsu) this.gsStart(gsu, localStorage.getItem('logi-gs-token') || '');
+        const gs = this.gsChoose();
+        if (gs.url) this.gsStart(gs.url, gs.token);
         else this.restoreHandle();
       } catch (e) { this.setState({ loadError: String(e.message || e) }); }
     };
@@ -803,6 +816,9 @@ class Component extends DCLogic {
   // встроенные данные исправляются при каждой загрузке, сохранённые — один раз.
   firstPointRule(d) {
     d.settings.baseIncludesPts = 1;
+    this.staleNotes(d);
+  }
+  staleNotes(d) {
     d.notes = (d.notes || []).map(s => ({ ...s, items: s.items.filter(i => !/bazaviy narxga kiradimi/i.test(i.what)) }));
   }
   kelesFix(data) {
@@ -813,7 +829,7 @@ class Component extends DCLogic {
     if (JSON.stringify(ring) === JSON.stringify(data.ring)) return data;
     try { localStorage.setItem('logi-ring-pending', JSON.stringify(ring)); } catch (e) {}
     setTimeout(() => {
-      if (this.gsUrl) { if (!this.gsQueue.some(o => o.t === 'ring')) this.gsQueue.push({ t: 'ring', v: ring }); this.gsFlush(); }
+      if (this.gsUrl) { if (!this.gsQueue.some(o => o.t === 'ring')) this.gsEnqueue([{ t: 'ring', v: ring }]); else this.gsFlush(); }
       else if (this.handle && ['linked', 'saved'].includes(this.state.fileStatus)) this.saveToFile();
     }, 300);
     return { ...data, ring };
@@ -829,7 +845,7 @@ class Component extends DCLogic {
   componentWillUnmount() { if (this.map) this.map.remove(); }
 
   commit(data, fromFile) {
-    if (this.gsUrl && !fromFile) { const ops = this.diffOps(this.state.data, data); if (ops.length) { this.gsQueue.push(...ops); setTimeout(() => this.gsFlush(), 0); } }
+    if (this.gsUrl && !fromFile) this.gsEnqueue(this.diffOps(this.state.data, data));
     try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
     this.setState(s => ({ data, ver: s.ver + 1, savedAt: new Date() }));
     if (!fromFile && this.handle && ['linked', 'saved', 'saving', 'error'].includes(this.state.fileStatus)) {
@@ -838,24 +854,67 @@ class Component extends DCLogic {
   }
 
   // ---------- Google Таблица ----------
+  // Таблица — главный источник данных. Ссылка на неё хранится в общих настройках сайта
+  // (зашифрованный vault.json), поэтому все устройства после входа подключаются к одной таблице.
+  // Правки уходят через очередь, которая сохраняется на устройстве: закрытое приложение
+  // или пропавшая сеть их не теряют, отправка повторяется сама.
   gsQueue = [];
+  gsChoose() {
+    const ls = k => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+    const cfg = (window.LogiAuth && window.LogiAuth.config()) || {};
+    let url = ls('logi-gs-url'), token = ls('logi-gs-token');
+    this.gsShared = false;
+    if (cfg.gsUrl && ls('logi-gs-off') !== cfg.gsUrl) { url = cfg.gsUrl; token = cfg.gsToken || ''; this.gsShared = true; }
+    else if (!cfg.gsUrl && ls('logi-gs-shared') === '1') url = '';   // общую таблицу отключили
+    try {
+      if (url) { localStorage.setItem('logi-gs-url', url); localStorage.setItem('logi-gs-token', token); } else { localStorage.removeItem('logi-gs-url'); localStorage.removeItem('logi-gs-token'); }
+      if (this.gsShared) localStorage.setItem('logi-gs-shared', '1'); else localStorage.removeItem('logi-gs-shared');
+    } catch (e) {}
+    return { url, token };
+  }
+  gsSaveQueue() {
+    try { if (this.gsQueue.length) localStorage.setItem('logi-gs-queue', JSON.stringify({ url: this.gsUrl, ops: this.gsQueue })); else localStorage.removeItem('logi-gs-queue'); } catch (e) {}
+  }
+  gsEnqueue(ops) {
+    if (!ops || !ops.length) return;
+    this.gsQueue.push(...ops); this.gsSaveQueue();
+    setTimeout(() => this.gsFlush(), 0);
+  }
   gsStart(url, token) {
     this.gsUrl = url; this.gsToken = token || '';
+    try { const q = JSON.parse(localStorage.getItem('logi-gs-queue') || 'null'); this.gsQueue = q && q.url === url && Array.isArray(q.ops) ? q.ops : []; } catch (e) { this.gsQueue = []; }
     clearInterval(this._gsPoll);
     this._gsPoll = setInterval(() => { if (document.visibilityState === 'visible') this.gsPull(); }, 30000);
-    if (!this._gsFocus) { this._gsFocus = () => this.gsUrl && this.gsPull(); window.addEventListener('focus', this._gsFocus); }
+    if (!this._gsFocus) {
+      this._gsFocus = () => this.gsUrl && this.gsPull();
+      window.addEventListener('focus', this._gsFocus); window.addEventListener('online', this._gsFocus);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this._gsFocus(); });
+    }
     this.setState({ gsStatus: 'loading', gsMsg: '' });
-    try { const pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); if (pend) { this.gsOldScript = true; this.gsQueue.push({ t: 'ring', v: pend }); } } catch (e) {}
+    try { const pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); if (pend && !this.gsQueue.some(o => o.t === 'ring')) { this.gsOldScript = true; this.gsQueue.push({ t: 'ring', v: pend }); this.gsSaveQueue(); } } catch (e) {}
     return this.gsQueue.length ? this.gsFlush() : this.gsPull(true);
   }
-  gsStop = () => {
-    this.gsUrl = null; this.gsQueue = []; clearInterval(this._gsPoll);
-    try { localStorage.removeItem('logi-gs-url'); localStorage.removeItem('logi-gs-token'); } catch (e) {}
-    this.setState({ gsStatus: null, gsName: null, dialog: null });
-  };
+  gsStop() {
+    this.gsUrl = null; this.gsQueue = []; this.gsSaveQueue(); clearInterval(this._gsPoll);
+    try { localStorage.removeItem('logi-gs-url'); localStorage.removeItem('logi-gs-token'); localStorage.removeItem('logi-gs-shared'); } catch (e) {}
+    this.gsShared = false;
+    this.setState({ gsStatus: null, gsName: null });
+  }
+  // Правила, которые должны попасть и в таблицу. Каждое срабатывает один раз для таблицы на устройстве.
+  gsMigrations(data) {
+    const ops = [], mark = 'logi-mig-base-pts:' + this.gsUrl;
+    let done = false; try { done = localStorage.getItem(mark) === '1'; } catch (e) {}
+    if (!done) {
+      try { localStorage.setItem(mark, '1'); } catch (e) {}
+      if (!data.settings.baseIncludesPts) { data.settings.baseIncludesPts = 1; ops.push({ t: 'set', v: { baseIncludesPts: 1 } }); }
+    }
+    return ops;
+  }
   gsApply(j, first) {
     if (!j || j.error || !j.data) throw new Error((j && j.error) || 'Пустой ответ');
     const data = window.XlsxIO.fromSheets(j.data);
+    this.staleNotes(data);
+    const mig = this.gsMigrations(data);
     const cur = this.state.data;
     let pend = null; try { pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); } catch (e) {}
     if (this.gsOldScript && cur && cur.ring && !pend) { pend = cur.ring; try { localStorage.setItem('logi-ring-pending', JSON.stringify(pend)); } catch (e) {} }
@@ -868,34 +927,41 @@ class Component extends DCLogic {
     }
     this.setState({ gsStatus: 'ok', gsName: j.data.name || 'Google Таблица', gsAt: new Date(), gsMsg: '' });
     if (!same) { clearTimeout(this._autoD); this._autoD = setTimeout(() => this.runAutoDistrict(), 600); }
+    this.gsEnqueue(mig);
   }
   async gsPull(first) {
-    if (!this.gsUrl || this._gsBusy || this.gsQueue.length) return;
+    if (!this.gsUrl || this._gsBusy) return;
+    if (this.gsQueue.length) return this.gsFlush();
     this._gsBusy = true;
+    const url = this.gsUrl;
     try {
-      const r = await fetch(this.gsUrl + (this.gsUrl.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(this.gsToken) + '&t=' + Date.now());
+      const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(this.gsToken) + '&t=' + Date.now());
       const j = await r.json();
+      if (this.gsUrl !== url) { this._gsBusy = false; return this.gsUrl && this.gsPull(true); }   // таблицу сменили, пока шёл запрос
       if (!this.gsQueue.length) this.gsApply(j, first);
-    } catch (e) { this.setState({ gsStatus: 'error', gsMsg: 'Нет связи с Google Таблицей: ' + (e.message || e) }); }
+    } catch (e) { if (this.gsUrl === url) this.setState({ gsStatus: 'error', gsMsg: 'Нет связи с Google Таблицей: ' + (e.message || e) }); }
     this._gsBusy = false;
     if (this.gsQueue.length) this.gsFlush();
   }
   async gsFlush() {
     if (!this.gsUrl || this._gsBusy || !this.gsQueue.length) return;
     this._gsBusy = true;
-    const ops = this.gsQueue.splice(0);
+    const ops = this.gsQueue.slice(0, 40), url = this.gsUrl;   // частями: большая первая выгрузка не упирается в лимиты Apps Script
     this.setState({ gsStatus: 'saving' });
     try {
-      const r = await fetch(this.gsUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: this.gsToken, ops }) });
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: this.gsToken, ops }) });
       const j = await r.json();
+      if (this.gsUrl !== url) { this._gsBusy = false; return this.gsUrl && this.gsPull(true); }   // таблицу сменили, пока шёл запрос
+      if (j.error) throw new Error(j.error);
       if ((j.results || []).some(x => x && x.error === 'unknown op')) this.gsOldScript = true;
+      this.gsQueue.splice(0, ops.length); this.gsSaveQueue();
       this._gsBusy = false;
-      if (this.gsQueue.length) { if (j.error) throw new Error(j.error); this.gsFlush(); return; }
+      if (this.gsQueue.length) { this.gsFlush(); return; }
       this.gsApply(j);
     } catch (e) {
       this._gsBusy = false;
-      this.gsQueue.unshift(...ops);
-      this.setState({ gsStatus: 'error', gsMsg: 'Не удалось записать в Google Таблицу — изменения ждут отправки. ' + (e.message || '') });
+      if (this.gsUrl !== url) return this.gsUrl && this.gsPull(true);
+      this.setState({ gsStatus: 'error', gsMsg: 'Не удалось записать в Google Таблицу — изменения сохранены на устройстве и уйдут, когда появится связь. ' + (e.message || '') });
     }
   }
   diffOps(prev, next) {
@@ -922,7 +988,7 @@ class Component extends DCLogic {
     dels.sort((a, b) => b.row - a.row);
     return ops.concat(dels);
   }
-  openGs = () => { let u = '', t = ''; try { u = localStorage.getItem('logi-gs-url') || ''; t = localStorage.getItem('logi-gs-token') || ''; } catch (e) {} this.setState({ dialog: { type: 'gs', draft: { url: u, token: t }, error: '' } }); };
+  openGs = () => { let u = '', t = ''; try { u = localStorage.getItem('logi-gs-url') || ''; t = localStorage.getItem('logi-gs-token') || ''; } catch (e) {} this.setState({ dialog: { type: 'gs', draft: { url: u, token: t, gh: '' }, error: '' } }); };
 
   idb(mode, val) {
     return new Promise(res => {
@@ -1204,7 +1270,7 @@ class Component extends DCLogic {
       Object.assign(base, {
         gsMode: true, showConnect: false, showReload: false, showDisconnect: false, fileErr: false, gsErr: gs === 'error' && this.gsQueue.length > 0,
         fileTitle: 'Google Таблица: ' + (st.gsName || '…'),
-        fileNote: gs === 'loading' ? 'Загружаю данные из таблицы…' : gs === 'saving' ? 'Записываю изменения в таблицу…' : gs === 'error' ? st.gsMsg : this.gsOldScript ? 'Обновите код скрипта в таблице («Настройки связи» → скопировать код → Развернуть → Управление → новая версия), чтобы новая граница ТКАД записалась в таблицу' : 'Синхронизировано ' + gat + ' · правки сразу уходят в таблицу, новые строки из таблицы подтягиваются каждые 30 сек',
+        fileNote: gs === 'loading' ? 'Загружаю данные из таблицы…' : gs === 'saving' ? 'Записываю изменения в таблицу…' : gs === 'error' ? st.gsMsg : this.gsOldScript ? 'Обновите код скрипта в таблице («Настройки связи» → скопировать код → Развернуть → Управление → новая версия), чтобы новая граница ТКАД записалась в таблицу' : 'Синхронизировано ' + gat + (this.gsShared ? ' · одна таблица на всех устройствах' : ' · только на этом устройстве') + ' · правки сразу уходят в таблицу, новые строки подтягиваются каждые 30 сек',
         fileDot: gs === 'error' ? 'transparent' : 'var(--color-accent)', fileNoteColor: gs === 'error' ? 'var(--color-accent-900)' : 'var(--color-neutral-700)', gsLabel: 'Настройки связи' });
     }
     base.showStrip = st.tab === 'journal' || base.fileErr || base.gsErr || st.gsStatus === 'error' || st.fileStatus === 'error' || st.fileStatus === 'needPerm';
@@ -1437,24 +1503,65 @@ class Component extends DCLogic {
         out.gsScript = window.LOGI_GS_SCRIPT || '';
         out.gsConnected = !!this.gsUrl;
         out.copyGs = e => { const b = e.currentTarget; navigator.clipboard.writeText(window.LOGI_GS_SCRIPT || '').then(() => { b.textContent = 'Скопировано ✓'; setTimeout(() => { b.textContent = 'Скопировать код'; }, 1800); }).catch(() => { const ta = document.getElementById('gs-code'); ta && ta.select(); document.execCommand('copy'); }); };
-        out.gsDisconnect = this.gsStop;
+        out.gsNeedGh = !(window.LogiAuth && window.LogiAuth.hasGhToken());
+        out.gsWhere = !this.gsUrl ? '' : this.gsShared ? 'Сейчас подключена одна таблица для всех устройств.' : 'Сейчас таблица подключена только на этом устройстве.';
+        const say = error => this.setState(s => ({ dialog: s.dialog && { ...s.dialog, error } }));
+        // ссылка на таблицу — в общие настройки сайта (нужен GitHub-токен, как для смены пароля)
+        const share = async patch => {
+          if (!window.LogiAuth) return 'нет модуля входа';
+          try { await window.LogiAuth.saveConfig(patch, String(dr.gh || '').trim()); return ''; } catch (e) { return e.message || String(e); }
+        };
+        const finish = async (url, token, mode, j, ops) => {
+          this.gsStop(); this.handle = null;
+          this.gsUrl = url; this.gsToken = token;
+          try { localStorage.setItem('logi-gs-url', url); localStorage.setItem('logi-gs-token', token); localStorage.removeItem('logi-gs-off'); } catch (e) {}
+          if (mode === 'push') { this.gsQueue = ops.slice(); this.gsSaveQueue(); }
+          else this.gsApply(j, true);
+          this.gsStart(url, token);
+          this.setState(s => ({ dialog: s.dialog && { ...s.dialog, ask: null, error: mode === 'push' ? 'Записываю данные сайта в таблицу… Сохраняю ссылку для всех устройств…' : 'Сохраняю ссылку для всех устройств…' } }));
+          const err = await share({ gsUrl: url, gsToken: token });
+          this.gsShared = !err;
+          // только на этом устройстве: общая таблица из настроек сайта не должна вернуться при следующем запуске
+          const cfg = (window.LogiAuth && window.LogiAuth.config()) || {};
+          try { if (this.gsShared) localStorage.setItem('logi-gs-shared', '1'); else if (cfg.gsUrl && cfg.gsUrl !== url) localStorage.setItem('logi-gs-off', cfg.gsUrl); } catch (e) {}
+          if (!err) return this.setState({ dialog: null });
+          say('Таблица подключена только на этом устройстве: ' + err + '. Чтобы подключить её на всех устройствах, укажите GitHub-токен и нажмите «Подключить» ещё раз.');
+        };
+        out.gsDisconnect = async () => {
+          const shared = this.gsShared;
+          if (!confirm(shared ? 'Отключить Google Таблицу на всех устройствах?' : 'Отключить Google Таблицу на этом устройстве?')) return;
+          if (shared) {
+            say('Отключаю на всех устройствах…');
+            const err = await share({ gsUrl: '', gsToken: '' });
+            if (err) return say('Не удалось отключить на всех устройствах: ' + err + '. Укажите GitHub-токен и попробуйте ещё раз.');
+          } else {
+            const cfg = (window.LogiAuth && window.LogiAuth.config()) || {};
+            try { if (cfg.gsUrl) localStorage.setItem('logi-gs-off', cfg.gsUrl); } catch (e) {}
+          }
+          this.gsStop(); this.setState({ dialog: null });
+        };
         out.gsConnect = async () => {
-          const url = String(dr.url || '').trim();
+          const url = String(dr.url || '').trim(), token = String(dr.token || '').trim();
           if (!/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(url)) return this.setState({ dialog: { ...dl, error: 'Нужна ссылка веб-приложения вида https://script.google.com/macros/s/…/exec' } });
-          this.setState({ dialog: { ...dl, error: 'Подключаюсь…' } });
+          this.setState({ dialog: { ...dl, ask: null, error: 'Подключаюсь…' } });
           try {
-            const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(dr.token || '') + '&t=' + Date.now());
+            const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token) + '&t=' + Date.now());
             const j = await r.json();
             if (j.error) throw new Error(j.error);
-            window.XlsxIO.fromSheets(j.data);
-            try { localStorage.setItem('logi-gs-url', url); localStorage.setItem('logi-gs-token', dr.token || ''); } catch (e) {}
-            this.handle = null;
-            this.gsUrl = url; this.gsToken = dr.token || '';
-            this.gsApply(j, true);
-            this.gsStart(url, dr.token || '');
-            this.setState({ dialog: null });
-          } catch (e) { this.setState({ dialog: { ...dl, error: 'Не получилось: ' + (e.message || e) + '. Проверьте, что при развертывании выбран доступ «Все».' } }); }
+            const sheet = window.XlsxIO.fromSheets(j.data), local = this.state.data;
+            // правки, сделанные на этом устройстве, но ещё не отправленные в прежнюю таблицу, тоже учитываются
+            const ops = this.diffOps(sheet, local), rec = ops.filter(o => o.t !== 'set' && o.t !== 'ring');
+            if (!sheet.clients.length && !sheet.shipments.length) return finish(url, token, 'push', j, ops);   // пустая таблица — заполняем данными сайта
+            if (!rec.length) return finish(url, token, 'pull', j);
+            const n = t => rec.filter(o => o.t.startsWith(t)).length;
+            this.setState(s => ({ dialog: { ...s.dialog, error: '', ask: { url, token, j, ops,
+              info: 'В таблице: ' + sheet.shipments.length + ' отгрузок и ' + sheet.clients.length + ' клиентов. На сайте: ' + local.shipments.length + ' отгрузок и ' + local.clients.length + ' клиентов. Отличаются: отгрузок — ' + n('ship') + ', клиентов — ' + n('cli') + ', складов — ' + n('wh') + '.' } } }));
+          } catch (e) { say('Не получилось: ' + (e.message || e) + '. Проверьте ссылку и что при развертывании выбран доступ «Все».'); }
         };
+        const ask = dl.ask;
+        out.gsAsk = !!ask; out.gsAskInfo = ask ? ask.info : '';
+        out.gsTakeSheet = () => ask && finish(ask.url, ask.token, 'pull', ask.j);
+        out.gsPushSite = () => { if (ask && confirm('Таблица станет такой же, как сайт: отличающиеся строки перезапишутся, строки, которых нет на сайте, удалятся. Продолжить?')) finish(ask.url, ask.token, 'push', ask.j, ask.ops); };
       } else if (dl.type === 'wh') {
         out.isWhDialog = true;
         out.dialogTitle = dl.mode === 'new' ? 'Новый доп. склад' : 'Склад ' + (dr.name || dr.bl);

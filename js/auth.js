@@ -4,7 +4,9 @@
    а им — Excel-файл, из которого приложение строит журнал, клиентов и планы.
    Пока вход не выполнен, приложение ждёт window.LOGI_TEMPLATE_B64 и ничего не показывает.
    Смена пароля записывает новый vault.json в репозиторий через GitHub API
-   (нужен токен с правом Contents: Read and write), после чего сайт пересобирается. */
+   (нужен токен с правом Contents: Read and write), после чего сайт пересобирается.
+   Там же, зашифрованные тем же ключом, лежат общие настройки сайта (vault.config),
+   например ссылка на Google Таблицу — её получают все устройства после входа. */
 (function () {
   'use strict';
   var REPO = { owner: 'buraqceoassistant-ai', repo: 'xeeds', path: 'data/vault.json' };
@@ -63,7 +65,17 @@
     v.data = { iv: b64(iv), ct: b64(new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv: iv }, dek, bytes))) };
   }
 
-  var vaultP = null;
+  async function encryptJSON(dekRaw, obj) {
+    var iv = rand(12), dek = await subtle.importKey('raw', dekRaw, 'AES-GCM', false, ['encrypt']);
+    return { iv: b64(iv), ct: b64(new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv: iv }, dek, enc.encode(JSON.stringify(obj))))) };
+  }
+  async function decryptJSON(dekRaw, box) {
+    var dek = await subtle.importKey('raw', dekRaw, 'AES-GCM', false, ['decrypt']);
+    return JSON.parse(new TextDecoder().decode(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, dek, unb64(box.ct))));
+  }
+
+  var vaultP = null, openKey = null;
+  window.LOGI_CONFIG = {};
   function vault() {
     return vaultP || (vaultP = fetch(VAULT_URL).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -71,7 +83,10 @@
     }).catch(function (e) { vaultP = null; throw e; }));
   }
   async function openData(keyB64) {
-    window.LOGI_TEMPLATE_B64 = b64(await decryptData(await vault(), unb64(keyB64)));
+    var v = await vault(), xlsx = await decryptData(v, unb64(keyB64));
+    try { window.LOGI_CONFIG = v.config ? await decryptJSON(unb64(keyB64), v.config) : {}; } catch (e) { window.LOGI_CONFIG = {}; }
+    openKey = keyB64;
+    window.LOGI_TEMPLATE_B64 = b64(xlsx);
   }
   // Сохранённые ключи: текущий и прежний (сразу после смены пароля сайт ещё отдаёт старый vault.json).
   async function openWithStored() {
@@ -260,6 +275,7 @@
       if (single) {
         newKey = rand(32);
         await encryptData(v, newKey, await decryptData(v, oldKey));
+        if (v.config) v.config = await encryptJSON(newKey, await decryptJSON(oldKey, v.config));
         v.users = {};
       }
       await wrapKey(v, login, newPw, newKey);
@@ -269,7 +285,7 @@
 
       var remember = remembered();
       if ($('pw-remember').checked) put(GH_TOKEN, token, true); else drop(GH_TOKEN);
-      if (single) { var cur = get(KEY); drop(KEY); drop(KEY_PREV); put(KEY, b64(newKey), remember); if (cur) put(KEY_PREV, cur, remember); }
+      if (single) { var cur = get(KEY); drop(KEY); drop(KEY_PREV); put(KEY, b64(newKey), remember); if (cur) put(KEY_PREV, cur, remember); openKey = b64(newKey); }
       drop(LOGIN); put(LOGIN, login, remember);
       ['pw-old', 'pw-new', 'pw-new2'].forEach(function (id) { $(id).value = ''; });
       okEl.textContent = 'Пароль изменён. Новый пароль заработает через 1–2 минуты, когда GitHub обновит сайт.' +
@@ -284,6 +300,28 @@
     if (submit.style.display !== 'none') submit.textContent = 'Сменить пароль';
   }
 
-  window.LogiAuth = { logout: logout, openAccount: openAccount };
+  // Общие настройки сайта (например, ссылка на Google Таблицу) — в vault.json для всех устройств.
+  async function saveConfig(patch, token) {
+    token = String(token || get(GH_TOKEN) || '').trim();
+    if (!token) throw new Error('Нужен GitHub-токен');
+    if (!openKey) throw new Error('Сначала войдите на сайт');
+    var remote = await loadRemoteVault(token), v = remote.vault, dek = unb64(openKey);
+    try { await decryptData(v, dek); }
+    catch (e) { throw new Error('Пароль сайта недавно меняли на другом устройстве — выйдите и войдите заново'); }
+    var cfg = {};
+    if (v.config) { try { cfg = await decryptJSON(dek, v.config); } catch (e) { cfg = {}; } }
+    Object.keys(patch).forEach(function (k) { if (patch[k] === '' || patch[k] == null) delete cfg[k]; else cfg[k] = patch[k]; });
+    v.config = await encryptJSON(dek, cfg);
+    await gh(token, remote.base + '/contents/' + REPO.path, { method: 'PUT', body: {
+      message: 'Общие настройки сайта', content: btoa(JSON.stringify(v) + '\n'), sha: remote.sha, branch: remote.branch } });
+    window.LOGI_CONFIG = cfg;
+    return cfg;
+  }
+
+  window.LogiAuth = {
+    logout: logout, openAccount: openAccount, saveConfig: saveConfig,
+    config: function () { return window.LOGI_CONFIG || {}; },
+    hasGhToken: function () { return !!get(GH_TOKEN); }
+  };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
