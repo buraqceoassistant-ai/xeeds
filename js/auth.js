@@ -77,7 +77,7 @@
   var vaultP = null, openKey = null;
   window.LOGI_CONFIG = {};
   function vault() {
-    return vaultP || (vaultP = fetch(VAULT_URL).then(function (r) {
+    return vaultP || (vaultP = fetch(VAULT_URL, { cache: 'no-cache' }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }).catch(function (e) { vaultP = null; throw e; }));

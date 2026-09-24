@@ -103,15 +103,35 @@
     const clients = Object.keys(Ms).map(Number).filter(r => r >= 5 && str(Ms[r].A)).sort((a, b) => a - b).map(r => { const c = Ms[r]; return {
       bl: str(c.A), brand: str(c.B), name: str(c.C), tel1: str(c.D), tel2: str(c.E), receiver: str(c.F), receiverTel: str(c.G), district: str(c.H) || 'Aniqlanmagan', address: str(c.I),
       link: links['J' + r] || '', lat: num(c.K), lon: num(c.L), note: str(c.O), manualZone: str(c.X) }; });
-    const shipments = Object.keys(Ys).map(Number).filter(r => r >= 5 && str(Ys[r].C) && num(Ys[r].A)).sort((a, b) => a - b).map(r => { const c = Ys[r]; return {
-      id: 's' + r, date: serialToISO(c.A), bl: str(c.C), cbm: num(c.J) || 0, kg: num(c.K) || 0, places: num(c.L) || 0, truck: str(c.M) || 'Belgilanmagan', route: num(c.N), status: str(c.O) || 'Rejada', note: str(c.P) }; });
+    // Date in column A: a real date (Excel/Sheets serial number) or typed by hand as text — 31.08.2026,
+    // 31.08.26, 31/08/2026, 2026-08-31, 31.08 — or turned into a number by a sheet in another locale
+    // ("04.09" → 4.09). Such dates are read as DD.MM (year from the other rows) and reported in `textDates`;
+    // rows with a BL but no readable date are reported in `skipped` instead of being dropped silently.
+    const serialOk = v => typeof v === 'number' && v > 20000 && v < 80000;
+    const years = Object.keys(Ys).map(Number).filter(r => r >= 5 && serialOk(Ys[r].A)).map(r => +serialToISO(Ys[r].A).slice(0, 4));
+    const yearGuess = years.length ? Math.max(...years) : new Date().getFullYear();
+    const iso = (y, m, d) => { const t = new Date(Date.UTC(y, m - 1, d)); return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d ? t.toISOString().slice(0, 10) : ''; };
+    const dateOf = v => {
+      if (serialOk(v)) return serialToISO(v);
+      if (typeof v === 'number' && v > 0 && v < 1000) { const d = Math.floor(v), mo = Math.round((v - d) * 100); return iso(yearGuess, mo, d); }
+      const t = str(v); let m;
+      if (/^\d{5}(\.\d+)?$/.test(t) && serialOk(+t)) return serialToISO(+t);
+      if ((m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return iso(+m[1], +m[2], +m[3]);
+      if ((m = t.match(/^(\d{1,2})[.\/,-](\d{1,2})(?:[.\/,-](\d{2}|\d{4}))?\.?$/))) return iso(m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : yearGuess, +m[2], +m[1]);
+      return '';
+    };
+    const shipRows = Object.keys(Ys).map(Number).filter(r => r >= 5 && str(Ys[r].C)).sort((a, b) => a - b);
+    const skipped = shipRows.filter(r => !dateOf(Ys[r].A)).map(r => ({ row: r, bl: str(Ys[r].C), value: str(Ys[r].A) }));
+    const textDates = shipRows.filter(r => !serialOk(Ys[r].A) && dateOf(Ys[r].A)).map(r => ({ row: r, bl: str(Ys[r].C), value: str(Ys[r].A), date: dateOf(Ys[r].A) }));
+    const shipments = shipRows.filter(r => dateOf(Ys[r].A)).map(r => { const c = Ys[r]; return {
+      id: 's' + r, date: dateOf(c.A), bl: str(c.C), cbm: num(c.J) || 0, kg: num(c.K) || 0, places: num(c.L) || 0, truck: str(c.M) || 'Belgilanmagan', route: num(c.N), status: str(c.O) || 'Rejada', note: str(c.P) }; });
     const warehouses = Object.keys(Ws).map(Number).filter(r => r >= 5 && str(Ws[r].A)).sort((a, b) => a - b).map(r => { const c = Ws[r]; return { id: 'w' + r, bl: str(c.A), brand: str(c.B), name: str(c.C), lat: num(c.D), lon: num(c.E) }; });
     const ring = Object.keys(Hs).map(Number).filter(r => r >= 11).sort((a, b) => a - b).map(r => [num(Hs[r].B), num(Hs[r].C)]).filter(p => p[0] && p[1]);
     const settings = {};
     for (const [k, r] of Object.entries(SET_ROWS)) { const v = (Ss[r] || {}).B; settings[k] = k === 'depotName' ? str(v) : num(v); }
     settings.ringBuffer = num((Hs[4] || {}).B) ?? 1;
-    // older workbooks have no rows 55–58 yet: Labo/Kamaz charge every point (0), Gazel holds 18 m³ / 2 000 kg
-    const DEF = { laboBaseIncludesPts: 0, kamazBaseIncludesPts: 0, gazelM3: 18, gazelKg: 2000 };
+    // older workbooks have no rows 55–58 yet: Labo/Kamaz charge every point (0), Gazel holds 23 m³ / 4 000 kg
+    const DEF = { laboBaseIncludesPts: 0, kamazBaseIncludesPts: 0, gazelM3: 23, gazelKg: 4000 };
     Object.keys(DEF).forEach(k => { if (settings[k] == null) settings[k] = DEF[k]; });
     const col = (c, a, b) => { const o = []; for (let r = a; r <= b; r++) if (Ss[r] && str(Ss[r][c])) o.push(str(Ss[r][c])); return o; };
     const lists = { districts: col('A', 24, 39), statuses: col('B', 24, 29), trucks: col('C', 24, 34) };
@@ -121,7 +141,7 @@
       if (c.A && !c.B && /^\d+\./.test(str(c.A))) { sec = { title: str(c.A), items: [] }; notes.push(sec); }
       else if (sec && c.B && c.C && str(c.A) !== '№') sec.items.push({ n: str(c.A), what: str(c.B), why: str(c.C) });
     });
-    return { clients, shipments, warehouses, ring, settings, lists, notes: notes.filter(s => /E’TIBOR|TEKSHIRING/i.test(s.title)) };
+    return { clients, shipments, warehouses, ring, settings, lists, skipped, textDates, notes: notes.filter(s => /E’TIBOR|TEKSHIRING/i.test(s.title)) };
   }
 
   // ---------- writing into the original workbook ----------

@@ -76,6 +76,17 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Данные для входа: сначала сеть — смена пароля или общих настроек видна при следующем открытии,
+  // без сети — из кэша.
+  if (url.pathname.endsWith('/data/vault.json')) {
+    event.respondWith(
+      fetch(req, { cache: 'no-cache' })
+        .then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put('data/vault.json', copy)); } return res; })
+        .catch(() => caches.match('data/vault.json'))
+    );
+    return;
+  }
+
   // Файлы сайта: из кэша этой сборки, недостающие — из сети с сохранением.
   event.respondWith(
     caches.match(req, { ignoreSearch: true }).then(hit => hit || fetch(req).then(res => {

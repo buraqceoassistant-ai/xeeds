@@ -111,17 +111,18 @@
   // ---------- planner ----------
   // Every trip gets a vehicle (Labo, Gazel or Kamaz) that carries its whole load: volume, weight,
   // places and number of points. A shipment bigger than the largest vehicle is split into parts.
-  // Among vehicles that fit, the cheapest by tariff wins; a vehicle without a tariff only when nothing else fits.
+  // Among vehicles that fit, the cheapest by tariff wins. In plans A and B Kamaz (and any vehicle without
+  // a tariff) carries only cargo that fits no regular vehicle: Gazel first, Kamaz only when it does not fit.
   const EPS = 1e-6, UNPRICED = 1e8, KM_COST = 1000;
   const known = s => (s.cbm || 0) > 0 || (s.kg || 0) > 0;
-  function fleetOf(S, kinds) {
+  function fleetOf(S, kinds, onlyIfNeeded = []) {
     const all = {
       labo: { kind: 'labo', label: 'Labo', m3: +S.laboM3, kg: +S.laboKg },
       gazel: { kind: 'gazel', label: 'Gazel', m3: +S.gazelM3, kg: +S.gazelKg },
       kamaz: { kind: 'kamaz', label: 'Kamaz', m3: +S.cM3, kg: +S.cKg }
     };
     return kinds.map(k => all[k]).filter(v => v.m3 > 0 && v.kg > 0).map(v => ({ ...v, places: +S.maxPlaces || 0,
-      priced: priceTrip([{ bl: '-', zone: 'in', cbm: 0, kg: 0 }], v.kind, S).total != null }));
+      priced: priceTrip([{ bl: '-', zone: 'in', cbm: 0, kg: 0 }], v.kind, S).total != null, onlyIfNeeded: onlyIfNeeded.includes(v.kind) }));
   }
   function load(stops) {
     let cbm = 0, kg = 0, places = 0; const bl = new Set();
@@ -135,14 +136,14 @@
     const l = load(stops);
     if (l.points > maxStops) return null;
     const ordered = nnOrder(depot, stops);
-    const priced = fleet.filter(v => v.priced);
-    const needsBig = s => !priced.some(v => fitsIn(load([s]), v) && (v.kind !== 'labo' || known(s)));
+    const regular = fleet.filter(v => v.priced && !v.onlyIfNeeded);
+    const needsBig = s => !regular.some(v => fitsIn(load([s]), v) && (v.kind !== 'labo' || known(s)));
     let best = null;
     fleet.forEach(v => {
       if (!fitsIn(l, v)) return;
       if (v.kind === 'labo' && !stops.every(known)) return;   // cargo without volume and weight never goes on a Labo
-      // a vehicle without a tariff carries only cargo that fits no vehicle with a tariff — bigger truck only when needed
-      if (!v.priced && priced.length && !stops.every(needsBig)) return;
+      // Kamaz in A/B and vehicles without a tariff carry only cargo that fits no regular vehicle
+      if ((v.onlyIfNeeded || !v.priced) && regular.length && !stops.every(needsBig)) return;
       const price = priceTrip(ordered, v.kind, S);
       const cost = price.total != null ? price.total : UNPRICED;
       if (!best || cost < best.cost) best = { v, cost, price };
@@ -256,7 +257,7 @@
       });
     };
     const plan = (kinds, build) => {
-      const fleet = fleetOf(S, kinds), splits = [];
+      const fleet = fleetOf(S, kinds, kinds.length > 1 ? ['kamaz'] : []), splits = [];
       if (!fleet.length) return { trips: [], splits, noFleet: true };
       const items = splitOversize(withC, fleet, splits);
       return { trips: finish(build(items, fleet)), splits, fleet };

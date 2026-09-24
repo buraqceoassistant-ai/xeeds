@@ -803,6 +803,7 @@ class Component extends DCLogic {
       try {
         const { tpl, data: fresh } = await window.XlsxIO.parse(window.XlsxIO.b64ToBuf(window.LOGI_TEMPLATE_B64));
         if (!fresh.settings.baseIncludesPts) this.firstPointRule(fresh);
+        this.capacityFix(fresh.settings);
         this.tpl = tpl; this.fresh = fresh;
         let data = null;
         try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) {}
@@ -812,6 +813,7 @@ class Component extends DCLogic {
         data.settings = Object.assign({}, fresh.settings, data.settings || {});
         let ptsFix = false; try { ptsFix = localStorage.getItem('logi-base-pts-v1') === '1'; } catch (e) {}
         if (!ptsFix) { this.firstPointRule(data); try { localStorage.setItem('logi-base-pts-v1', '1'); } catch (e) {} }
+        this.capacityFix(data.settings);
         this.setReady(data);
         const gs = this.gsChoose();
         if (gs.url) this.gsStart(gs.url, gs.token);
@@ -826,6 +828,15 @@ class Component extends DCLogic {
   firstPointRule(d) {
     d.settings.baseIncludesPts = 1;
     this.staleNotes(d);
+  }
+  // Вместимость машин со слов владельца (24.09): Gazel 23 м³ / 4 000 кг, Kamaz 50 м³ / 15 000 кг.
+  // Меняем только старые значения из файла и прежнюю прикидку, поэтому выбор, сделанный позже во «Тарифах», не трогается.
+  capacityFix(S) {
+    const changed = {};
+    if (S.cM3 === 35 && S.cKg === 5000) Object.assign(changed, { cM3: 50, cKg: 15000 });
+    if (S.gazelM3 == null || (S.gazelM3 === 18 && S.gazelKg === 2000)) Object.assign(changed, { gazelM3: 23, gazelKg: 4000 });
+    Object.assign(S, changed);
+    return changed;
   }
   staleNotes(d) {
     d.notes = (d.notes || []).map(s => ({ ...s, items: s.items.filter(i => !/bazaviy narxga kiradimi/i.test(i.what)) }));
@@ -911,7 +922,7 @@ class Component extends DCLogic {
   }
   // Правила, которые должны попасть и в таблицу. Каждое срабатывает один раз для таблицы на устройстве.
   gsMigrations(data) {
-    const ops = [], mark = 'logi-mig-base-pts:' + this.gsUrl;
+    const cap = this.capacityFix(data.settings), ops = Object.keys(cap).length ? [{ t: 'set', v: cap }] : [], mark = 'logi-mig-base-pts:' + this.gsUrl;
     let done = false; try { done = localStorage.getItem(mark) === '1'; } catch (e) {}
     if (!done) {
       try { localStorage.setItem(mark, '1'); } catch (e) {}
@@ -934,7 +945,7 @@ class Component extends DCLogic {
     let pend = null; try { pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); } catch (e) {}
     if (this.gsOldScript && cur && cur.ring && !pend) { pend = cur.ring; try { localStorage.setItem('logi-ring-pending', JSON.stringify(pend)); } catch (e) {} }
     if (pend) { if (JSON.stringify(pend) === JSON.stringify(data.ring)) { try { localStorage.removeItem('logi-ring-pending'); } catch (e) {} this.gsOldScript = false; } else data.ring = pend; }
-    const same = cur && JSON.stringify([cur.clients, cur.shipments, cur.warehouses, cur.settings, cur.ring]) === JSON.stringify([data.clients, data.shipments, data.warehouses, data.settings, data.ring]);
+    const same = cur && JSON.stringify([cur.clients, cur.shipments, cur.warehouses, cur.settings, cur.ring, cur.skipped, cur.textDates]) === JSON.stringify([data.clients, data.shipments, data.warehouses, data.settings, data.ring, data.skipped, data.textDates]);
     if (!same) {
       try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
       if (first) this.setReady(data);
@@ -1364,7 +1375,9 @@ class Component extends DCLogic {
         mk('Район не определён', undef, 'Клиенты с районом «Aniqlanmagan».', 'info'),
         mk('Неполные карточки (< 67%)', low, 'Не хватает бренда, имени, телефона, получателя, адреса или координат.', 'info'),
         mk('Снаружи кольцевой', outC, 'Для них действует тариф точки снаружи кольца.', 'info'),
-        mk('Повторяющиеся BL в справочнике', blDup.map(([bl]) => D.cmap[bl]), 'Один BL должен быть одной строкой.', 'warn')
+        mk('Повторяющиеся BL в справочнике', blDup.map(([bl]) => D.cmap[bl]), 'Один BL должен быть одной строкой.', 'warn'),
+        mk('Строки без даты — не видны на сайте', data.skipped || [], 'В листе Yuborishlar дата не распознана. Впишите дату в столбец A как ДД.ММ.ГГГГ.', 'warn', x => ({ label: 'стр. ' + x.row, sub: x.bl + (x.value ? ' «' + x.value + '»' : ' без даты'), go: () => {} })),
+        mk('Дата записана не датой', data.textDates || [], 'Ячейка с датой — текст или число (так бывает, если в таблице английская локаль). Сайт понял её как ДД.ММ; в Google Таблице: Файл → Настройки → Региональные настройки → Россия или Узбекистан.', 'info', x => ({ label: 'стр. ' + x.row + ' → ' + dLong(x.date), sub: x.bl + ' «' + x.value + '»', go: () => {} }))
       ];
       out.checkWarn = out.checks.filter(c => c.warn).length;
       out.depotInfo = S.depotName + ' → ' + S.depotLat + ', ' + S.depotLon;
