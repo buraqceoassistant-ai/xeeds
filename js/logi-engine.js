@@ -163,16 +163,25 @@
     const price = priceTrip([s], v.kind, S), m = tripMetrics(depot, [s], S);
     return { stops: [s], l: load([s]), v, price, cost: UNPRICED, real: m.real, val: UNPRICED * 2, over: true };
   }
+  // A shipment bigger than the largest vehicle: full loads for the largest vehicle, and the rest as one smaller
+  // part that the plan treats like any other cargo — it can go on a Gazel or Labo, together with other points.
   function splitOversize(items, fleet, notes) {
     if (!fleet.length) return items;
     const M3 = Math.max(...fleet.map(v => v.m3)), KG = Math.max(...fleet.map(v => v.kg)), PL = fleet[0].places;
     const out = [];
     items.forEach(s => {
-      const k = Math.max(1, Math.ceil((s.cbm || 0) / M3 - EPS), Math.ceil((s.kg || 0) / KG - EPS), PL ? Math.ceil((s.places || 0) / PL - EPS) : 1);
+      const cbm = s.cbm || 0, kg = s.kg || 0, places = s.places || 0;
+      const k = Math.max(1, Math.ceil(cbm / M3 - EPS), Math.ceil(kg / KG - EPS), PL ? Math.ceil(places / PL - EPS) : 1);
       if (k === 1) { out.push(s); return; }
-      const places = s.places || 0, base = Math.floor(places / k), extra = places - base * k;
-      notes.push({ bl: s.bl, client: s.client, cbm: s.cbm, kg: s.kg, places, parts: k, indivisible: places > 0 && places < k });
-      for (let i = 0; i < k; i++) out.push({ ...s, cbm: (s.cbm || 0) / k, kg: (s.kg || 0) / k, places: base + (i < extra ? 1 : 0), part: i + 1, parts: k });
+      // share of the shipment one full vehicle takes (the cargo is split in proportion: volume, weight and places together)
+      const f = Math.min(cbm > 0 ? M3 / cbm : 1, kg > 0 ? KG / kg : 1, PL && places > 0 ? PL / places : 1);
+      let shares = Array.from({ length: k - 1 }, () => f).concat([1 - f * (k - 1)]);
+      let pl = shares.slice(0, -1).map(x => Math.floor(places * x + EPS));
+      pl.push(places - pl.reduce((a, b) => a + b, 0));
+      if (PL && pl[k - 1] > PL) { shares = Array(k).fill(1 / k); const b = Math.floor(places / k), e = places - b * k; pl = shares.map((_, i) => b + (i < e ? 1 : 0)); }
+      const parts = shares.map((x, i) => ({ ...s, cbm: cbm * x, kg: kg * x, places: pl[i], part: i + 1, parts: k }));
+      notes.push({ bl: s.bl, client: s.client, cbm, kg, places, parts: k, sizes: parts.map(x => ({ cbm: x.cbm, kg: x.kg })), indivisible: places > 0 && places < k });
+      out.push(...parts);
     });
     return out;
   }
