@@ -22,6 +22,7 @@
 <script defer src="js/vendor/react-dom.production.min.js"></script>
 <script defer src="js/dc-runtime.js"></script>
 <script defer src="js/logi-engine.js"></script>
+<script defer src="js/logi-viz.js"></script>
 <script defer src="js/xlsx-io.js"></script>
 <script defer src="js/logi-gs-script.js"></script>
 <script defer src="js/auth.js"></script>
@@ -535,6 +536,7 @@
               </div>
               <div class="trip-price" style="margin-left:auto;display:flex;align-items:center;gap:16px">
                 <div style="text-align:right"><div style="font-family:var(--font-heading);font-weight:600;font-size:20px">{{ t.price }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ t.formula }}</div></div>
+                <button class="btn btn-secondary" sc-camel-on-click="{{ t.open3d }}">Загрузка 3D</button>
                 <a class="btn btn-primary blueprint" href="{{ t.yHref }}" target="_blank" style="text-decoration:none"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Открыть в Яндекс Картах</a>
               </div>
             </div>
@@ -574,6 +576,98 @@
             </sc-raw-tbody></sc-raw-table>
           </section>
         </sc-if>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isViz }}" hint-placeholder-val="{{ false }}">
+    <main class="page viz-page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:18px">
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Yuklash 3D</div>
+          <h1 style="margin:2px 0 0;font-size:38px">Визуализация планов</h1>
+        </div>
+        <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:8px">{{ vizSummary }}</div>
+        <div class="page-tools" style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <sc-raw-select class="input" style="width:200px" value="{{ planDate }}" sc-camel-on-change="{{ onVizDate }}">
+            <sc-for list="{{ dateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for>
+          </sc-raw-select>
+          <div class="viz-seg" style="display:flex;border:1px solid var(--color-divider)">
+            <sc-for list="{{ vizPlanOpts }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div class="viz-trips" style="display:flex;gap:8px;flex-wrap:wrap">
+        <sc-for list="{{ vizTripOpts }}" as="o">
+          <button sc-camel-on-click="{{ o.go }}" style="border:1px solid {{ o.border }};background:{{ o.bg }};color:inherit;font:inherit;padding:8px 12px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:112px">
+            <span style="font-family:var(--font-heading);font-weight:600;font-size:16px">{{ o.l }}</span>
+            <span style="font-size:12px;color:{{ o.subColor }}">{{ o.sub }}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <div class="viz-main" style="display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start">
+        <div class="viz-stage" style="position:relative;height:600px;border:1px solid var(--color-divider);background:var(--color-surface);overflow:hidden">
+          <div ref="{{ vizRef }}" style="position:absolute;inset:0"></div>
+          <div class="viz-views" style="position:absolute;top:10px;left:10px;display:flex;gap:6px;flex-wrap:wrap">
+            <sc-for list="{{ vizViews }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:1px solid var(--color-divider);padding:6px 10px;font:inherit;font-size:13px;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for>
+          </div>
+          <sc-if value="{{ vizHasMsg }}"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font-size:14px;color:var(--color-neutral-800)">{{ vizMsg }}</div></sc-if>
+          <div class="viz-hint" style="position:absolute;bottom:8px;left:12px;right:12px;font-size:11px;color:var(--color-neutral-700);pointer-events:none">{{ vizHint }}</div>
+        </div>
+
+        <aside class="viz-side" style="display:flex;flex-direction:column;gap:14px;border:1px solid var(--color-divider);background:var(--color-surface);padding:16px">
+          <sc-if value="{{ vizIsOne }}">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
+              <div style="font-family:var(--font-heading);font-weight:600;font-size:24px">{{ vizTitle }}</div>
+              <div style="font-size:13px;color:var(--color-neutral-700)">{{ vizPrice }}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+              <sc-for list="{{ vizBars }}" as="b">
+                <div>
+                  <div style="display:flex;justify-content:space-between;gap:8px"><span>{{ b.l }}</span><span style="font-weight:600;color:{{ b.color }}">{{ b.v }}</span></div>
+                  <div style="height:6px;background:var(--color-neutral-300);margin-top:4px"><div style="height:6px;width:{{ b.pct }};background:{{ b.bar }}"></div></div>
+                </div>
+              </sc-for>
+              <div style="color:var(--color-neutral-700)">{{ vizCg }}</div>
+              <sc-if value="{{ vizHasOver }}"><div style="color:#c0392b;text-wrap:pretty">{{ vizOver }}</div></sc-if>
+            </div>
+            <div style="border-top:1px solid var(--color-divider);padding-top:12px;display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                <span style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Разгрузка по точкам</span>
+                <div style="display:flex;gap:4px"><button class="btn btn-ghost" sc-camel-on-click="{{ vizPrev }}" title="Назад">◀</button><button class="btn btn-ghost" sc-camel-on-click="{{ vizNext }}" title="Следующая точка">▶</button></div>
+              </div>
+              <input class="viz-range" type="range" min="0" max="{{ vizStepMax }}" step="1" value="{{ vizStep }}" sc-camel-on-change="{{ onVizStep }}" style="width:100%;accent-color:var(--color-accent)">
+              <div style="font-size:13px;text-wrap:pretty">{{ vizStepLabel }}</div>
+            </div>
+            <div style="border-top:1px solid var(--color-divider);padding-top:12px;display:flex;flex-direction:column;gap:4px">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Точки · 1 — у дверей</div>
+              <sc-for list="{{ vizPoints }}" as="p">
+                <button sc-camel-on-click="{{ p.go }}" style="display:flex;gap:10px;align-items:flex-start;text-align:left;border:1px solid {{ p.border }};background:{{ p.bg }};color:inherit;font:inherit;padding:8px;cursor:pointer;opacity:{{ p.opacity }}">
+                  <span style="flex:none;width:26px;height:26px;border-radius:50%;background:{{ p.color }};color:{{ p.fg }};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">{{ p.n }}</span>
+                  <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                    <span style="font-weight:600">{{ p.bl }} <span style="font-weight:400;color:var(--color-neutral-700)">{{ p.name }}</span></span>
+                    <span style="font-size:12px;color:var(--color-neutral-700)">{{ p.info }}</span>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ vizIsAll }}">
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:24px">{{ vizTitle }}</div>
+            <div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">Нажмите на машину или выберите рейс вверху — откроется загрузка по точкам.</div>
+            <sc-for list="{{ vizAllRows }}" as="r">
+              <button sc-camel-on-click="{{ r.go }}" style="display:flex;flex-direction:column;gap:6px;text-align:left;border:1px solid var(--color-divider);background:var(--color-bg);color:inherit;font:inherit;padding:10px;cursor:pointer">
+                <span style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">{{ r.name }}</span><span style="font-size:12px;color:var(--color-neutral-700)">{{ r.pts }}</span></span>
+                <span style="display:flex;gap:10px;align-items:center;font-size:12px"><span style="width:88px">{{ r.cbm }}</span><span style="flex:1;height:5px;background:var(--color-neutral-300)"><span style="display:block;height:5px;width:{{ r.cbmPct }};background:{{ r.cbmBar }}"></span></span></span>
+                <span style="display:flex;gap:10px;align-items:center;font-size:12px"><span style="width:88px">{{ r.kg }}</span><span style="flex:1;height:5px;background:var(--color-neutral-300)"><span style="display:block;height:5px;width:{{ r.kgPct }};background:{{ r.kgBar }}"></span></span></span>
+                <sc-if value="{{ r.hasOver }}"><span style="font-size:12px;color:#c0392b">{{ r.over }}</span></sc-if>
+              </button>
+            </sc-for>
+          </sc-if>
+          <div style="border-top:1px solid var(--color-divider);padding-top:10px;font-size:12px;color:var(--color-neutral-700);text-wrap:pretty">{{ vizNote }}</div>
+        </aside>
       </div>
     </main>
   </sc-if>
@@ -783,8 +877,10 @@ class Component extends DCLogic {
   state = { ready: false, tab: 'journal', data: null, ver: 0, savedAt: null,
     jDate: 'all', jLimit: 60, editRow: null, jStatus: 'all', jSearch: '', cSearch: '', cDistrict: 'all', cZone: 'all',
     mapDate: 'all', mapPlan: 'none', mapBase: (() => { try { return localStorage.getItem('logi-map-base') || 'yandex'; } catch (e) { return 'yandex'; } })(), planDate: '', planKey: 'A', planC: (() => { try { return localStorage.getItem('logi-plan-c') === '1'; } catch (e) { return false; } })(), dialog: null,
+    vizTrip: 'all', vizStep: 0, vizSel: null, vizView: '3d', vizErr: '',
     calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 } };
   mapRef = React.createRef();
+  vizRef = React.createRef();
 
   loadLeaflet() {
     if (window.L || this._lfLoading) return;
@@ -868,8 +964,8 @@ class Component extends DCLogic {
     const dates = [...new Set(data.shipments.map(s => s.date))].sort();
     this.setState(s => ({ ready: true, data, ver: s.ver + 1, planDate: dates[dates.length - 1] || '', jDate: dates[dates.length - 1] || 'all' }));
   }
-  componentDidUpdate() { this.syncMap(); }
-  componentWillUnmount() { if (this.map) this.map.remove(); }
+  componentDidUpdate() { this.syncMap(); this.syncViz(); }
+  componentWillUnmount() { if (this.map) this.map.remove(); if (this.viz) this.viz.dispose(); }
 
   commit(data, fromFile) {
     if (this.gsUrl && !fromFile) this.gsEnqueue(this.diffOps(this.state.data, data));
@@ -1143,6 +1239,43 @@ class Component extends DCLogic {
     return res;
   }
 
+  // ---------- Визуализация: рейсы плана в 3D (js/logi-viz.js) ----------
+  vizModel() {
+    const st = this.state;
+    if (!st.ready || !st.planDate || !window.LogiViz) return null;
+    const P = this.plansFor(st.planDate), key = ['A', 'B', 'C'].includes(st.planKey) ? st.planKey : 'A';
+    if (this._vizM && this._vizM.P === P && this._vizM.key === key) return this._vizM;
+    const plan = P[key], lays = plan.trips.map(t => window.LogiViz.layout(t));
+    this._vizM = { P, key, plan, lays, id: (this._vizM ? this._vizM.id : 0) + 1 };
+    return this._vizM;
+  }
+  vizOne(M) { const i = this.state.vizTrip; return i !== 'all' && M && M.lays[i] ? i : 'all'; }
+  syncViz() {
+    const st = this.state, el = this.vizRef.current, V = window.LogiViz;
+    if (st.tab !== 'viz' || !st.ready || !el || !V) { if (this.viz) { this.viz.dispose(); this.viz = null; this.vizEl = null; } return; }
+    if (st.vizErr) return;
+    if (!V.ready()) {
+      if (!this._vizLoading) { this._vizLoading = true; V.load().then(() => { this._vizLoading = false; this.forceUpdate(); }, e => { this._vizLoading = false; this.setState({ vizErr: e.message || String(e) }); }); }
+      return;
+    }
+    if (this.viz && this.vizEl !== el) { this.viz.dispose(); this.viz = null; }
+    if (!this.viz) {
+      try {
+        this.viz = V.createView(el, {
+          onPickPoint: n => this.setState({ vizSel: n }),
+          onPickTrip: i => this.setState({ vizTrip: i, vizStep: 0, vizSel: null })
+        });
+        this.vizEl = el;
+      } catch (e) { this.setState({ vizErr: '3D не работает в этом браузере: ' + (e.message || e) }); return; }
+    }
+    const M = this.vizModel();
+    if (!M) return;
+    const one = this.vizOne(M), all = one === 'all';
+    const items = all ? M.lays.map((lay, idx) => ({ lay, idx, title: lay.name + ' · ' + Math.round(lay.fill * 100) + '%' })) : [{ lay: M.lays[one], idx: one }];
+    this.viz.show({ mode: all ? 'all' : 'one', items, step: all ? 0 : st.vizStep, sel: all ? null : st.vizSel, view: st.vizView,
+      contentKey: M.id + '|' + one + '|' + (all ? '' : st.vizStep + '|' + st.vizSel), fitKey: M.id + '|' + one + '|' + st.vizView + '|' + (st.vizViewN || 0) });
+  }
+
   syncMap() {
     if (this.state.tab !== 'map' || !this.state.ready) { if (this.map) { this.map.remove(); this.map = null; this.mapEl = null; } return; }
     const el = this.mapRef.current, L = window.L;
@@ -1287,9 +1420,9 @@ class Component extends DCLogic {
 
   renderVals() {
     const st = this.state;
-    const tabsDef = [['journal', 'Журнал'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['plans', 'Планы A/B/C'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
+    const tabsDef = [['journal', 'Журнал'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['plans', 'Планы A/B/C'], ['viz', 'Визуализация'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
     const tabs = tabsDef.map(([k, l]) => ({ label: l, go: () => this.setState({ tab: k }), color: st.tab === k ? 'var(--color-accent-700)' : 'var(--color-text)', border: st.tab === k ? 'var(--color-accent)' : 'transparent' }));
-    const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isTariffs: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef,
+    const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isViz: false, isTariffs: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
       fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
       account: () => window.LogiAuth && window.LogiAuth.openAccount() };
     const fs = st.fileStatus, fat = st.fileAt ? hhmm(st.fileAt.getHours() * 60 + st.fileAt.getMinutes()) : '';
@@ -1323,7 +1456,7 @@ class Component extends DCLogic {
     const distName = d => d === 'Aniqlanmagan' ? 'Не определён' : (d || '—');
     const out = { ...base, depotName: S.depotName, statusOpts, truckOpts, districtOpts, dateOpts,
       savedNote: st.savedAt ? 'Сохранено ' + hhmm(st.savedAt.getHours() * 60 + st.savedAt.getMinutes()) : '',
-      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isTariffs: st.tab === 'tariffs', isCheck: st.tab === 'check' };
+      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isViz: st.tab === 'viz', isTariffs: st.tab === 'tariffs', isCheck: st.tab === 'check' };
 
     if (st.tab === 'journal') {
       const q = st.jSearch.trim().toLowerCase();
@@ -1501,7 +1634,7 @@ class Component extends DCLogic {
       if (plan.sum.over) notes.push('Не помещается ни в одну машину и не делится: ' + plan.trips.filter(t => t.over).map(t => t.stops[0].bl).join(', ') + '. Проверьте вместимость машин во вкладке «Тарифы».');
       if (plan.noFleet) notes.push('Для этого плана нет машин: задайте объём и грузоподъёмность Kamaz во вкладке «Тарифы».');
       out.planNotes = notes.map(text => ({ text })); out.planHasNotes = notes.length > 0;
-      out.planTrips = plan.trips.map(t => {
+      out.planTrips = plan.trips.map((t, ti) => {
         const v = t.vehicle;
         let prev = depot;
         const nM3 = v.nomM3 ?? v.m3, nKg = v.nomKg ?? v.kg, upM3 = t.cbm > nM3 + 1e-6, upKg = t.kg > nKg + 1e-6;   // сверх кузова — за счёт допуска плана B
@@ -1510,7 +1643,7 @@ class Component extends DCLogic {
           cbmPct: Math.min(100, t.cbm / nM3 * 100).toFixed(0) + '%', kgPct: Math.min(100, t.kg / nKg * 100).toFixed(0) + '%',
           cbmBar: upM3 || t.over ? 'var(--color-accent-900)' : 'var(--color-accent)', kgBar: upKg || t.over ? 'var(--color-accent-900)' : 'var(--color-accent)',
           km: f1(t.real, 1) + ' км (реальн.)', time: hhmm(S.dayStart * 1440) + '–' + hhmm(t.finish + t.back / S.speed * 60 * S.roadK), price: t.price.total != null ? money(t.price.total) : 'нет тарифа', formula: t.price.formula,
-          yHref: E.yRoute(depot, t.stops.map(s => [s.lat, s.lon])),
+          yHref: E.yRoute(depot, t.stops.map(s => [s.lat, s.lon])), open3d: () => this.setState({ tab: 'viz', planKey, vizTrip: ti, vizStep: 0, vizSel: null }),
           stops: t.stops.map((s, j) => { const c = s.client, leg = E.km(prev, [s.lat, s.lon]); prev = [s.lat, s.lon];
             return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : ''), brand: c.brand || '—', name: c.name || '', district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', pointHref: E.yPoint(s.lat, s.lon), pt: t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') }; }) };
       });
@@ -1521,6 +1654,59 @@ class Component extends DCLogic {
       const unk = P.all.filter(s => s.lat != null && !(s.cbm > 0) && !(s.kg > 0)).length;
       out.planSummary = (unk ? unk + ' без CBM/KG — считаются как пустые, проверьте · ' : '') + P.all.length + ' отгрузок · ' + f1(P.all.reduce((a, s) => a + s.cbm, 0), 1) + ' м³ · ' + f0(P.all.reduce((a, s) => a + s.kg, 0)) + ' кг';
       Object.assign(out, { planDate: st.planDate, onPlanDate: e => this.setState({ planDate: e.target.value }), showPlanOnMap: () => this.setState({ tab: 'map', mapDate: st.planDate, mapPlan: planKey }) });
+    }
+
+    if (st.tab === 'viz') {
+      const V = window.LogiViz, M = this.vizModel(), pct = x => Math.round(x * 100) + '%', over = x => x > 1 + 1e-9;
+      const barCol = x => over(x) ? '#c0392b' : 'var(--color-accent)', dims = b => f1(b.l, 1) + ' × ' + f1(b.w, 1) + ' × ' + f1(b.h, 1) + ' м';
+      Object.assign(out, { planDate: st.planDate, onVizDate: e => this.setState({ planDate: e.target.value, vizTrip: 'all', vizStep: 0, vizSel: null }),
+        vizTripOpts: [], vizIsAll: false, vizIsOne: false, vizSummary: '', vizNote: '', vizTitle: '',
+        vizHint: 'Вращать — пальцем или мышью · масштаб — щипком или колесом · нажмите на груз — покажет точку' });
+      out.vizPlanOpts = ['A', 'B', 'C'].map(k => { const on = M ? M.key === k : st.planKey === k;
+        return { l: 'План ' + k, go: () => this.setState({ planKey: k, vizTrip: 'all', vizStep: 0, vizSel: null }), bg: on ? 'var(--color-accent)' : 'transparent', fg: on ? 'var(--color-bg)' : 'var(--color-text)' }; });
+      out.vizViews = [['3d', '3D'], ['side', 'Сбоку'], ['top', 'Сверху'], ['back', 'Сзади']].map(([k, l]) => ({ l, go: () => this.setState(s => ({ vizView: k, vizViewN: (s.vizViewN || 0) + 1 })),
+        bg: st.vizView === k ? 'var(--color-accent)' : 'var(--color-bg)', fg: st.vizView === k ? 'var(--color-bg)' : 'var(--color-text)' }));
+      out.vizMsg = st.vizErr || (!V ? 'Загружаю 3D…' : !V.ready() ? 'Загружаю 3D…' : !M ? 'Нет партий' : !M.lays.length ? 'В этом плане нет рейсов: нет отгрузок с координатами' : '');
+      out.vizHasMsg = !!out.vizMsg;
+      if (M) {
+        const one = this.vizOne(M), lays = M.lays;
+        out.vizTripOpts = [{ l: 'Все рейсы', sub: lays.length + ' ' + reys(lays.length), go: () => this.setState({ vizTrip: 'all', vizStep: 0, vizSel: null }), sel: one === 'all' }]
+          .concat(lays.map((l, i) => ({ l: l.name, sub: l.label + ' · ' + pct(l.fill) + (l.overM3 > 0 ? ' · сверх кузова' : ''), go: () => this.setState({ vizTrip: i, vizStep: 0, vizSel: null }), sel: one === i, warn: l.overM3 > 0 })))
+          .map(o => ({ ...o, bg: o.sel ? 'var(--color-accent-100)' : 'var(--color-bg)', border: o.sel ? 'var(--color-accent)' : 'var(--color-divider)', subColor: o.warn ? '#c0392b' : 'var(--color-neutral-700)' }));
+        if (one === 'all') {
+          out.vizIsAll = true;
+          out.vizTitle = PLAN_INFO[M.key].title;
+          out.vizSummary = lays.length + ' ' + reys(lays.length) + ' · ' + f1(lays.reduce((a, l) => a + l.cbm, 0), 1) + ' м³ · ' + f0(lays.reduce((a, l) => a + l.kg, 0)) + ' кг';
+          out.vizAllRows = lays.map((l, i) => { const kgF = l.maxKg ? l.kg / l.maxKg : 0;
+            return { name: l.name + ' · ' + l.label, pts: l.points.length + ' точ.', cbm: f1(l.cbm, 1) + ' / ' + f1(l.body.v, 0) + ' м³', kg: f0(l.kg) + ' / ' + f0(l.maxKg) + ' кг',
+              cbmPct: Math.min(100, l.fill * 100).toFixed(0) + '%', kgPct: Math.min(100, kgF * 100).toFixed(0) + '%', cbmBar: barCol(l.fill), kgBar: barCol(kgF),
+              hasOver: l.overM3 > 0, over: 'Сверх кузова ' + f1(l.overM3, 1) + ' м³', go: () => this.setState({ vizTrip: i, vizStep: 0, vizSel: null }) }; });
+          out.vizNote = 'Машины стоят рядом, кабиной влево. Кузов — по объёму из «Тарифов». Кубики условные: размеров мест нет, груз каждой точки показан по его объёму.';
+        } else {
+          const l = lays[one], t = M.plan.trips[one], n = l.points.length, step = Math.min(st.vizStep, n), kgF = l.maxKg ? l.kg / l.maxKg : 0;
+          out.vizIsOne = true;
+          out.vizTitle = l.name;
+          out.vizPrice = t.price.total != null ? money(t.price.total) : 'нет тарифа';
+          out.vizSummary = l.label + ' · кузов ≈ ' + dims(l.body) + ' · ' + n + ' точ.';
+          out.vizBars = [[' Объём', f1(l.cbm, 1) + ' из ' + f1(l.body.v, 1) + ' м³ · ' + pct(l.fill), l.fill], ['Вес', f0(l.kg) + ' из ' + f0(l.maxKg) + ' кг · ' + pct(kgF), kgF]]
+            .map(([lb, v, x]) => ({ l: lb.trim(), v, pct: Math.min(100, x * 100).toFixed(0) + '%', bar: barCol(x), color: over(x) ? '#c0392b' : 'inherit' }));
+          out.vizCg = l.cg != null && n ? 'Центр тяжести груза: ' + f1(l.cg, 1) + ' м от кабины (' + pct(l.cg / l.body.l) + ' длины кузова)' : '';
+          out.vizHasOver = l.overM3 > 0;
+          out.vizOver = 'Сверх кузова ' + f1(l.overM3, 1) + ' м³ — показано за дверями полупрозрачным.' + (M.key === 'B' && l.kind === 'gazel' ? ' В плане B это допуск Gazel.' : '');
+          out.vizStepMax = n; out.vizStep = step;
+          out.onVizStep = e => this.setState({ vizStep: +e.target.value, vizSel: null });
+          out.vizPrev = () => this.setState({ vizStep: Math.max(0, step - 1), vizSel: null });
+          out.vizNext = () => this.setState({ vizStep: Math.min(n, step + 1), vizSel: null });
+          out.vizStepLabel = step === 0 ? 'Всё загружено. ▶ — выгрузить точку 1, она у дверей.' : step >= n ? 'Все точки выгружены.'
+            : 'Выгружено точек: ' + step + ' (последняя — ' + l.points[step - 1].bl + '). В кузове ' + f1(l.points.slice(step).reduce((a, p) => a + p.cbm, 0), 1) + ' м³, дальше точка ' + (step + 1) + '.';
+          out.vizPoints = l.points.map(p => { const c = V.colorOf(p.n), sel = st.vizSel === p.n, done = p.n <= step, cl = p.client || {};
+            return { n: p.n, color: c, fg: V.isLight(c) ? '#1d1f20' : '#ffffff', bl: p.bl + (p.parts.length ? ' · часть ' + p.parts.join(', ') : ''), name: [cl.brand, cl.name].filter(Boolean).join(' '),
+              info: f1(p.cbm, 2) + ' м³ · ' + f0(p.kg) + ' кг' + (p.places ? ' · ' + p.places + ' мест' : '') + (done ? ' · выгружено' : ''),
+              bg: sel ? 'var(--color-accent-100)' : 'var(--color-bg)', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', opacity: done ? '0.45' : '1',
+              go: () => this.setState({ vizSel: sel ? null : p.n }) }; });
+          out.vizNote = 'Кузов ≈ ' + dims(l.body) + ': ширина и высота типичные для ' + l.label + ', длина — из объёма во «Тарифах». Кубики условные: размеров мест нет, груз каждой точки разложен по объёму. Последнюю точку грузят первой — к кабине.';
+        }
+      }
     }
 
     if (st.tab === 'tariffs') {

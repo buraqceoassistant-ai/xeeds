@@ -16,6 +16,8 @@ const SHELL = [
   'js/vendor/react-dom.production.min.js',
   'js/dc-runtime.js',
   'js/logi-engine.js',
+  'js/logi-viz.js',
+  'js/vendor/three/three-viz.min.js',
   'js/xlsx-io.js',
   'js/auth.js',
   'data/vault.json',

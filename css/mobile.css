@@ -25,6 +25,8 @@
   }
   .calc-aside { position: relative !important; top: auto !important; }
   .map-layout { grid-template-columns: 300px minmax(0, 1fr) !important; }
+  .viz-main { grid-template-columns: minmax(0, 1fr) !important; }
+  .viz-stage { height: 520px !important; }
 }
 
 /* ─────────────── Телефон ─────────────── */
@@ -156,4 +158,16 @@
   /* Крупнее элементы управления: 16px в полях — чтобы iOS не увеличивал страницу при вводе */
   .input { font-size: 16px !important; min-height: 42px; }
   .btn { min-height: 40px; }
+}
+
+/* Визуализация на телефоне: сцена почти на весь экран, рейсы — лентой с прокруткой. */
+@media (max-width: 760px) {
+  .viz-stage { height: 62vh !important; min-height: 320px; }
+  .viz-trips { flex-wrap: nowrap !important; overflow-x: auto; margin: 0 -14px; padding: 0 14px 4px; scrollbar-width: none; }
+  .viz-trips::-webkit-scrollbar { display: none; }
+  .viz-trips > button { flex: none; }
+  .viz-page .page-tools > .viz-seg { grid-column: 1 / -1; }
+  .viz-seg > button { flex: 1 1 0; white-space: nowrap; }
+  .viz-views button { padding: 8px 10px !important; }
+  .viz-hint { display: none; }
 }
