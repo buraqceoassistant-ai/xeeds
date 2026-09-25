@@ -173,3 +173,65 @@ html.read-only .set-input { pointer-events: none; background: var(--color-surfac
   .rep-page a { color: inherit; text-decoration: none; }
   .bar, .tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* «Импорт» — ИИ-импорт манифестов: загрузка, черновики, экран проверки (документ слева, строки справа) */
+.imp-alert { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border: 1px solid var(--color-divider); border-left: 2px solid var(--color-accent); background: var(--color-surface); padding: 10px 14px; font-size: 13px; }
+.imp-alert-err { border-left-color: var(--color-red); }
+.imp-done { border-left-color: var(--color-accent); background: var(--color-accent-100); }
+.imp-bar { height: 4px; background: var(--color-neutral-200); margin-top: 6px; }
+.imp-bar .bar { height: 4px; background: var(--color-accent); transition: width .4s var(--ease-out); }
+.imp-drop { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 34px 20px; border: 1px dashed var(--color-neutral-500); background: var(--color-surface); }
+.tag-draft { background: var(--color-neutral-200); color: var(--color-text); }
+.imp-meta { display: grid; grid-template-columns: 190px 150px minmax(0, 1fr) 260px; gap: 16px; align-items: end; font-size: 14px; }
+.imp-k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--color-neutral-700); margin-bottom: 4px; }
+.imp-summary { font-size: 14px; border-left: 2px solid var(--color-red); padding: 4px 12px; text-wrap: pretty; }
+.imp-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.imp-list { border: 1px solid var(--color-divider); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+.imp-checks { display: flex; flex-direction: column; gap: 4px; }
+.imp-ok { font-size: 14px; color: var(--color-accent-700); }
+.imp-check-h { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin-top: 6px; }
+.imp-check-h.imp-check-block { color: var(--color-red); }
+.imp-check-h.imp-check-warn { color: var(--color-neutral-700); }
+button.imp-check { text-align: left; font: inherit; font-size: 13px; background: none; border: 0; border-left: 2px solid var(--color-neutral-300); padding: 4px 10px; cursor: pointer; color: var(--color-text); text-wrap: pretty; }
+button.imp-check.imp-check-block { border-left-color: var(--color-red); }
+button.imp-check:hover { background: var(--color-surface); }
+.imp-ack { display: flex; gap: 8px; align-items: center; font-size: 13px; cursor: pointer; }
+.imp-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 20px; align-items: start; }
+.imp-docpane { position: sticky; top: 76px; }
+.imp-doc { height: min(72vh, 820px); overflow: auto; border: 1px solid var(--color-divider); background: var(--color-bg); }
+.imp-grid { border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.imp-grid th, .imp-grid td { border: 1px solid var(--color-divider); padding: 3px 6px; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.imp-grid thead th { position: sticky; top: 0; background: var(--color-surface); z-index: 1; font-weight: 500; }
+.imp-grid tbody th { background: var(--color-surface); color: var(--color-neutral-700); font-weight: 400; position: sticky; left: 0; }
+.imp-grid tbody tr { cursor: pointer; }
+.imp-grid tr.imp-used td { background: color-mix(in srgb, var(--color-accent-100) 45%, transparent); }
+.imp-grid tr.imp-head td, .imp-grid tr.imp-total td { font-weight: 600; background: var(--color-surface); }
+.imp-grid tr.imp-missed td { background: color-mix(in srgb, var(--color-red) 14%, transparent); }
+.imp-grid tr.imp-sel td, .imp-grid tr.imp-sel th { background: var(--color-accent-200); outline: 1px solid var(--color-accent); }
+.imp-pdf { padding: 8px; background: var(--color-neutral-200); }
+.imp-page { position: relative; margin: 0 auto 8px; width: fit-content; background: var(--color-bg); }
+.imp-page canvas { display: block; }
+.imp-page.sel { outline: 2px solid var(--color-accent); }
+.imp-page-no { position: absolute; top: 4px; right: 6px; font-size: 11px; color: var(--color-neutral-700); background: var(--color-bg); padding: 0 4px; }
+.imp-hl { position: absolute; border: 2px solid var(--color-accent); background: color-mix(in srgb, var(--color-accent) 12%, transparent); pointer-events: none; }
+.imp-rows-box { border: 1px solid var(--color-divider); overflow-x: auto; }
+.imp-rows { font-size: 13px; }
+.imp-rows th, .imp-rows td { padding: 4px 6px !important; vertical-align: top; }
+.imp-rows tr { cursor: pointer; }
+.imp-rows tr.imp-block td:first-child { box-shadow: inset 3px 0 0 var(--color-red); }
+.imp-rows tr.imp-warn td:first-child { box-shadow: inset 3px 0 0 var(--color-neutral-500); }
+.imp-rows tr.imp-row-sel td { background: var(--color-accent-100); }
+.imp-in { padding: 4px 6px !important; min-height: 30px !important; font-size: 13px !important; width: 100%; min-width: 64px; box-sizing: border-box; }
+.imp-num { text-align: right; width: 84px; }
+.imp-edited { border-color: var(--color-accent) !important; background: var(--color-accent-100) !important; }
+.imp-flag { font-size: 11px; color: var(--color-neutral-700); margin-top: 2px; max-width: 260px; white-space: normal; }
+.imp-block .imp-flag { color: var(--color-red); }
+.imp-x { min-height: 28px !important; padding: 0 8px !important; font-size: 18px; }
+.imp-marks { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.imp-mark { border: 1px solid var(--color-divider); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.imp-mark-open { border-color: var(--color-red); }
+.imp-sugg { display: flex; gap: 8px; align-items: center; font-size: 12px; background: var(--color-accent-100); padding: 6px 8px; }
+.imp-plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.imp-plan { border: 1px solid var(--color-divider); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.imp-foot { position: sticky; bottom: 0; z-index: 5; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; padding: 12px 0; border-top: 1px solid var(--color-divider); background: var(--color-bg); }
+.btn.imp-disabled { opacity: .55; cursor: not-allowed; }

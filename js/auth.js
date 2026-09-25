@@ -186,13 +186,13 @@
     } catch (e) { showForm(netError(e)); }
   }
 
-  // Выход: стирает с устройства ключ, локальную копию данных, связь с Google Таблицей и Excel-файлом.
+  // Выход: стирает с устройства ключ, локальную копию данных, связь с Google Таблицей и Excel-файлом, черновики импорта.
   function logout() {
-    if (!confirm('Выйти и удалить данные с этого устройства?\n\nПравки, которые не записаны в Excel-файл или Google Таблицу, пропадут. Чтобы сохранить их, сначала нажмите «Скачать Excel».')) return;
+    if (!confirm('Выйти и удалить данные с этого устройства?\n\nПравки, которые не записаны в Excel-файл или Google Таблицу, пропадут. Чтобы сохранить их, сначала нажмите «Скачать Excel». Неподтверждённые черновики импорта манифестов тоже удалятся.')) return;
     both().forEach(function (st) {
       try { for (var i = st.length - 1; i >= 0; i--) { var k = st.key(i); if (k && k.indexOf('logi-') === 0) st.removeItem(k); } } catch (e) { /* нет доступа */ }
     });
-    try { indexedDB.deleteDatabase('logi-db'); } catch (e) { /* нет IndexedDB */ }
+    try { indexedDB.deleteDatabase('logi-db'); indexedDB.deleteDatabase('logi-import'); } catch (e) { /* нет IndexedDB */ }
     location.reload();
   }
 

@@ -24,6 +24,9 @@
 <script defer src="js/logi-engine.js"></script>
 <script defer src="js/logi-viz.js"></script>
 <script defer src="js/xlsx-io.js"></script>
+<script defer src="js/import-core.js"></script>
+<script defer src="js/import-checks.js"></script>
+<script defer src="js/import-pdf.js"></script>
 <script defer src="js/logi-gs-script.js"></script>
 <script defer src="js/auth.js"></script>
 <script defer src="js/app-shell.js"></script>
@@ -710,6 +713,191 @@
     </main>
   </sc-if>
 
+  <sc-if value="{{ isImport }}" hint-placeholder-val="{{ false }}">
+    <main class="page imp-page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:20px">
+      <input type="file" accept=".xlsx,.xls,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ref="{{ impFileRef }}" sc-camel-on-change="{{ onImpFile }}" style="display:none">
+      <sc-if value="{{ impHasErr }}">
+        <div class="imp-alert imp-alert-err"><div style="flex:1;text-wrap:pretty">{{ impErr }}</div><button class="btn btn-ghost" sc-camel-on-click="{{ impErrClose }}">Закрыть</button></div>
+      </sc-if>
+      <sc-if value="{{ impBusy }}">
+        <div class="imp-alert imp-busy"><div style="flex:1"><div style="font-weight:500">{{ impBusyText }}</div><div class="imp-bar"><div class="bar" style="width:{{ impBusyPct }}"></div></div><div style="font-size:12px;color:var(--color-neutral-700);margin-top:4px">Большой документ ИИ разбирает частями — это может занять несколько минут. Не закрывайте страницу.</div></div></div>
+      </sc-if>
+
+      <sc-if value="{{ impIsList }}">
+        <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+          <div>
+            <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Manifest importi</div>
+            <h1 style="margin:2px 0 0;font-size:38px">Импорт манифеста</h1>
+            <div style="font-size:13px;color:var(--color-neutral-700);margin-top:4px;max-width:760px;text-wrap:pretty">ИИ разбирает манифест партии, сайт создаёт черновик. Вы проверяете и правите его — и только после подтверждения партия появится в журнале и Google Таблице.</div>
+          </div>
+        </div>
+        <sc-if value="{{ impHasSetup }}">
+          <div class="imp-alert"><div style="flex:1;text-wrap:pretty">{{ impSetup }}</div><button class="btn btn-secondary" sc-camel-on-click="{{ impOpenGs }}">Настройки связи</button></div>
+        </sc-if>
+        <div class="imp-drop blueprint" sc-camel-on-drop="{{ onImpDrop }}" sc-camel-on-drag-over="{{ onImpDragOver }}">
+          <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+          <div style="font-family:var(--font-heading);font-size:22px;text-transform:uppercase">Перетащите манифест сюда</div>
+          <div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">Excel (.xlsx) или PDF, в том числе скан · до 10 МБ, PDF — до 30 страниц</div>
+          <button class="btn btn-primary" sc-camel-on-click="{{ impPick }}">Загрузить манифест</button>
+        </div>
+        <div class="kpi-strip imp-stats" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--color-divider)">
+          <sc-for list="{{ impStats }}" as="k">
+            <div style="padding:14px 16px;border-right:1px solid var(--color-divider)">
+              <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div>
+              <div style="font-family:var(--font-heading);font-weight:500;font-size:26px;margin-top:2px">{{ k.value }}</div>
+              <div style="font-size:12px;color:var(--color-neutral-700)">{{ k.sub }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ impHasByModel }}"><div style="font-size:12px;color:var(--color-neutral-700);display:flex;flex-direction:column;gap:2px"><sc-for list="{{ impByModel }}" as="m"><div>{{ m.text }}</div></sc-for></div></sc-if>
+        <sc-if value="{{ impHasDrafts }}">
+          <section>
+            <h3 style="margin:0 0 10px">Черновики на этом устройстве</h3>
+            <div style="border:1px solid var(--color-divider)">
+              <sc-raw-table class="table tc">
+                <sc-raw-thead><sc-raw-tr><sc-raw-th>Файл</sc-raw-th><sc-raw-th>Статус</sc-raw-th><sc-raw-th>Партия</sc-raw-th><sc-raw-th>Маршрут</sc-raw-th><sc-raw-th>Итоги</sc-raw-th><sc-raw-th>Загружен</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
+                <sc-raw-tbody>
+                  <sc-for list="{{ impDrafts }}" as="x">
+                    <sc-raw-tr>
+                      <sc-raw-td class="cw c-strong" style="font-weight:500"><div>{{ x.name }}</div><div style="font-size:12px;color:var(--color-neutral-700);font-weight:400">{{ x.kind }} · {{ x.model }} {{ x.log }}</div></sc-raw-td>
+                      <sc-raw-td class="c2 o-1 c-end"><span class="tag {{ x.stCls }}">{{ x.status }}</span></sc-raw-td>
+                      <sc-raw-td class="c2" data-label="Партия" style="white-space:nowrap">{{ x.date }}</sc-raw-td>
+                      <sc-raw-td class="c4" data-label="Маршрут" style="font-size:13px">{{ x.route }}</sc-raw-td>
+                      <sc-raw-td class="c4" data-label="Итоги" style="white-space:nowrap;font-size:13px"><div>{{ x.totals }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ x.edits }}</div></sc-raw-td>
+                      <sc-raw-td class="c2" data-label="Загружен" style="white-space:nowrap;font-size:13px">{{ x.created }}</sc-raw-td>
+                      <sc-raw-td class="c-actions"><div style="display:flex;gap:4px"><button class="btn btn-secondary" sc-camel-on-click="{{ x.open }}">Открыть</button><button class="btn btn-ghost" sc-camel-on-click="{{ x.del }}">Удалить</button></div></sc-raw-td>
+                    </sc-raw-tr>
+                  </sc-for>
+                </sc-raw-tbody>
+              </sc-raw-table>
+            </div>
+          </section>
+        </sc-if>
+      </sc-if>
+
+      <sc-if value="{{ impIsReview }}">
+        <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+          <div style="min-width:0">
+            <button class="btn btn-ghost" style="padding-left:0" sc-camel-on-click="{{ impBack }}">← Все черновики</button>
+            <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Manifest importi</div>
+            <h1 style="margin:2px 0 0;font-size:30px;word-break:break-word">{{ impTitle }}</h1>
+            <div style="font-size:12px;color:var(--color-neutral-700);margin-top:4px">{{ impAi }}</div>
+          </div>
+          <span class="tag {{ impStCls }}" style="margin-left:auto">{{ impStatus }}</span>
+        </div>
+        <sc-if value="{{ impHasFileErr }}"><div class="imp-alert">{{ impFileErr }}</div></sc-if>
+        <div class="imp-meta">
+          <div class="field"><label>Дата партии в журнале</label><input class="input" type="date" value="{{ impJournalDate }}" sc-camel-on-change="{{ onImpDate }}" disabled="{{ impLocked }}"></div>
+          <div><div class="imp-k">Дата в документе</div><div>{{ impDocDate }}</div></div>
+          <div style="min-width:0"><div class="imp-k">Маршрут</div><div style="word-break:break-word">{{ impRoute }}</div></div>
+          <div class="field"><label>Консолидатор (в примечание отгрузок)</label><input class="input" value="{{ impCons }}" sc-camel-on-change="{{ onImpCons }}" disabled="{{ impLocked }}"></div>
+        </div>
+        <div class="kpi-strip" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--color-divider)">
+          <sc-for list="{{ impKpis }}" as="k">
+            <div style="padding:12px 14px;border-right:1px solid var(--color-divider)">
+              <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div>
+              <div style="font-family:var(--font-heading);font-weight:500;font-size:24px;margin-top:2px;white-space:nowrap">{{ k.value }}</div>
+              <div style="font-size:12px;color:var(--color-neutral-700)">{{ k.sub }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div class="imp-summary">{{ impSummary }}</div>
+        <sc-if value="{{ impHasLists }}"><div class="imp-lists"><sc-for list="{{ impLists }}" as="x"><div class="imp-list"><div style="font-weight:500;font-size:13px">{{ x.title }} <span style="font-weight:400;color:var(--color-neutral-700)">— {{ x.sum }}</span></div><div style="font-size:12px;color:var(--color-neutral-700);word-break:break-word">{{ x.text }}</div></div></sc-for></div></sc-if>
+
+        <section class="imp-checks">
+          <sc-if value="{{ impAllOk }}"><div class="imp-ok">✓ Проверки пройдены: числа совпадают с документом, итог сходится, у всех маркировок есть решение.</div></sc-if>
+          <sc-if value="{{ impHasBlock }}">
+            <div class="imp-check-h imp-check-block">Исправьте — без этого партию не создать</div>
+            <sc-for list="{{ impBlock }}" as="x"><button class="imp-check imp-check-block" sc-camel-on-click="{{ x.go }}">{{ x.text }}</button></sc-for>
+          </sc-if>
+          <sc-if value="{{ impAckShow }}"><label class="imp-ack"><input type="checkbox" checked="{{ impAck }}" sc-camel-on-change="{{ onImpAck }}"> Итог в самом документе неверный — принять сумму строк как есть</label></sc-if>
+          <sc-if value="{{ impHasWarn }}">
+            <div class="imp-check-h imp-check-warn">Проверьте</div>
+            <sc-for list="{{ impWarn }}" as="x"><button class="imp-check imp-check-warn" sc-camel-on-click="{{ x.go }}">{{ x.text }}</button></sc-for>
+          </sc-if>
+        </section>
+
+        <div class="viz-seg imp-panes" style="display:none;border:1px solid var(--color-divider)"><sc-for list="{{ impPanes }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:500;cursor:pointer;flex:1;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for></div>
+        <div class="{{ impSplitCls }}">
+          <section class="imp-docpane">
+            <h3 style="margin:0 0 8px">Документ</h3>
+            <sc-if value="{{ impHasSheets }}"><div class="viz-seg" style="display:flex;flex-wrap:wrap;border:1px solid var(--color-divider);margin-bottom:8px;width:fit-content"><sc-for list="{{ impSheets }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for></div></sc-if>
+            <sc-if value="{{ impIsXlsx }}">
+              <div class="imp-doc">
+                <sc-raw-table class="imp-grid">
+                  <sc-raw-thead><sc-raw-tr><sc-raw-th></sc-raw-th><sc-for list="{{ impCols }}" as="h"><sc-raw-th>{{ h.l }}</sc-raw-th></sc-for></sc-raw-tr></sc-raw-thead>
+                  <sc-raw-tbody><sc-for list="{{ impGrid }}" as="g"><sc-raw-tr class="{{ g.cls }}" sc-camel-on-click="{{ g.go }}"><sc-raw-th>{{ g.r }}</sc-raw-th><sc-for list="{{ g.cells }}" as="c"><sc-raw-td>{{ c.v }}</sc-raw-td></sc-for></sc-raw-tr></sc-for></sc-raw-tbody>
+                </sc-raw-table>
+              </div>
+            </sc-if>
+            <sc-if value="{{ impIsPdf }}"><div class="imp-doc imp-pdf" ref="{{ impPdfRef }}"></div></sc-if>
+            <div style="font-size:12px;color:var(--color-neutral-700);margin-top:6px">Нажмите строку справа — здесь подсветится её источник. Красным — строки документа, которых нет в черновике.</div>
+          </section>
+          <section class="imp-rowspane">
+            <h3 style="margin:0 0 8px">Строки</h3>
+            <div class="imp-rows-box">
+              <sc-raw-table class="table imp-rows">
+                <sc-raw-thead><sc-raw-tr><sc-raw-th>№</sc-raw-th><sc-raw-th>Маркировка</sc-raw-th><sc-raw-th style="text-align:right">Мест</sc-raw-th><sc-raw-th style="text-align:right">м³</sc-raw-th><sc-raw-th style="text-align:right">кг</sc-raw-th><sc-raw-th>Источник</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
+                <sc-raw-tbody>
+                  <sc-for list="{{ impRows }}" as="r">
+                    <sc-raw-tr class="{{ r.cls }}" sc-camel-on-click="{{ r.sel }}" title="{{ r.flags }}">
+                      <sc-raw-td style="color:var(--color-neutral-700)">{{ r.n }}</sc-raw-td>
+                      <sc-raw-td><sc-if value="{{ r.edit }}"><input class="input imp-in {{ r.edMark }}" value="{{ r.mark }}" sc-camel-on-change="{{ r.onMark }}" aria-label="Маркировка"></sc-if><sc-if value="{{ r.view }}">{{ r.mark }}</sc-if><div class="imp-flag">{{ r.flag }}</div></sc-raw-td>
+                      <sc-raw-td><sc-if value="{{ r.edit }}"><input class="input imp-in imp-num {{ r.edPlaces }}" inputmode="decimal" value="{{ r.places }}" sc-camel-on-change="{{ r.onPlaces }}" aria-label="Мест"></sc-if><sc-if value="{{ r.view }}">{{ r.places }}</sc-if></sc-raw-td>
+                      <sc-raw-td><sc-if value="{{ r.edit }}"><input class="input imp-in imp-num {{ r.edCbm }}" inputmode="decimal" value="{{ r.cbm }}" sc-camel-on-change="{{ r.onCbm }}" aria-label="м³"></sc-if><sc-if value="{{ r.view }}">{{ r.cbm }}</sc-if></sc-raw-td>
+                      <sc-raw-td><sc-if value="{{ r.edit }}"><input class="input imp-in imp-num {{ r.edKg }}" inputmode="decimal" value="{{ r.kg }}" sc-camel-on-change="{{ r.onKg }}" aria-label="кг"></sc-if><sc-if value="{{ r.view }}">{{ r.kg }}</sc-if></sc-raw-td>
+                      <sc-raw-td style="white-space:nowrap;font-size:12px;color:var(--color-neutral-700)">{{ r.src }}</sc-raw-td>
+                      <sc-raw-td style="font-size:12px;white-space:nowrap">{{ r.client }}</sc-raw-td>
+                      <sc-raw-td><sc-if value="{{ r.edit }}"><button class="btn btn-ghost imp-x" title="Удалить строку" sc-camel-on-click="{{ r.del }}">×</button></sc-if></sc-raw-td>
+                    </sc-raw-tr>
+                  </sc-for>
+                </sc-raw-tbody>
+              </sc-raw-table>
+            </div>
+            <sc-if value="{{ impEdit }}"><button class="btn btn-ghost" style="margin-top:6px" sc-camel-on-click="{{ impAddRow }}">+ Строка</button></sc-if>
+
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 8px"><h3 style="margin:0">Маркировки и клиенты</h3><sc-if value="{{ impHasSugg }}"><button class="btn btn-secondary" sc-camel-on-click="{{ impAcceptAll }}">Принять все предложения ИИ ({{ impSuggN }})</button></sc-if></div>
+            <div class="imp-marks">
+              <sc-for list="{{ impMarks }}" as="m">
+                <div class="{{ m.cls }}">
+                  <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><b style="font-size:15px">{{ m.mark }}</b><span style="font-size:12px;color:var(--color-neutral-700)">{{ m.rows }} {{ m.nums }}</span></div>
+                  <sc-if value="{{ m.edit }}">
+                    <sc-raw-select class="input" value="{{ m.value }}" sc-camel-on-change="{{ m.onPick }}" aria-label="Клиент"><sc-for list="{{ m.opts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select>
+                  </sc-if>
+                  <sc-if value="{{ m.view }}"><div style="font-size:14px">{{ m.chosen }}</div></sc-if>
+                  <div style="font-size:12px;color:var(--color-neutral-700)">{{ m.how }}</div>
+                  <sc-if value="{{ m.hasSuggest }}"><div class="imp-sugg"><span style="flex:1">{{ m.suggest }}</span><button class="btn btn-secondary" sc-camel-on-click="{{ m.accept }}">Принять</button></div></sc-if>
+                  <sc-if value="{{ m.showRemember }}"><label class="imp-ack" style="font-size:12px"><input type="checkbox" checked="{{ m.remember }}" sc-camel-on-change="{{ m.onRemember }}"> Запомнить маркировку у клиента — в следующий раз без ИИ</label></sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+
+        <section>
+          <h3 style="margin:0 0 8px">Предварительные планы</h3>
+          <div class="imp-plans"><sc-for list="{{ impPlans }}" as="p"><div class="imp-plan"><div style="font-weight:500">{{ p.title }}</div><div style="font-family:var(--font-heading);font-size:20px">{{ p.price }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ p.trips }} · {{ p.kinds }}</div></div></sc-for></div>
+          <div style="font-size:12px;color:var(--color-neutral-700);margin-top:6px">{{ impPlanNote }} Подробные планы — во вкладке «Планы» после подтверждения.</div>
+        </section>
+        <sc-if value="{{ impHasNotes }}"><section><h3 style="margin:0 0 6px">Заметки ИИ</h3><ul style="margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px"><sc-for list="{{ impNotes }}" as="n"><li>{{ n.text }}</li></sc-for></ul></section></sc-if>
+
+        <sc-if value="{{ impHasDone }}">
+          <div class="imp-alert imp-done"><div style="flex:1;text-wrap:pretty">{{ impDone }}</div><sc-if value="{{ impIsConfirmed }}"><button class="btn btn-primary" sc-camel-on-click="{{ impGoJournal }}">Открыть журнал</button></sc-if></div>
+        </sc-if>
+        <div class="imp-foot">
+          <div style="font-size:12px;color:var(--color-neutral-700);flex:1;min-width:220px">{{ impEdits }}</div>
+          <sc-if value="{{ impEdit }}">
+            <button class="btn btn-ghost" sc-camel-on-click="{{ impReject }}">Отклонить черновик</button>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              <button class="btn {{ impConfirmCls }}" sc-camel-on-click="{{ impConfirm }}" disabled="{{ impConfirmOff }}">Подтвердить и создать партию</button>
+              <div style="font-size:12px;color:var(--color-neutral-700);text-align:right;max-width:360px">{{ impConfirmHint }}</div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </main>
+  </sc-if>
+
   <sc-if value="{{ isPlans }}" hint-placeholder-val="{{ false }}">
     <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:24px">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
@@ -1156,6 +1344,8 @@ class Component extends DCLogic {
     vizTrip: 'all', vizStep: 0, vizSel: null, vizView: '3d', vizErr: '',
     calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 } };
   mapRef = React.createRef();
+  impPdfRef = React.createRef();
+  impFileRef = React.createRef();
   vizRef = React.createRef();
 
   loadLeaflet() {
@@ -1262,7 +1452,7 @@ class Component extends DCLogic {
     const dates = [...new Set(data.shipments.map(s => s.date))].sort();
     this.setState(s => ({ ready: true, data, ver: s.ver + 1, planDate: dates[dates.length - 1] || '', jDate: dates[dates.length - 1] || 'all' }));
   }
-  componentDidUpdate() { this.syncMap(); this.syncViz(); this.syncSmooth(); }
+  componentDidUpdate() { this.syncMap(); this.syncViz(); this.syncSmooth(); this.syncImport(); }
   // Плавность: новая вкладка открывается сверху; длинный список клиентов — сначала первые строки, остальные
   // следующим кадром (вкладка появляется сразу); 3D-библиотека загружается заранее, пока сайт простаивает.
   syncSmooth() {
@@ -1616,6 +1806,158 @@ class Component extends DCLogic {
     this._rep.byDate.set(date, res);
     return res;
   }
+  // Вкладка «Импорт» (только руководитель): загрузка манифеста, список черновиков, экран проверки
+  importView(st, S, D) {
+    const L = window.LogiImport, E = window.LogiEngine, data = st.data, busy = st.impBusy || null, out = { impIsReview: false, impIsList: true };
+    Object.assign(out, {
+      impBusy: !!(busy && !busy.error), impBusyText: busy && !busy.error ? (busy.step || 'Работаю') + (busy.total > 1 ? ' — ' + busy.done + ' из ' + busy.total : '') + (busy.file ? ' · ' + busy.file : '') : '',
+      impBusyPct: busy && busy.total ? Math.max(4, Math.round(busy.done / busy.total * 100)) + '%' : '4%',
+      impErr: busy && busy.error ? busy.error : '', impHasErr: !!(busy && busy.error), impErrClose: () => this.impBusy(null),
+      impFileRef: this.impFileRef, impPick: () => this.impFileRef.current && this.impFileRef.current.click(),
+      onImpFile: e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) this.impUpload(f); },
+      onImpDrop: e => { e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) this.impUpload(f); },
+      onImpDragOver: e => e.preventDefault(), impOpenGs: () => this.openGs()
+    });
+    const own = window.LogiAuth ? window.LogiAuth.owner() : { state: 'none', config: {} };
+    out.impSetup = !this.gsUrl ? 'Подключите Google Таблицу (полоса над журналом → «Настройки связи»): ИИ работает через её скрипт.' :
+      !(this.gsVersion >= 8) ? 'Обновите код скрипта таблицы до версии 8 и впишите ключ Claude API в свойства скрипта: «Настройки связи» → «ИИ-импорт манифестов».' :
+      own.state === 'locked' ? 'Секрет редактора закрыт на этом устройстве: «Настройки связи» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».' :
+      own.state !== 'open' ? 'Секрет редактора не задан: «Настройки связи» → «ИИ-импорт манифестов» → «Новый секрет редактора».' : '';
+    out.impHasSetup = !!out.impSetup;
+    // черновики и статистика ручных правок (насколько хорошо справляется ИИ)
+    const list = this.impList || [], stat = { draft: 'Черновик', confirmed: 'Подтверждён', rejected: 'Отклонён' };
+    out.impDrafts = list.map(d => ({ id: d.id, name: d.file.name, kind: d.file.kind === 'pdf' ? 'PDF' + (d.file.pages ? ' · ' + d.file.pages + ' стр.' : '') : 'Excel',
+      created: dLong(String(d.createdAt).slice(0, 10)) + ' ' + String(d.createdAt).slice(11, 16), date: d.journalDate ? dLong(d.journalDate) : '—', route: [(d.meta || {}).consolidator, (d.meta || {}).route].filter(Boolean).join(' · '),
+      totals: d.totals ? f0(d.totals.places) + ' мест · ' + f1(d.totals.cbm, 2) + ' м³ · ' + f0(d.totals.kg) + ' кг' : '',
+      status: stat[d.status] || d.status, stCls: d.status === 'confirmed' ? 'tag-accent' : d.status === 'rejected' ? 'tag-outline' : 'tag-draft',
+      edits: d.edits ? 'правок: ' + d.edits.total : '', model: d.model || '', log: d.logPending ? '· не записано в «ИИ-журнал»' : '',
+      open: () => this.impOpen(d.id), del: () => this.impDelete(d.id) }));
+    out.impHasDrafts = list.length > 0;
+    const fin = list.filter(d => d.status !== 'draft' && d.edits), sumE = fin.reduce((a, d) => a + d.edits.total, 0), sumOf = fin.reduce((a, d) => a + (d.edits.of || 0), 0);
+    const byModel = {}; fin.forEach(d => { const x = byModel[d.model || '—'] = byModel[d.model || '—'] || { n: 0, e: 0, of: 0 }; x.n++; x.e += d.edits.total; x.of += d.edits.of || 0; });
+    out.impStats = [
+      { label: 'Черновиков', value: f0(list.length), sub: list.filter(d => d.status === 'draft').length + ' ждут проверки' },
+      { label: 'Подтверждено', value: f0(list.filter(d => d.status === 'confirmed').length), sub: 'отклонено ' + list.filter(d => d.status === 'rejected').length },
+      { label: 'Правок на манифест', value: fin.length ? f1(sumE / fin.length, 1) : '—', sub: fin.length ? 'в среднем, по ' + fin.length + ' подтв. и откл.' : 'появится после первых подтверждений' },
+      { label: 'Исправлено вручную', value: sumOf ? f1(sumE / sumOf * 100, 1) + ' %' : '—', sub: 'полей и решений ИИ' }
+    ];
+    out.impByModel = Object.entries(byModel).map(([m, x]) => ({ text: m + ': ' + x.n + ' ' + (x.n === 1 ? 'манифест' : 'манифестов') + ', в среднем ' + f1(x.e / x.n, 1) + ' правок' + (x.of ? ' (' + f1(x.e / x.of * 100, 1) + ' %)' : '') }));
+    out.impHasByModel = out.impByModel.length > 0;
+    const c = this.impCur;
+    if (!st.impId || !c || c.draft.id !== st.impId) return out;
+
+    // ── экран проверки ──
+    const d = c.draft, chk = this.impCheck(), edit = d.status === 'draft', meta = d.meta || {}, cmap = D.cmap;
+    const cname = bl => bl + (cmap[bl] ? ' · ' + [cmap[bl].brand, cmap[bl].name].filter(Boolean).join(' — ') : '');
+    Object.assign(out, { impIsReview: true, impIsList: false, impEdit: edit, impTitle: d.file.name, impStatus: stat[d.status], impStCls: d.status === 'confirmed' ? 'tag-accent' : d.status === 'rejected' ? 'tag-outline' : 'tag-draft',
+      impBack: () => { this.impCur = null; this.setState({ impId: null, impSel: null }); },
+      impRoute: meta.route || 'не найден', impCons: meta.consolidator || '', impDocDate: meta.date ? dLong(meta.date) : 'не найдена',
+      impJournalDate: d.journalDate || '', onImpDate: e => { if (!edit) return; d.journalDate = e.target.value; this.impTouch(); },
+      onImpCons: e => { if (!edit) return; d.meta = { ...meta, consolidator: e.target.value.trim() }; this.impTouch(); },
+      impAi: 'Разобрал ' + (d.model || 'ИИ') + ' · вызовов ' + d.calls.length + ' · токенов ' + f0(d.usage.in + d.usage.cache) + ' → ' + f0(d.usage.out) + ' · ' + f1(d.calls.reduce((a, x) => a + (x.ms || 0), 0) / 1000, 0) + ' с',
+      impNotes: (d.notes || []).map(text => ({ text })), impHasNotes: (d.notes || []).length > 0, impFileErr: c.fileError || '', impHasFileErr: !!c.fileError });
+    const groups = chk.groups.filter(g => String(g.mark || '').trim()), t = chk.sum, doc = chk.doc;
+    const dec = new Set(groups.filter(g => g.decision && g.decision.decided && g.decision.client).map(g => g.decision.client));
+    out.impKpis = [
+      { label: 'Клиентов', value: f0(dec.size), sub: groups.length + ' маркировок' },
+      { label: 'Мест', value: f0(t.places), sub: doc && doc.places != null ? 'в итоге документа ' + f0(doc.places) : 'итога нет' },
+      { label: 'Объём, м³', value: f1(t.cbm, 3), sub: doc && doc.cbm != null ? 'в итоге документа ' + f1(doc.cbm, 3) : '' },
+      { label: 'Вес, кг', value: f1(t.kg, 1), sub: doc && doc.kg != null ? 'в итоге документа ' + f1(doc.kg, 1) : '' },
+      { label: 'Мелкие', value: f0(chk.lists.small.n), sub: chk.lists.small.n ? f1(chk.lists.small.cbm, 2) + ' м³ · меньше ' + f1(S.freeOutM3, 2) + ' м³' : 'меньше ' + f1(S.freeOutM3, 2) + ' м³' },
+      { label: 'Неизвестные', value: f0(chk.lists.unknown.n), sub: 'тяжёлых ' + chk.lists.heavy.n }];
+    // текст сводки может написать ИИ, но числа в нём — только из кода: цифры ИИ убираются, метки {…} заполняет код
+    const nums = { marks: groups.length, clients: dec.size, places: f0(t.places), cbm: f1(t.cbm, 2), kg: f0(t.kg), unknown: chk.lists.unknown.n, small: chk.lists.small.n };
+    // предложение, где ИИ всё-таки написал число, убирается целиком
+    const aiText = d.summary ? String(d.summary).split(/(?<=[.!?])\s+/).filter(x => !/\d/.test(x)).join(' ').replace(/\{(\w+)\}/g, (m, k) => nums[k] != null ? nums[k] : '').trim() : '';
+    out.impSummary = aiText || ('В манифесте ' + nums.marks + ' маркировок: ' + nums.clients + ' клиентов из справочника, ' + nums.places + ' мест, ' + nums.cbm + ' м³, ' + nums.kg + ' кг.' + (nums.unknown ? ' Без клиента: ' + nums.unknown + '.' : ''));
+    out.impLists = [
+      chk.lists.small.n ? { title: 'Мелкие (меньше ' + f1(S.freeOutM3, 2) + ' м³) — за доставку не платим', text: chk.lists.small.items.map(x => x.mark + ' ' + f1(x.cbm, 3) + ' м³').join(' · '), sum: chk.lists.small.n + ' · ' + f1(chk.lists.small.cbm, 3) + ' м³ · ' + f0(chk.lists.small.kg) + ' кг' } : null,
+      chk.lists.unknown.n ? { title: 'Без клиента и BL-00', text: chk.lists.unknown.items.map(x => x.mark + ' ' + f1(x.cbm, 3) + ' м³').join(' · '), sum: chk.lists.unknown.n + ' · ' + f1(chk.lists.unknown.cbm, 3) + ' м³ · ' + f0(chk.lists.unknown.kg) + ' кг' } : null,
+      chk.lists.heavy.n ? { title: 'Тяжёлые (плотность больше ' + f0(S.densityMax) + ' кг/м³)', text: chk.lists.heavy.items.map(x => x.mark).join(' · '), sum: chk.lists.heavy.n + ' · ' + f0(chk.lists.heavy.kg) + ' кг' } : null
+    ].filter(Boolean);
+    out.impHasLists = out.impLists.length > 0;
+    const pick = x => () => { if (x.rowIds && x.rowIds[0]) this.setState({ impSel: x.rowIds[0] }); else if (x.src) this.setState({ impSel: 'src:' + x.src.sheet + '!' + x.src.row, impSheet: Math.max(0, (c.book || []).findIndex(b => b.name === x.src.sheet)) }); };
+    out.impBlock = chk.blocking.map(x => ({ text: x.text, go: pick(x) })); out.impWarn = chk.warnings.map(x => ({ text: x.text, go: pick(x) }));
+    out.impHasBlock = chk.blocking.length > 0; out.impHasWarn = chk.warnings.length > 0; out.impAllOk = !chk.blocking.length && !chk.warnings.length;
+    out.impAckShow = edit && (chk.blocking.some(x => x.code === 'total') || !!(d.ack && d.ack.total)); out.impAck = !!(d.ack && d.ack.total);
+    out.onImpAck = e => { d.ack = { ...(d.ack || {}), total: e.target.checked }; this.impTouch(); };
+    // строки черновика
+    const selId = st.impSel;
+    out.impRows = d.rows.map((r, i) => {
+      const f = chk.flags[r.id] || [], lvl = f.some(x => x.level === 'block') ? 'block' : f.length ? 'warn' : '', m = d.marks[L.key(r.mark)];
+      const ed = fld => r.ai && String(r.ai[fld] ?? '') !== String(r[fld] ?? '') ? 'imp-edited' : '';
+      const on = fld => e => this.impEditRow(r.id, fld, e.target.value);
+      const raw = fld => r._raw && r._raw[fld] != null ? r._raw[fld] : r[fld] ?? '';
+      return { id: r.id, n: i + 1, mark: r.mark, places: raw('places'), cbm: raw('cbm'), kg: raw('kg'), edit, view: !edit,
+        src: r.src.sheet ? ((c.book || []).length > 1 ? r.src.sheet + ' ' : '') + 'R' + r.src.row : r.src.page ? 'стр. ' + r.src.page : 'вручную',
+        client: m && m.decided ? (m.client ? m.client : 'без клиента') : m && m.suggest ? 'ИИ: ' + m.suggest.client + '?' : '—',
+        flag: f.length ? f[0].text + (f.length > 1 ? ' (ещё ' + (f.length - 1) + ')' : '') : '', flags: f.map(x => x.text).join('\n'),
+        cls: ['imp-r', lvl ? 'imp-' + lvl : '', r.id === selId ? 'imp-row-sel' : ''].join(' '), edMark: ed('mark'), edPlaces: ed('places'), edCbm: ed('cbm'), edKg: ed('kg'),
+        sel: () => this.setState({ impSel: r.id, impSheet: r.src.sheet ? Math.max(0, (c.book || []).findIndex(b => b.name === r.src.sheet)) : st.impSheet }),
+        onMark: on('mark'), onPlaces: on('places'), onCbm: on('cbm'), onKg: on('kg'), del: () => this.impDelRow(r.id) };
+    });
+    out.impAddRow = () => this.impAddRow();
+    // маркировки → клиенты
+    const opts = [{ v: '', l: '— выберите клиента —' }, { v: '__none', l: 'Без клиента' }].concat(data.clients.slice().sort((a, b) => a.bl.localeCompare(b.bl, 'ru', { numeric: true })).map(x => ({ v: x.bl, l: x.bl + (x.brand ? ' · ' + x.brand : '') + (x.name ? ' — ' + x.name : '') })));
+    const BY = { code: 'по коду', mark: 'по маркировке клиента', brand: 'по бренду', 'unknown-owner': 'без владельца', ai: 'предложение ИИ принято', user: 'выбрано вручную' };
+    const CONF = { high: 'высокая', medium: 'средняя', low: 'низкая' };
+    out.impMarks = groups.map(g => { const m = g.decision || {};
+      return { key: g.key, mark: g.mark, edit, view: !edit, rows: g.rowIds.length > 1 ? g.rowIds.length + ' строки' : '', nums: f0(g.places) + ' мест · ' + f1(g.cbm, 3) + ' м³ · ' + f0(g.kg) + ' кг' + (g.density ? ' · ' + g.density + ' кг/м³' : ''),
+        value: m.decided ? (m.client || '__none') : '', opts, cls: m.decided ? 'imp-mark' : 'imp-mark imp-mark-open',
+        chosen: m.decided ? (m.client ? cname(m.client) : 'Без клиента') : 'нет решения',
+        how: m.decided ? (BY[m.by] || '') + (m.reason && !['user', 'ai'].includes(m.by) ? ': ' + m.reason : '') : m.by === 'ambiguous' ? m.reason : 'Выберите клиента или «Без клиента»',
+        hasSuggest: !m.decided && !!m.suggest, suggest: m.suggest ? 'ИИ предлагает ' + cname(m.suggest.client) + ' — ' + (CONF[m.suggest.confidence] || '') + ' уверенность: ' + m.suggest.reason : '',
+        accept: () => m.suggest && this.impDecide(g.key, m.suggest.client, 'suggest'), onPick: e => this.impDecide(g.key, e.target.value),
+        showRemember: edit && m.decided && !!m.client && ['ai', 'user'].includes(m.by) && !L.isUnknownOwner(g.mark), remember: m.remember !== false,
+        onRemember: e => { m.remember = e.target.checked; this.impTouch(); } }; });
+    const sugg = groups.filter(g => g.decision && !g.decision.decided && g.decision.suggest);
+    out.impHasSugg = edit && sugg.length > 1; out.impSuggN = sugg.length;
+    out.impAcceptAll = () => { sugg.forEach(g => this.impDecide(g.key, g.decision.suggest.client, 'suggest')); };
+    // предварительные планы A/B/C — тем же buildPlans, что во вкладке «Планы»
+    const ships = L.shipmentsOf(d, ''), pk = JSON.stringify([ships, S, data.clients.length, st.ver]);
+    if (!c.plans || c.plansKey !== pk) {
+      const stops = ships.map((x, i) => { const cl = cmap[x.bl] || {}; return { id: 'p' + i, bl: x.bl, cbm: x.cbm, kg: x.kg, places: x.places, lat: cl.lat ?? null, lon: cl.lon ?? null, zone: (D.zones[x.bl] || {}).zone, client: cl }; });
+      c.plans = E.buildPlans(stops, S); c.plansKey = pk;
+    }
+    const P = c.plans, kinds = s => ['labo', 'changan', 'gazel', 'kamaz'].filter(k => s[k]).map(k => VEH[k] + ' ' + s[k]).join(' · ');
+    out.impPlans = ['A', 'B', 'C'].map(k => { const s = P[k].sum; return { k, title: PLAN_INFO[k].title, trips: s.trips + ' ' + reys(s.trips), kinds: kinds(s),
+      price: P[k].noFleet ? 'нет машин' : s.unpriced && !s.price ? 'нет тарифа' : money(s.price) + (s.unpriced ? ' +' : '') }; });
+    out.impPlanNote = (P.noCoords.length ? P.noCoords.length + ' отгр. без координат клиента — в планы не вошли. ' : '') + 'Отгрузок в партии: ' + ships.length + ' (маркировки одного клиента — одна отгрузка).';
+    // документ
+    out.impIsXlsx = !!c.book; out.impIsPdf = !!c.pdf; out.impPdfRef = this.impPdfRef;
+    out.impPaneDoc = st.impPane === 'doc'; out.impPaneRows = st.impPane !== 'doc';
+    out.impPanes = [['rows', 'Строки и клиенты'], ['doc', 'Документ']].map(([k, l]) => ({ l, go: () => this.setState({ impPane: k }), bg: (st.impPane || 'rows') === k ? 'var(--color-accent)' : 'transparent', fg: (st.impPane || 'rows') === k ? 'var(--color-bg)' : 'var(--color-text)' }));
+    out.impSplitCls = 'imp-split' + (st.impPane === 'doc' ? ' imp-show-doc' : ' imp-show-rows');
+    if (c.book) {
+      const si = Math.min(st.impSheet || 0, c.book.length - 1), sh = c.book[si], rs = L.rowNums(sh);
+      out.impSheets = c.book.length > 1 ? c.book.map((b, i) => ({ l: b.name + (b.hidden ? ' (скрыт)' : ''), go: () => this.setState({ impSheet: i }), bg: i === si ? 'var(--color-accent)' : 'transparent', fg: i === si ? 'var(--color-bg)' : 'var(--color-text)' })) : [];
+      out.impHasSheets = out.impSheets.length > 0;
+      let maxC = 1; rs.forEach(r => Object.keys(sh.rows[r]).forEach(k => { maxC = Math.max(maxC, L.colNum(k)); })); maxC = Math.min(maxC, 30);
+      const cols = Array.from({ length: maxC }, (_, i) => L.colName(i + 1)), selRow = d.rows.find(x => x.id === selId);
+      const selSrc = selRow && selRow.src.sheet === sh.name ? selRow.src.row : String(selId || '').startsWith('src:' + sh.name + '!') ? +String(selId).split('!')[1] : null;
+      const used = new Set(d.rows.filter(x => x.src.sheet === sh.name).map(x => x.src.row));
+      const missed = new Set(chk.blocking.filter(x => x.code === 'missed' && x.src && x.src.sheet === sh.name).map(x => x.src.row));
+      const head = chk.header && chk.header.sheet === sh.name ? chk.header.row : null, tot = doc && doc.src && doc.src.sheet === sh.name ? doc.src.row : null;
+      out.impCols = cols.map(l => ({ l }));
+      out.impGrid = rs.map(r => ({ r, cls: [r === selSrc ? 'imp-sel' : '', missed.has(r) ? 'imp-missed' : '', used.has(r) ? 'imp-used' : '', r === head ? 'imp-head' : '', r === tot ? 'imp-total' : ''].filter(Boolean).join(' '),
+        cells: cols.map(cn => { const v = sh.rows[r][cn]; return { v: v == null ? '' : typeof v === 'number' ? String(+v.toPrecision(12)) : String(v) }; }),
+        go: () => { const dr = d.rows.find(x => x.src.sheet === sh.name && x.src.row === r); this.setState({ impSel: dr ? dr.id : 'src:' + sh.name + '!' + r }); } }));
+    }
+    // итог и подтверждение
+    const es = L.editStats(d);
+    out.impEdits = 'Исправлено вручную: ' + es.total + (es.of ? ' из ' + es.of + ' (' + f1(es.total / es.of * 100, 1) + ' %)' : '') + (es.total ? ' — полей ' + es.fields + ', строк добавлено ' + es.added + ', удалено ' + es.deleted + ', клиентов ' + es.clients : '');
+    out.impCanConfirm = edit && chk.ok; out.impConfirmOff = !(edit && chk.ok); out.impLocked = !edit;
+    out.impConfirmCls = edit && chk.ok ? 'btn-primary' : 'btn-secondary imp-disabled';
+    out.impConfirmHint = !edit ? '' : chk.ok ? 'Отгрузки запишутся в журнал и Google Таблицу обычной синхронизацией.' : 'Кнопка станет активной, когда не останется блокирующих ошибок: ' + chk.blocking.length + '.';
+    out.impConfirm = () => { if (edit && chk.ok) this.impConfirm(); };
+    out.impReject = () => this.impReject();
+    out.impDone = d.status === 'confirmed' ? 'Партия создана ' + dLong(d.confirmed.date) + ': ' + d.confirmed.shipments + ' отгрузок' + (d.confirmed.marksSaved ? ', маркировки сохранены у ' + d.confirmed.marksSaved + ' клиентов' : '') + '.' :
+      d.status === 'rejected' ? 'Черновик отклонён' + (d.rejected.reason ? ': ' + d.rejected.reason : '') + '.' : '';
+    out.impHasDone = !!out.impDone; out.impIsConfirmed = d.status === 'confirmed';
+    out.impGoJournal = () => this.setState({ tab: 'journal', jDate: d.journalDate, jLimit: 60 });
+    return out;
+  }
+
   // Вкладка «Отчёты»: партия на день, расходы за период, автопарк и экономия
   reportView(st, S, D) {
     const E = window.LogiEngine, kind = st.repKind || 'batch', lim = +S.freeOutM3 || 0, KINDS = ['labo', 'changan', 'gazel', 'kamaz'];
@@ -2044,6 +2386,245 @@ class Component extends DCLogic {
         (j.editorSet ? '' : ' Внимание: в свойствах скрипта нет EDITOR_TOKEN — ИИ сможет вызвать любой, кто знает пароль таблицы, в том числе вход «только просмотр».') });
     } catch (e) { set({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
   }
+  // ── ИИ-импорт манифестов: черновики и подтверждение ──
+  // Черновики — только на этом устройстве (IndexedDB «logi-import»): до подтверждения в журнал, базу клиентов и Google Таблицу
+  // ничего не пишется (кроме строк «ИИ-журнала» о вызовах ИИ). Файл манифеста хранится рядом, чтобы показывать его на экране проверки.
+  impDb(op, store, val) {
+    return new Promise((res, rej) => {
+      let rq; try { rq = indexedDB.open('logi-import', 1); } catch (e) { return rej(new Error('Браузер не даёт хранить черновики (IndexedDB)')); }
+      rq.onupgradeneeded = () => { const db = rq.result; if (!db.objectStoreNames.contains('drafts')) db.createObjectStore('drafts', { keyPath: 'id' }); if (!db.objectStoreNames.contains('files')) db.createObjectStore('files', { keyPath: 'id' }); };
+      rq.onerror = () => rej(rq.error || new Error('IndexedDB недоступна'));
+      rq.onsuccess = () => { const db = rq.result, tx = db.transaction(store, op === 'get' || op === 'all' ? 'readonly' : 'readwrite'), os = tx.objectStore(store);
+        const r = op === 'get' ? os.get(val) : op === 'all' ? os.getAll() : op === 'del' ? os.delete(val) : os.put(val);
+        r.onsuccess = () => { res(r.result); db.close(); }; r.onerror = () => { rej(r.error); db.close(); }; };
+    });
+  }
+  async impLoadList() {
+    try { this.impList = ((await this.impDb('all', 'drafts')) || []).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))); }
+    catch (e) { this.impList = []; this.setState({ impBusy: { error: e.message } }); }
+    this.setState(s => ({ impVer: (s.impVer || 0) + 1 }));
+  }
+  impBusy(b) { this.setState({ impBusy: b }); }
+  // вызов ИИ для LogiImport.analyze: ошибки связи — как ответ с кодом, чтобы разбор мог повторить часть
+  async aiCall(req) {
+    try { return await this.aiPost({ action: 'call', system: req.system, content: req.content, schema: req.schema, max_tokens: req.max_tokens, effort: req.effort, meta: req.meta }); }
+    catch (e) { return { error: e.message || String(e), code: /версии 8|Google Таблицу|руководителя/.test(e.message || '') ? 'setup' : 'net' }; }
+  }
+  async impUpload(file) {
+    if (this.readOnly || !file) return;
+    const name = file.name || 'manifest', lower = name.toLowerCase(), MAX = 10 * 1024 * 1024, fail = error => this.impBusy({ error, file: name });
+    if (file.size > MAX) return fail('Файл больше 10 МБ (' + f1(file.size / 1048576, 1) + ' МБ). Уберите лишние листы или сожмите PDF.');
+    if (/\.xls$/.test(lower)) return fail('Старый формат .xls: откройте файл в Excel и сохраните как «Книга Excel (.xlsx)».');
+    const kind = /\.xlsx$/.test(lower) ? 'xlsx' : /\.pdf$/.test(lower) || file.type === 'application/pdf' ? 'pdf' : null;
+    if (!kind) return fail('Нужен манифест в Excel (.xlsx) или PDF.');
+    if (!this.gsUrl) return fail('Сначала подключите Google Таблицу — ИИ работает через её скрипт.');
+    if (!(this.gsVersion >= 8)) return fail('Обновите код скрипта таблицы до версии 8: «Настройки связи» → «Скопировать код».');
+    const own = window.LogiAuth.owner();
+    if (own.state === 'locked') return fail('Секрет редактора закрыт на этом устройстве: «Настройки связи» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».');
+    this.impBusy({ step: 'Читаю файл', done: 0, total: 1, file: name });
+    let buf, doc, pages = null, sheets = null;
+    try {
+      buf = await file.arrayBuffer();
+      if (kind === 'xlsx') {
+        const book = await window.XlsxIO.readGrid(buf);
+        if (!book.some(sh => window.LogiImport.rowNums(sh).length)) throw new Error('В книге нет данных');
+        doc = { kind, book }; sheets = book.length;
+      } else {
+        const pdf = await window.LogiPdf.open(buf);
+        if (pdf.numPages > 30) throw new Error('В PDF ' + pdf.numPages + ' страниц — не больше 30. Разделите файл на части.');
+        doc = { kind, pages: pdf.numPages, base64: window.LogiPdf.b64(buf) }; pages = pdf.numPages;
+      }
+    } catch (e) { return fail(e.message || String(e)); }
+    const id = 'imp-' + Date.now().toString(36), today = new Date().toISOString().slice(0, 10);
+    try {
+      const res = await window.LogiImport.analyze({ doc, fileName: name, clients: this.state.data.clients, draftId: id, today, ai: req => this.aiCall(req),
+        onProgress: p => this.impBusy({ ...p, file: name }) });
+      const draft = { id, createdAt: new Date().toISOString(), status: 'draft', file: { name, kind, size: file.size, pages, sheets }, ...res, deleted: [], ack: {} };
+      await this.impDb('put', 'files', { id, buf, type: kind });
+      await this.impSaveNow(draft);
+      this.impBusy(null);
+      await this.impLoadList();
+      await this.impOpen(id);
+    } catch (e) { fail((e.message || String(e)) + (e.calls && e.calls.length ? ' (вызовов ИИ: ' + e.calls.length + ')' : '')); }
+  }
+  // открыть черновик: файл → книга Excel или PDF с текстом страниц (для сверки и подсветки)
+  async impOpen(id) {
+    const draft = await this.impDb('get', 'drafts', id);
+    if (!draft) return;
+    const f = await this.impDb('get', 'files', id).catch(() => null);
+    const cur = { draft, book: null, pdf: null, pages: null };
+    try {
+      if (f && draft.file.kind === 'xlsx') cur.book = await window.XlsxIO.readGrid(f.buf);
+      if (f && draft.file.kind === 'pdf') { cur.pdf = await window.LogiPdf.open(f.buf); cur.pages = await window.LogiPdf.pageTexts(cur.pdf); }
+    } catch (e) { cur.fileError = e.message; }
+    if (!f) cur.fileError = 'Файла манифеста на устройстве нет — сверка с документом недоступна';
+    this.impCur = cur;
+    this.setState({ impId: id, impSel: null, impSheet: 0, impPane: 'rows' });
+  }
+  impCheck() {
+    const c = this.impCur; if (!c) return null;
+    const data = this.state.data, key = c.draft.updatedAt + '|' + (this.state.impVer || 0) + '|' + this.state.ver;
+    if (c.chkKey === key) return c.chk;
+    c.chk = window.LogiImport.check(c.draft, { book: c.book, pages: c.pages, settings: data.settings, shipments: data.shipments, imports: this.gsImports || [],
+      drafts: (this.impList || []).map(d => ({ id: d.id, status: d.status, journalDate: d.journalDate, route: (d.meta || {}).route, totals: d.totals, fileName: d.file && d.file.name })) });
+    c.chkKey = key;
+    return c.chk;
+  }
+  async impSaveNow(draft) {
+    draft.updatedAt = new Date().toISOString();
+    const ch = window.LogiImport.check(draft, { settings: this.state.data.settings });
+    draft.totals = ch.doc || ch.sum; draft.route = (draft.meta || {}).route || '';
+    draft.edits = window.LogiImport.editStats(draft);
+    await this.impDb('put', 'drafts', draft);
+  }
+  // правка черновика: сразу на экране, в IndexedDB — через полсекунды
+  impTouch() {
+    const c = this.impCur; if (!c) return;
+    c.draft.updatedAt = new Date().toISOString();
+    this.setState(s => ({ impVer: (s.impVer || 0) + 1 }));
+    clearTimeout(this._impSave);
+    this._impSave = setTimeout(() => this.impSaveNow(c.draft).then(() => this.impLoadList()).catch(e => this.impBusy({ error: 'Черновик не сохранён: ' + e.message })), 500);
+  }
+  impEditRow(id, field, value) {
+    const c = this.impCur, r = c && c.draft.rows.find(x => x.id === id); if (!r || c.draft.status !== 'draft') return;
+    if (field === 'mark') { r.mark = String(value || '').replace(/\s+/g, ' ').replace(/^\s+/, ''); this.impEnsureMark(r.mark.trim()); this.impPruneMarks(); }
+    else { const v = String(value).trim().replace(',', '.'); (r._raw = r._raw || {})[field] = String(value); r[field] = v === '' ? null : isNaN(+v) ? null : +v; }   // набранный текст — чтобы можно было ввести «1.»
+    this.impTouch();
+  }
+  // новая маркировка (после правки) — сначала код, иначе ждёт решения
+  impEnsureMark(mark) {
+    const L = window.LogiImport, d = this.impCur.draft, k = L.key(mark);
+    if (!k || d.marks[k]) return;
+    const m = L.matchMark(mark, L.clientIndex(this.state.data.clients));
+    d.marks[k] = { mark, client: m ? m.client : null, by: m ? m.by : null, reason: m ? m.reason : '', options: (m && m.options) || null, decided: !!m && m.by !== 'ambiguous', suggest: null };
+  }
+  // маркировки, которых больше нет ни в одной строке (например, после правки по буквам), — убрать
+  impPruneMarks() {
+    const L = window.LogiImport, d = this.impCur.draft, used = new Set(d.rows.map(r => L.key(r.mark)));
+    Object.keys(d.marks).forEach(k => { if (!used.has(k)) delete d.marks[k]; });
+  }
+  impAddRow() {
+    const c = this.impCur; if (!c || c.draft.status !== 'draft') return;
+    const id = 'n' + Date.now().toString(36);
+    c.draft.rows.push({ id, mark: '', places: null, cbm: null, kg: null, src: { sheet: null, row: null, page: null, text: '' }, note: 'добавлено вручную' });
+    this.setState({ impSel: id }); this.impTouch();
+  }
+  impDelRow(id) {
+    const c = this.impCur; if (!c || c.draft.status !== 'draft') return;
+    const r = c.draft.rows.find(x => x.id === id); if (!r) return;
+    c.draft.rows = c.draft.rows.filter(x => x.id !== id);
+    if (r.ai) c.draft.deleted.push(r.id);
+    if (r.src && r.src.sheet && r.src.row) (c.draft.skipped = c.draft.skipped || []).push(r.src.sheet + '!' + r.src.row);   // осознанно убранная строка документа — не «пропущена»
+    this.impPruneMarks(); this.impTouch();
+  }
+  // решение по маркировке: клиент из справочника, '__none' — «без клиента», '' — снять решение
+  impDecide(k, value, how) {
+    const c = this.impCur, m = c && c.draft.marks[k]; if (!m || c.draft.status !== 'draft') return;
+    if (!m.byUser && !m.auto) m.auto = { client: m.decided ? m.client : null, by: m.by, decided: m.decided };
+    if (value === '') Object.assign(m, { decided: false, client: null, byUser: true, by: 'user' });
+    else Object.assign(m, { decided: true, client: value === '__none' ? null : value, byUser: how !== 'suggest', by: how === 'suggest' ? 'ai' : 'user' });
+    if (m.remember == null) m.remember = true;
+    this.impTouch();
+  }
+  // подтверждение: черновик → обычные отгрузки журнала (тот же commit, что и «+ Добавить отгрузку») и маркировки клиентов
+  async impConfirm() {
+    const c = this.impCur; if (!c || this.readOnly || c.draft.status !== 'draft') return;
+    const chk = this.impCheck(); if (!chk.ok) return;
+    const L = window.LogiImport, d = c.draft, data = this.state.data, meta = d.meta || {};
+    const ships = L.shipmentsOf(d, meta.consolidator || '');
+    if (!ships.length) return;
+    const sum = ships.reduce((a, x) => ({ p: a.p + x.places, c: a.c + x.cbm, k: a.k + x.kg }), { p: 0, c: 0, k: 0 });
+    if (!confirm('Создать партию за ' + dLong(d.journalDate) + '?\n\n' + ships.length + ' отгрузок · ' + f0(sum.p) + ' мест · ' + f1(sum.c, 2) + ' м³ · ' + f0(sum.k) + ' кг.\nСтатус — «В плане», машины — «Не назначена».\n\nОтгрузки запишутся в журнал и Google Таблицу.')) return;
+    const t0 = Date.now(), cmap = Object.fromEntries(data.clients.map(x => [x.bl, x]));
+    const add = ships.map((x, i) => ({ id: 's' + t0 + '-' + i, date: x.date, bl: x.bl, cbm: x.cbm, kg: x.kg, places: x.places, truck: x.truck, route: null, status: x.status, note: x.note }));
+    // маркировки, выбранные вручную или по предложению ИИ, — клиенту, чтобы в следующий раз узнать их без ИИ
+    const upd = {};
+    Object.values(d.marks).forEach(m => {
+      if (!m.decided || !m.client || m.remember === false || !['ai', 'user'].includes(m.by) || !cmap[m.client] || L.isUnknownOwner(m.mark)) return;
+      const cur = upd[m.client] ?? cmap[m.client].marks ?? '';
+      if (normMarks(cur).split(', ').includes(normMarks(m.mark))) return;
+      upd[m.client] = normMarks(cur + ', ' + m.mark);
+    });
+    const clients = data.clients.map(x => upd[x.bl] != null ? { ...x, marks: upd[x.bl] } : x);
+    this.commit({ ...data, shipments: [...data.shipments, ...add], clients });
+    const stats = L.editStats(d);
+    d.status = 'confirmed';
+    d.confirmed = { at: new Date().toISOString(), date: d.journalDate, shipments: add.length, bls: add.map(x => x.bl), marksSaved: Object.keys(upd).length, places: sum.p, cbm: +sum.c.toFixed(3), kg: +sum.k.toFixed(2) };
+    await this.impSaveNow(d);
+    this.impLog(d, 'confirmed', stats);
+    await this.impLoadList();
+    this.setState(s => ({ impVer: (s.impVer || 0) + 1 }));
+  }
+  async impReject() {
+    const c = this.impCur; if (!c || this.readOnly || c.draft.status !== 'draft') return;
+    const why = prompt('Отклонить черновик? Партия не создастся. Причина (необязательно):', '');
+    if (why === null) return;
+    const d = c.draft; d.status = 'rejected'; d.rejected = { at: new Date().toISOString(), reason: why.trim() };
+    await this.impSaveNow(d);
+    this.impLog(d, 'rejected', window.LogiImport.editStats(d));
+    await this.impLoadList();
+  }
+  // строка «ИИ-журнала» о подтверждении или отклонении (для статистики и проверки дубликатов на других устройствах)
+  async impLog(d, status, stats) {
+    const t = d.totals || {}, meta = d.meta || {};
+    try {
+      const j = await this.aiPost({ action: 'log', meta: { status, draft: d.id, file: d.file.name, data: { date: d.journalDate, route: meta.route || '', consolidator: meta.consolidator || '',
+        places: t.places, cbm: t.cbm, kg: t.kg, rows: d.rows.length, shipments: (d.confirmed || {}).shipments || 0, edits: stats.total, of: stats.of, model: d.model || '', reason: (d.rejected || {}).reason || '' } } });
+      if (!j.ok) throw new Error(j.error || 'нет ответа');
+      if (d.logPending) { delete d.logPending; await this.impDb('put', 'drafts', d); }
+    } catch (e) { d.logPending = status; await this.impDb('put', 'drafts', d).catch(() => {}); }
+  }
+  async impDelete(id) {
+    const d = (this.impList || []).find(x => x.id === id);
+    if (!d || !confirm('Удалить ' + (d.status === 'draft' ? 'черновик' : 'запись об импорте') + ' «' + d.file.name + '» с этого устройства?')) return;
+    await this.impDb('del', 'drafts', id).catch(() => {}); await this.impDb('del', 'files', id).catch(() => {});
+    if (this.state.impId === id) { this.impCur = null; this.setState({ impId: null }); }
+    await this.impLoadList();
+  }
+  // PDF на экране проверки: страницы рисуются один раз, строка-источник подсвечивается
+  syncImport() {
+    if (this.state.tab === 'import' && !this.impList && !this._impLoading && !this.readOnly) { this._impLoading = true; this.impLoadList(); }
+    const c = this.impCur; if (this.state.tab !== 'import' || !c || !this.state.impId) return;
+    const selKey = c.draft.id + '|' + this.state.impSel + '|' + this.state.impSheet + '|' + this.state.impPane;
+    if (c.book) {   // Excel: прокрутить таблицу документа к строке-источнику
+      if (this._impScrolled === selKey) return; this._impScrolled = selKey;
+      const box = document.querySelector('.imp-doc'), tr = box && box.querySelector('tr.imp-sel');
+      if (tr) box.scrollTo({ top: tr.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - box.clientHeight / 2, behavior: 'smooth' });
+      return;
+    }
+    const box = this.impPdfRef.current;
+    if (!c.pdf || !box) return;
+    const w = Math.max(240, box.clientWidth - 16);
+    if (box.dataset.id !== c.draft.id || Math.abs((+box.dataset.w || 0) - w) > 40) {
+      box.dataset.id = c.draft.id; box.dataset.w = w; box.innerHTML = '';
+      c.scales = {};
+      const pages = Array.from({ length: c.pdf.numPages }, (_, i) => i + 1);
+      pages.reduce((pr, n) => pr.then(async () => {
+        const wrap = document.createElement('div'); wrap.className = 'imp-page'; wrap.dataset.page = n;
+        const cv = document.createElement('canvas'); wrap.appendChild(cv);
+        const lab = document.createElement('div'); lab.className = 'imp-page-no'; lab.textContent = 'стр. ' + n; wrap.appendChild(lab);
+        box.appendChild(wrap);
+        c.scales[n] = await window.LogiPdf.render(c.pdf, n, cv, w);
+      }), Promise.resolve()).then(() => { this._impScrolled = null; this.impHighlight(selKey); }).catch(() => {});
+    } else if (this._impScrolled !== selKey) this.impHighlight(selKey);
+  }
+  impHighlight(selKey) {
+    const c = this.impCur, box = this.impPdfRef.current; if (!c || !box) return;
+    this._impScrolled = selKey;
+    box.querySelectorAll('.imp-hl').forEach(x => x.remove()); box.querySelectorAll('.imp-page.sel').forEach(x => x.classList.remove('sel'));
+    const r = c.draft.rows.find(x => x.id === this.state.impSel), p = r && r.src && r.src.page;
+    if (!p) return;
+    const wrap = box.querySelector('.imp-page[data-page="' + p + '"]'), sc = c.scales && c.scales[p]; if (!wrap || !sc) return;
+    const L = window.LogiImport, pg = (c.pages || [])[p - 1], mk = L.key(r.mark), nums = ['places', 'cbm', 'kg'].map(f => r[f]).filter(v => v != null).map(v => String(v));
+    let best = null, bestScore = 0;
+    (pg ? pg.lines : []).forEach(l => { const t = l.text.replace(/(\d),(\d)/g, '$1.$2'); let sc2 = (mk && L.key(l.text).includes(mk) ? 3 : 0) + nums.filter(n => t.includes(n)).length; if (sc2 > bestScore) { bestScore = sc2; best = l; } });
+    if (best && bestScore >= 2) {
+      const hl = document.createElement('div'); hl.className = 'imp-hl';
+      Object.assign(hl.style, { left: (best.x1 * sc.scale - 4) + 'px', top: ((sc.height - best.y - best.h * 0.85) * sc.scale - 3) + 'px', width: ((best.x2 - best.x1) * sc.scale + 8) + 'px', height: (best.h * sc.scale * 1.3 + 6) + 'px' });
+      wrap.appendChild(hl);
+      box.scrollTo({ top: wrap.offsetTop + hl.offsetTop - box.clientHeight / 2, behavior: 'smooth' });
+    } else { wrap.classList.add('sel'); box.scrollTo({ top: wrap.offsetTop - 8, behavior: 'smooth' }); }
+  }
   async gsGet(params) {
     const q = Object.entries(params).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
     const r = await fetch(this.gsUrl + (this.gsUrl.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(this.gsToken || '') + '&' + q + '&t=' + Date.now());
@@ -2215,9 +2796,9 @@ class Component extends DCLogic {
 
   renderVals() {
     const st = this.state;
-    const tabsDef = [['journal', 'Журнал'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['reports', 'Отчёты'], ['plans', 'Планы A/B/C'], ['viz', 'Визуализация'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
-    const tabs = tabsDef.map(([k, l]) => ({ label: l, go: () => this.setState({ tab: k }), color: st.tab === k ? 'var(--color-on-brand)' : 'color-mix(in srgb, var(--color-on-brand) 72%, transparent)', border: st.tab === k ? 'var(--color-red)' : 'transparent' }));
-    const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isViz: false, isTariffs: false, isReports: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
+    const tabsDef = [['journal', 'Журнал'], ['import', 'Импорт'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['reports', 'Отчёты'], ['plans', 'Планы A/B/C'], ['viz', 'Визуализация'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
+    const tabs = tabsDef.filter(([k]) => k !== 'import' || !this.readOnly).map(([k, l]) => ({ label: l, go: () => this.setState({ tab: k }), color: st.tab === k ? 'var(--color-on-brand)' : 'color-mix(in srgb, var(--color-on-brand) 72%, transparent)', border: st.tab === k ? 'var(--color-red)' : 'transparent' }));
+    const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
       fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
       account: () => window.LogiAuth && window.LogiAuth.openAccount(), readOnly: this.readOnly };
     const fs = st.fileStatus, fat = st.fileAt ? hhmm(st.fileAt.getHours() * 60 + st.fileAt.getMinutes()) : '';
@@ -2251,7 +2832,7 @@ class Component extends DCLogic {
     const distName = d => d === 'Aniqlanmagan' ? 'Не определён' : (d || '—');
     const out = { ...base, depotName: S.depotName, statusOpts, truckOpts, districtOpts, dateOpts,
       savedNote: st.savedAt ? 'Сохранено ' + hhmm(st.savedAt.getHours() * 60 + st.savedAt.getMinutes()) : '',
-      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isViz: st.tab === 'viz', isTariffs: st.tab === 'tariffs', isReports: st.tab === 'reports', isCheck: st.tab === 'check' };
+      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isViz: st.tab === 'viz', isTariffs: st.tab === 'tariffs', isReports: st.tab === 'reports', isImport: st.tab === 'import' && !this.readOnly, isCheck: st.tab === 'check' };
 
     if (st.tab === 'journal') {
       const q = st.jSearch.trim().toLowerCase();
@@ -2414,6 +2995,7 @@ class Component extends DCLogic {
     }
 
     if (st.tab === 'reports') Object.assign(out, this.reportView(st, S, D));
+    if (st.tab === 'import' && !this.readOnly) Object.assign(out, this.importView(st, S, D));
 
     if (st.tab === 'plans' && st.planDate) {
       const P = this.plansFor(st.planDate);
