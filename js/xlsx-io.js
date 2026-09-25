@@ -271,6 +271,55 @@
     return writeZip(z.files, z.order);
   }
 
+  // ---------- любая книга (импорт манифестов): все листы как есть ----------
+  // Листы по порядку книги (и скрытые), значения ячеек (у формул — сохранённый результат), объединённые ячейки,
+  // даты — по формату ячейки (числа с форматом даты становятся строкой YYYY-MM-DD, с временем — YYYY-MM-DD HH:MM).
+  function dateStyles(z) {
+    const x = txt(z, 'xl/styles.xml'); if (!x) return new Set();
+    const custom = {}; for (const m of x.matchAll(/<numFmt\b[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"/g)) custom[+m[1]] = dec(m[2]);
+    const isDate = id => (id >= 14 && id <= 22) || (id >= 27 && id <= 36) || (id >= 45 && id <= 47) || (id >= 50 && id <= 58) ||
+      (custom[id] != null && /[dmyhs]/i.test(custom[id].replace(/"[^"]*"|\[[^\]]*\]|\\./g, '')) && !/^(general|@)$/i.test(custom[id]));
+    const xfs = (x.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/) || [])[1] || '', out = new Set();
+    [...xfs.matchAll(/<xf\b[^>]*?>|<xf\b[^>]*?\/>/g)].forEach((m, i) => { const id = (m[0].match(/numFmtId="(\d+)"/) || [])[1]; if (id != null && isDate(+id)) out.add(i); });
+    return out;
+  }
+  function serialDate(v) {
+    const ms = Math.round((v - 25569) * 864e5), d = new Date(ms), iso = d.toISOString();
+    return Math.abs(v - Math.round(v)) < 1e-9 ? iso.slice(0, 10) : iso.slice(0, 10) + ' ' + iso.slice(11, 16);
+  }
+  async function readGrid(ab) {
+    const z = await readZip(ab), ss = shared(z), dates = dateStyles(z);
+    const wb = txt(z, 'xl/workbook.xml'), rels = txt(z, 'xl/_rels/workbook.xml.rels'), rmap = {};
+    if (!wb) throw new Error('Это не книга Excel (.xlsx)');
+    for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) { const id = m[0].match(/Id="([^"]+)"/), t = m[0].match(/Target="([^"]+)"/); if (id && t) rmap[id[1]] = t[1]; }
+    const out = [];
+    for (const m of wb.matchAll(/<sheet\b[^>]*>/g)) {
+      const nm = m[0].match(/name="([^"]+)"/), id = m[0].match(/r:id="([^"]+)"/); if (!nm || !id || !rmap[id[1]]) continue;
+      const path = rmap[id[1]].startsWith('/') ? rmap[id[1]].slice(1) : 'xl/' + rmap[id[1]].replace(/^\.\//, ''), xml = txt(z, path);
+      if (!xml) continue;
+      const rows = {};
+      for (const r of xml.matchAll(/<row\b[^>]*?\br="(\d+)"[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g)) {
+        if (!r[2]) continue; const cells = {};
+        for (const c of r[2].matchAll(/<c r="([A-Z]+)\d+"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+          const body = c[3] || '', t = (c[2].match(/\bt="(\w+)"/) || [])[1], st = +((c[2].match(/\bs="(\d+)"/) || [])[1] || 0), v = body.match(/<v>([\s\S]*?)<\/v>/);
+          let val = null;
+          if (t === 'inlineStr') val = dec([...body.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(x => x[1]).join(''));
+          else if (!v) continue;
+          else if (t === 's') val = ss[+v[1]];
+          else if (t === 'str' || t === 'e') val = dec(v[1]);
+          else if (t === 'b') val = v[1] === '1';
+          else val = dates.has(st) && +v[1] > 0 ? serialDate(+v[1]) : +v[1];
+          if (val === '' || val == null) continue;
+          cells[c[1]] = typeof val === 'string' ? val.trim() : val;
+        }
+        rows[+r[1]] = cells;
+      }
+      const merges = [...xml.matchAll(/<mergeCell\b[^>]*ref="([A-Z]+\d+:[A-Z]+\d+)"/g)].map(x => x[1]);
+      out.push({ name: dec(nm[1]), hidden: /state="(hidden|veryHidden)"/.test(m[0]), rows, merges });
+    }
+    return out;
+  }
+
   function b64ToBuf(b64) { const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u.buffer; }
-  window.XlsxIO = { parse, write, readZip, b64ToBuf, fromSheets, SET_ROWS };
+  window.XlsxIO = { parse, write, readZip, readGrid, b64ToBuf, fromSheets, SET_ROWS };
 })();

@@ -1,0 +1,1 @@
+PDF.js 6.3.289 (pdfjs-dist, Apache-2.0) — https://github.com/mozilla/pdf.js. Сборка legacy/build (с полифилами для телефонов и не самых новых браузеров); cmaps/, standard_fonts/, wasm/, iccs/ — без изменений.
