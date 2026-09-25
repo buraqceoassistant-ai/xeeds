@@ -76,7 +76,7 @@
   const isoToSerial = d => { const [y, m, dd] = d.split('-').map(Number); return Date.UTC(y, m - 1, dd) / 864e5 + 25569; };
 
   const SET_ROWS = { isuzuM3: 5, isuzuKg: 6, depotName: 7, depotLat: 8, depotLon: 9, unloadMin: 10, dayStart: 11, speed: 12, aMaxStops: 13, maxPlaces: 14, bSmallM3: 15, bcMaxStops: 16, cM3: 17, cKg: 18, cTrucks: 19, roadK: 20, gazelBase: 43, gazelHeavy: 44, gazelHeavyKg: 45, gazelPtIn: 46, gazelPtOut: 47, laboBase: 48, laboPt: 49, laboM3: 50, laboKg: 51, baseIncludesPts: 52, kamazBase: 53, kamazPt: 54, laboBaseIncludesPts: 55, kamazBaseIncludesPts: 56, gazelM3: 57, gazelKg: 58, bTolM3: 59, bTolKg: 60,
-    changanM3: 61, changanKg: 62, changanBase: 63, changanPt: 64, changanBaseIncludesPts: 65, gazelCount: 66, laboCount: 67, changanCount: 68, tripsPerVehicle: 69, freeOutM3: 70 };
+    changanM3: 61, changanKg: 62, changanBase: 63, changanPt: 64, changanBaseIncludesPts: 65, gazelCount: 66, laboCount: 67, changanCount: 68, tripsPerVehicle: 69, freeOutM3: 70, densityMin: 71, densityMax: 72 };
   const SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 
   function hyperlinksOf(z, path, xml) {
@@ -103,7 +103,7 @@
     const Ys = R(SH.ship), Ms = R(SH.cli), Ws = R(SH.wh), Ss = R(SH.set), Hs = R(SH.ring), Ns = R(SH.notes);
     const clients = Object.keys(Ms).map(Number).filter(r => r >= 5 && str(Ms[r].A)).sort((a, b) => a - b).map(r => { const c = Ms[r]; return {
       bl: str(c.A), brand: str(c.B), name: str(c.C), tel1: str(c.D), tel2: str(c.E), receiver: str(c.F), receiverTel: str(c.G), district: str(c.H) || 'Aniqlanmagan', address: str(c.I),
-      link: links['J' + r] || '', lat: num(c.K), lon: num(c.L), note: str(c.O), manualZone: str(c.X) }; });
+      link: links['J' + r] || '', lat: num(c.K), lon: num(c.L), note: str(c.O), manualZone: str(c.X), marks: str(c.Y) }; });
     // Date in column A: a real date (Excel/Sheets serial number) or typed by hand as text — 31.08.2026,
     // 31.08.26, 31/08/2026, 2026-08-31, 31.08 — or turned into a number by a sheet in another locale
     // ("04.09" → 4.09). Such dates are read as DD.MM (year from the other rows) and reported in `textDates`;
@@ -133,10 +133,11 @@
     settings.ringBuffer = num((Hs[4] || {}).B) ?? 1;
     // older workbooks have no rows 55–69 yet: Labo/Kamaz/Changan charge every point (0), Gazel holds 19 m³ / 4 000 kg,
     // plan B may load a Gazel 5 m³ / 500 kg above that; the fleet — 9 Gazel, 1 Changan (9 m³ / 2 000 kg), 1 Labo,
-    // up to 2 trips a day each; outside the ring a point under 1 m³ is not paid by the company.
+    // up to 2 trips a day each; outside the ring a point under 1 m³ is not paid by the company;
+    // manifest import warns about cargo lighter than 40 or heavier than 800 kg/m³ (rows 71–72).
     // `defaults` lists what was filled in, so it can be written back.
     const DEF = { laboBaseIncludesPts: 0, kamazBaseIncludesPts: 0, gazelM3: 19, gazelKg: 4000, bTolM3: 5, bTolKg: 500,
-      changanM3: 9, changanKg: 2000, changanBaseIncludesPts: 0, gazelCount: 9, laboCount: 1, changanCount: 1, tripsPerVehicle: 2, freeOutM3: 1 };
+      changanM3: 9, changanKg: 2000, changanBaseIncludesPts: 0, gazelCount: 9, laboCount: 1, changanCount: 1, tripsPerVehicle: 2, freeOutM3: 1, densityMin: 40, densityMax: 800 };
     const defaults = Object.keys(DEF).filter(k => settings[k] == null);
     defaults.forEach(k => { settings[k] = DEF[k]; });
     const col = (c, a, b) => { const o = []; for (let r = a; r <= b; r++) if (Ss[r] && str(Ss[r][c])) o.push(str(Ss[r][c])); return o; };
@@ -231,7 +232,7 @@
     put(z, P[SH.ship], ship.xml);
 
     const cli = patchTable(txt(z, P[SH.cli]), { firstRow: 5, tplRow: 5, keyCol: 'A', items: data.clients,
-      inputs: { A: c => c.bl, B: c => c.brand, C: c => c.name, D: c => c.tel1, E: c => c.tel2, F: c => c.receiver, G: c => c.receiverTel, H: c => c.district, I: c => c.address, J: c => c.link ? 'Xaritada ochish' : '', K: c => c.lat, L: c => c.lon, O: c => c.note, X: c => c.manualZone },
+      inputs: { A: c => c.bl, B: c => c.brand, C: c => c.name, D: c => c.tel1, E: c => c.tel2, F: c => c.receiver, G: c => c.receiverTel, H: c => c.district, I: c => c.address, J: c => c.link ? 'Xaritada ochish' : '', K: c => c.lat, L: c => c.lon, O: c => c.note, X: c => c.manualZone, Y: c => c.marks },
       formulas: { M: c => coord(c.lat, c.lon), N: c => c.lat != null ? 'Yandex xarita' : '', P: c => (agg[c.bl] || {}).n || 0, Q: c => (agg[c.bl] || {}).last || '', R: c => (agg[c.bl] || {}).cbm || 0, S: c => (agg[c.bl] || {}).kg || 0,
         T: c => ([c.brand, c.name, c.tel1, c.receiver, c.address].filter(Boolean).length + (c.lat != null ? 1 : 0)) / 6,
         U: c => zt((zones[c.bl] || {}).zone), V: c => { const q = zones[c.bl] || {}; return q.dist != null ? q.dist : ''; }, W: c => { const q = zones[c.bl] || {}; return !q.zone ? '' : q.manual ? 'Qo‘lda belgilangan' : q.border ? 'Chegarada — tekshiring' : 'Aniq'; } } });

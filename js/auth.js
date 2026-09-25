@@ -8,7 +8,10 @@
    Там же, зашифрованные тем же ключом, лежат общие настройки сайта (vault.config),
    например ссылка на Google Таблицу — её получают все устройства после входа.
    Роль пользователя — vault.users[…].role: нет роли — руководитель (всё можно), 'viewer' — только просмотр
-   (сайт скрывает правки и ничего не записывает; см. index.html, readOnly). */
+   (сайт скрывает правки и ничего не записывает; см. index.html, readOnly).
+   Настройки руководителя (vault.owner, например секрет редактора для ИИ-импорта) зашифрованы отдельным
+   ключом руководителя: он завёрнут паролем только в записи руководителей (vault.users[…].okey),
+   поэтому вход «только просмотр» их не расшифрует. */
 (function () {
   'use strict';
   var REPO = { owner: 'buraqceoassistant-ai', repo: 'xeeds', path: 'data/vault.json' };
@@ -17,6 +20,7 @@
   var KEY_PREV = 'logi-auth-key-prev';  // прежний ключ, пока сайт не обновился после смены пароля
   var LOGIN = 'logi-auth-login';
   var GH_TOKEN = 'logi-gh-token';
+  var OKEY = 'logi-auth-okey';          // ключ руководителя: открывает vault.owner (секрет редактора)
   var BAD = 'Неверный логин или пароль';
   var MIN_PASSWORD = 8;
   var subtle = window.crypto && window.crypto.subtle;
@@ -53,11 +57,20 @@
     try { return new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(u.iv) }, await kek(v, password, unb64(u.salt), 'decrypt'), unb64(u.key))); }
     catch (e) { throw new Error(BAD); }
   }
-  async function wrapKey(v, login, password, dekRaw) {
-    var salt = rand(16), iv = rand(12), id = await loginId(v, login), role = (v.users[id] || {}).role;
-    var key = await subtle.encrypt({ name: 'AES-GCM', iv: iv }, await kek(v, password, salt, 'encrypt'), dekRaw);
+  async function wrapKey(v, login, password, dekRaw, okRaw) {
+    var salt = rand(16), iv = rand(12), id = await loginId(v, login), role = (v.users[id] || {}).role, k = await kek(v, password, salt, 'encrypt');
+    var key = await subtle.encrypt({ name: 'AES-GCM', iv: iv }, k, dekRaw);
     v.users[id] = { salt: b64(salt), iv: b64(iv), key: b64(new Uint8Array(key)) };
     if (role) v.users[id].role = role;   // смена пароля роль не меняет
+    if (okRaw) v.users[id].okey = await wrapOwner(k, okRaw);   // и ключ руководителя — под новым паролем
+  }
+  // ключ руководителя: тем же ключом из пароля, что и ключ данных, со своим iv
+  async function wrapOwner(k, okRaw) { var iv = rand(12); return { iv: b64(iv), key: b64(new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv: iv }, k, okRaw))) }; }
+  async function unwrapOwnerKey(v, login, password) {
+    var u = v.users[await loginId(v, login)];
+    if (!u || !u.okey) return null;
+    try { return new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(u.okey.iv) }, await kek(v, password, unb64(u.salt), 'decrypt'), unb64(u.okey.key))); }
+    catch (e) { return null; }
   }
   async function decryptData(v, dekRaw) {
     var dek = await subtle.importKey('raw', dekRaw, 'AES-GCM', false, ['decrypt']);
@@ -78,6 +91,7 @@
   }
 
   var vaultP = null, openKey = null, role = 'owner';
+  var ownerCfg = null, ownerState = 'none';   // 'open' — секрет открыт; 'locked' — есть, но на этом устройстве нет ключа; 'none' — не задан; 'viewer'
   window.LOGI_CONFIG = {};
   // роль вошедшего: по логину, сохранённому при входе (старые входы без логина — руководитель)
   async function roleOf(v, login) {
@@ -91,12 +105,21 @@
       return r.json();
     }).catch(function (e) { vaultP = null; throw e; }));
   }
-  async function openData(keyB64, login) {
+  async function openData(keyB64, login, okB64) {
     var v = await vault(), xlsx = await decryptData(v, unb64(keyB64));
     await roleOf(v, login || get(LOGIN));
     try { window.LOGI_CONFIG = v.config ? await decryptJSON(unb64(keyB64), v.config) : {}; } catch (e) { window.LOGI_CONFIG = {}; }
+    await openOwner(v, login || get(LOGIN), okB64 || get(OKEY));
     openKey = keyB64;
     window.LOGI_TEMPLATE_B64 = b64(xlsx);
+  }
+  async function openOwner(v, login, okB64) {
+    ownerCfg = null;
+    if (role === 'viewer') { ownerState = 'viewer'; return; }
+    var u = login ? v.users[await loginId(v, login)] : null;
+    ownerState = v.owner && u && u.okey ? 'locked' : 'none';
+    if (!v.owner || !okB64) return;
+    try { ownerCfg = await decryptJSON(unb64(okB64), v.owner); ownerState = 'open'; } catch (e) { /* ключ устарел — нужен пароль */ }
   }
   // Сохранённые ключи: текущий и прежний (сразу после смены пароля сайт ещё отдаёт старый vault.json).
   async function openWithStored() {
@@ -135,11 +158,11 @@
     if (!login || !pass) { err.textContent = 'Введите логин и пароль'; return; }
     setState('busy'); err.textContent = ''; btn.disabled = true; btn.textContent = 'Проверяю…';
     try {
-      var k = b64(await unwrapKey(await vault(), login, pass));
-      await openData(k, login);
+      var v = await vault(), k = b64(await unwrapKey(v, login, pass)), okRaw = await unwrapOwnerKey(v, login, pass), ok = okRaw ? b64(okRaw) : '';
+      await openData(k, login, ok);
       var remember = document.getElementById('auth-remember').checked;
-      drop(KEY); drop(KEY_PREV); drop(LOGIN);
-      put(KEY, k, remember); put(LOGIN, login, remember);
+      drop(KEY); drop(KEY_PREV); drop(LOGIN); drop(OKEY);
+      put(KEY, k, remember); put(LOGIN, login, remember); if (ok) put(OKEY, ok, remember);
       document.getElementById('auth-pass').value = '';
       unlocked();
     } catch (ex) {
@@ -282,14 +305,14 @@
       submit.textContent = 'Шифрую…';
       // Единственный пользователь — меняем и ключ данных: старый пароль из истории репозитория
       // перестаёт открывать текущие данные. Если пользователей несколько, их ключи не трогаем.
-      var single = Object.keys(v.users).length === 1, newKey = oldKey;
+      var single = Object.keys(v.users).length === 1, newKey = oldKey, okRaw = await unwrapOwnerKey(v, login, oldPw);
       if (single) {
         newKey = rand(32);
         await encryptData(v, newKey, await decryptData(v, oldKey));
         if (v.config) v.config = await encryptJSON(newKey, await decryptJSON(oldKey, v.config));
         v.users = {};
       }
-      await wrapKey(v, login, newPw, newKey);
+      await wrapKey(v, login, newPw, newKey, okRaw);
       submit.textContent = 'Сохраняю…';
       await gh(token, remote.base + '/contents/' + REPO.path, { method: 'PUT', body: {
         message: 'Смена пароля на сайте', content: btoa(JSON.stringify(v) + '\n'), sha: remote.sha, branch: remote.branch } });
@@ -329,8 +352,47 @@
     return cfg;
   }
 
+  // Настройки руководителя (vault.owner) — секрет редактора для ИИ-импорта. Видны только руководителю.
+  // Первый раз (или на устройстве, где ключа руководителя ещё нет) нужен пароль входа.
+  async function saveOwnerConfig(patch, token, password) {
+    token = String(token || get(GH_TOKEN) || '').trim();
+    if (role === 'viewer') throw new Error('Только для руководителя');
+    if (!token) throw new Error('Нужен GitHub-токен');
+    var login = get(LOGIN); if (!login) throw new Error('Выйдите и войдите заново — сайт не знает ваш логин');
+    var remote = await loadRemoteVault(token), v = remote.vault, u = v.users[await loginId(v, login)];
+    if (!u) throw new Error('Вашего входа нет в хранилище — войдите заново');
+    var okRaw = get(OKEY) ? unb64(get(OKEY)) : null;
+    if (password) { await unwrapKey(v, login, password); okRaw = (await unwrapOwnerKey(v, login, password)) || okRaw; }   // неверный пароль — ошибка
+    if (!okRaw && v.owner) throw new Error('Введите пароль входа: на этом устройстве нет ключа руководителя');
+    if (!okRaw) { if (!password) throw new Error('Введите пароль входа — он нужен, чтобы создать ключ руководителя'); okRaw = rand(32); }
+    if (password) u.okey = await wrapOwner(await kek(v, password, unb64(u.salt), 'encrypt'), okRaw);
+    else if (!u.okey) throw new Error('Введите пароль входа');
+    var cfg = {};
+    if (v.owner) { try { cfg = await decryptJSON(okRaw, v.owner); } catch (e) { throw new Error('Ключ руководителя на этом устройстве устарел — введите пароль входа'); } }
+    Object.keys(patch).forEach(function (k) { if (patch[k] === '' || patch[k] == null) delete cfg[k]; else cfg[k] = patch[k]; });
+    v.owner = await encryptJSON(okRaw, cfg);
+    await gh(token, remote.base + '/contents/' + REPO.path, { method: 'PUT', body: {
+      message: 'Настройки руководителя', content: btoa(JSON.stringify(v) + '\n'), sha: remote.sha, branch: remote.branch } });
+    put(OKEY, b64(okRaw), remembered()); ownerCfg = cfg; ownerState = 'open';
+    return cfg;
+  }
+  // открыть настройки руководителя на этом устройстве паролем (если вход был до их появления)
+  async function unlockOwner(password) {
+    var v = await vault(), login = get(LOGIN);
+    if (!login) throw new Error('Выйдите и войдите заново');
+    await unwrapKey(v, login, password);   // неверный пароль — ошибка
+    var okRaw = await unwrapOwnerKey(v, login, password);
+    if (!okRaw) throw new Error('У этого входа нет ключа руководителя');
+    put(OKEY, b64(okRaw), remembered());
+    await openOwner(v, login, b64(okRaw));
+    if (ownerState !== 'open') throw new Error('Не удалось открыть настройки руководителя');
+    return ownerCfg;
+  }
+
   window.LogiAuth = {
-    logout: logout, openAccount: openAccount, saveConfig: saveConfig,
+    logout: logout, openAccount: openAccount, saveConfig: saveConfig, saveOwnerConfig: saveOwnerConfig, unlockOwner: unlockOwner,
+    owner: function () { return { state: ownerState, config: ownerCfg || {} }; },
+    login: function () { return get(LOGIN) || ''; },
     config: function () { return window.LOGI_CONFIG || {}; },
     role: function () { return role; },
     hasGhToken: function () { return !!get(GH_TOKEN); }

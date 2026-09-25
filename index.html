@@ -1040,6 +1040,21 @@
             </div>
           </div>
         </sc-if>
+        <sc-if value="{{ gsConnected }}">
+          <section class="ai-box" style="border:1px solid var(--color-divider);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-weight:500">ИИ-импорт манифестов</div>
+            <div style="font-size:13px;text-wrap:pretty">{{ aiInfo }}</div>
+            <sc-if value="{{ aiShowSecret }}"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><code style="font-size:13px;padding:6px 10px;background:var(--color-surface);border:1px solid var(--color-divider);word-break:break-all">{{ aiSecret }}</code><button class="btn btn-ghost" sc-camel-on-click="{{ aiCopy }}">Скопировать</button></div></sc-if>
+            <sc-if value="{{ aiNeedPass }}"><div class="field" style="max-width:320px"><label>Пароль входа — чтобы открыть или создать секрет</label><input class="input" type="password" autocomplete="current-password" value="{{ aiPass }}" sc-camel-on-change="{{ onAiPass }}"></div></sc-if>
+            <div style="font-size:13px;color:{{ aiResColor }};text-wrap:pretty">{{ aiRes }}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary" sc-camel-on-click="{{ aiPing }}">Проверить ИИ</button>
+              <sc-if value="{{ aiLocked }}"><button class="btn btn-secondary" sc-camel-on-click="{{ aiUnlock }}">Открыть секрет</button></sc-if>
+              <sc-if value="{{ aiHasSecret }}"><button class="btn btn-ghost" sc-camel-on-click="{{ aiToggle }}">{{ aiShowLabel }}</button></sc-if>
+              <button class="btn btn-ghost" sc-camel-on-click="{{ aiNewSecret }}">Новый секрет редактора</button>
+            </div>
+          </section>
+        </sc-if>
         <div style="font-size:13px;color:var(--color-accent-700)">{{ dialogError }}</div>
         <div class="dialog-actions">
           <sc-if value="{{ gsConnected }}"><button class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ gsDisconnect }}">Отключить таблицу</button></sc-if>
@@ -1097,6 +1112,7 @@
           </div>
           <div style="grid-column:1/-1;font-size:12px;color:var(--color-neutral-700)">{{ draftZoneInfo }}</div>
           <div class="field" style="grid-column:1/-1"><label>Примечание</label><textarea class="input" name="note" value="{{ draft.note }}" sc-camel-on-change="{{ onDraft }}" style="min-height:56px"></textarea></div>
+          <div class="field" style="grid-column:1/-1"><label>Маркировки в манифестах <span style="font-weight:400;color:var(--color-neutral-700)">— через запятую, например CBETKO, SVETKO; по ним импорт узнаёт клиента</span></label><input class="input" name="marks" value="{{ draft.marks }}" sc-camel-on-change="{{ onDraft }}" placeholder="CBETKO, SVETKO"></div>
         </div>
         <div style="font-size:13px;color:var(--color-accent-700)">{{ dialogError }}</div>
         <div class="dialog-actions">
@@ -1128,6 +1144,8 @@ const money = n => n == null ? '—' : Math.round(n).toLocaleString('ru-RU') + '
 const dShort = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) : '';
 const dLong = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4) : '';
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+// маркировки клиента: «CBETKO,  svetko ; CBETKO» → «CBETKO, SVETKO» (без повторов, как пишут в манифестах — капсом)
+const normMarks = s => [...new Set(String(s || '').split(/[,;\n]+/).map(x => x.trim().replace(/\s+/g, ' ').toUpperCase()).filter(Boolean))].join(', ');
 const hhmm = m => { m = Math.round(m); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 const telHref = t => t ? 'tel:' + String(t).replace(/[^\d+]/g, '').replace(/^998/, '+998') : '';
 
@@ -1199,6 +1217,8 @@ class Component extends DCLogic {
     if (S.gazelM3 == null || (S.gazelM3 === 18 && S.gazelKg === 2000)) Object.assign(changed, { gazelM3: 23, gazelKg: 4000 });
     if (S.laboKg === 800) changed.laboKg = 550;
     if (S.freeOutM3 == null) changed.freeOutM3 = 1;
+    if (S.densityMin == null) changed.densityMin = 40;   // импорт манифестов: легче или тяжелее — предупреждение
+    if (S.densityMax == null) changed.densityMax = 800;
     // склад отправки: примерная точка из Excel → точная, по ссылке владельца (google.com/maps?q=41.383782,69.233623)
     if (S.depotLat === 41.380417 && S.depotLon === 69.235222) Object.assign(changed, { depotLat: 41.383782, depotLon: 69.233623 });   // груз точки меньше 1 м³ — не платим (данные до этой настройки)
     Object.assign(S, changed);
@@ -1343,8 +1363,8 @@ class Component extends DCLogic {
     // Старый скрипт в таблице не записывает новые настройки (B55–B58): оставляем значения сайта
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
-      changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6 };
-    this.gsScriptOld = !(j.v >= 7); this.gsVersion = +j.v || 0;
+      changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
+    this.gsScriptOld = !(j.v >= 8); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || [];
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -1405,7 +1425,7 @@ class Component extends DCLogic {
     const ops = [], dels = [];
     const rowOf = (id, p) => { const m = String(id || '').match(new RegExp('^' + p + '(\\d{1,5})$')); return m ? +m[1] : null; };
     const pick = (o, keys) => keys.reduce((a, k) => (a[k] = o[k] ?? '', a), {});
-    const SK = ['date', 'bl', 'cbm', 'kg', 'places', 'truck', 'route', 'status', 'note'], CK = ['bl', 'brand', 'name', 'tel1', 'tel2', 'receiver', 'receiverTel', 'district', 'address', 'lat', 'lon', 'note', 'manualZone', 'link'], WK = ['bl', 'brand', 'name', 'lat', 'lon'];
+    const SK = ['date', 'bl', 'cbm', 'kg', 'places', 'truck', 'route', 'status', 'note'], CK = ['bl', 'brand', 'name', 'tel1', 'tel2', 'receiver', 'receiverTel', 'district', 'address', 'lat', 'lon', 'note', 'manualZone', 'link', 'marks'], WK = ['bl', 'brand', 'name', 'lat', 'lon'];
     const same = (a, b, K) => JSON.stringify(pick(a, K)) === JSON.stringify(pick(b, K));
     const byId = a => Object.fromEntries((a || []).map(x => [x.id, x]));
     const ps = byId(prev.shipments), ns = byId(next.shipments);
@@ -1964,13 +1984,14 @@ class Component extends DCLogic {
       { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), { ...F('depotLink', 'Ссылка на склад', '', this.state.depotLinkInfo || 'Вставьте ссылку из Google или Яндекс Карт — широта и долгота заполнятся сами', 'text'), value: this.state.depotLinkDraft || '' }, F('depotLat', 'Широта', '°', 'Отсюда начинаются все рейсы: от точки зависят километры и время'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
       { title: 'Машины для планов', fields: [F('gazelM3', 'Gazel — объём кузова', 'м³', 'Сколько реально помещается. В плане A — строго до этого'), F('gazelKg', 'Gazel — грузоподъёмность', 'кг'), F('bTolM3', 'План B — допуск Gazel по объёму', 'м³', 'Сверх объёма кузова. 5 → в плане B Gazel берёт до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³; 0 — без допуска'), F('bTolKg', 'План B — допуск Gazel по весу', 'кг', 'Сверх грузоподъёмности. Груз больше Gazel с допуском едет на Kamaz'), F('cM3', 'Kamaz — объём кузова', 'м³'), F('cKg', 'Kamaz — грузоподъёмность', 'кг', 'Груз больше Kamaz делится на несколько рейсов'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения')] },
       { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Только для листов планов в Excel'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), F('tripsPerVehicle', 'Рейсов на машину в день', 'шт', 'Машин не хватает — второй рейс той, что раньше вернётся'),
-        F('freeOutM3', 'Не платим за доставку, если груз точки меньше', 'м³', 'И за точки за кольцом — при любом объёме. Расходы в планах — тремя частями: платим (внутри кольца, от этого объёма), не платим — меньше него, не платим — за кольцом. Рейсы не меняются. 0 — не платим только за кольцом'), { ...F('smartLabo', 'Labo в планах A и B', '', '1 — Labo, если груз помещается и так дешевле; 0 — без Labo'), value: S.smartLabo ?? 1 }] }
+        F('freeOutM3', 'Не платим за доставку, если груз точки меньше', 'м³', 'И за точки за кольцом — при любом объёме. Расходы в планах — тремя частями: платим (внутри кольца, от этого объёма), не платим — меньше него, не платим — за кольцом. Рейсы не меняются. 0 — не платим только за кольцом'), { ...F('smartLabo', 'Labo в планах A и B', '', '1 — Labo, если груз помещается и так дешевле; 0 — без Labo'), value: S.smartLabo ?? 1 }] },
+      { title: 'Импорт манифестов', fields: [F('densityMin', 'Плотность груза — не меньше', 'кг/м³', 'Строка манифеста легче — предупреждение: возможна ошибка в м³ или кг'), F('densityMax', 'Плотность груза — не больше', 'кг/м³', 'Строка тяжелее — предупреждение: тяжёлый груз или ошибка')] }
     ];
   }
 
   openShipment(s) { this.setState({ dialog: { type: 'ship', mode: s ? 'edit' : 'new', id: s && s.id, draft: s ? { ...s, route: s.route ?? '' } : { date: this.state.jDate !== 'all' ? this.state.jDate : new Date().toISOString().slice(0, 10), bl: '', cbm: '', kg: '', places: '', truck: 'Belgilanmagan', route: '', status: 'Rejada', note: '' }, error: '' } }); }
   openWh(w) { this.setState({ dialog: { type: 'wh', mode: w ? 'edit' : 'new', id: w && w.id, draft: w ? { ...w, lat: w.lat ?? '', lon: w.lon ?? '' } : { bl: '', brand: '', name: '', lat: '', lon: '' }, error: '' } }); }
-  openClient(c) { this.setState({ dialog: { type: 'client', mode: c ? 'edit' : 'new', id: c && c.bl, draft: c ? { ...c, lat: c.lat ?? '', lon: c.lon ?? '' } : { bl: '', brand: '', name: '', tel1: '', tel2: '', receiver: '', receiverTel: '', district: '__auto', address: '', lat: '', lon: '', note: '', manualZone: '' }, error: '' } }); }
+  openClient(c) { this.setState({ dialog: { type: 'client', mode: c ? 'edit' : 'new', id: c && c.bl, draft: c ? { ...c, lat: c.lat ?? '', lon: c.lon ?? '', marks: c.marks || '' } : { bl: '', brand: '', name: '', tel1: '', tel2: '', receiver: '', receiverTel: '', district: '__auto', address: '', lat: '', lon: '', note: '', manualZone: '', marks: '' }, error: '' } }); }
   runAutoDistrict() {
     const d = this.state.data; if (!d || !window.LogiEngine) return;
     let changed = false;
@@ -2000,6 +2021,29 @@ class Component extends DCLogic {
   // ── Ссылка на карту → координаты, адрес, район ──
   // Координаты берутся из самой ссылки сразу; короткую ссылку (maps.app.goo.gl, yandex…/maps/-/…) раскрывает скрипт
   // Google Таблицы (версия 7+); адрес и район — геокодер Google через тот же скрипт, без него — OpenStreetMap.
+  // ── ИИ через скрипт Google Таблицы (версия 8) ──
+  // Тем же POST text/plain, что и синхронизация. Ключ Claude API и модель — в свойствах скрипта; скрипт пускает к ИИ
+  // только с секретом редактора (свойство EDITOR_TOKEN), а сайт хранит его в настройках руководителя (vault.owner).
+  async aiPost(ai) {
+    if (!this.gsUrl) throw new Error('Сначала подключите Google Таблицу');
+    if (this.readOnly) throw new Error('ИИ-импорт — только для руководителя');
+    const A = window.LogiAuth, own = A && A.owner ? A.owner() : { config: {} };
+    const r = await fetch(this.gsUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', ai }) });
+    const j = await r.json();
+    if (!(j.v >= 8)) throw new Error('Для ИИ нужен код скрипта таблицы версии 8: «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания');
+    return j;
+  }
+  async aiPing() {
+    const set = patch => this.setState(s => s.dialog && s.dialog.type === 'gs' ? { dialog: { ...s.dialog, ai: { ...(s.dialog.ai || {}), ...patch } } } : null);
+    set({ busy: true, res: 'Проверяю…', color: 'var(--color-neutral-700)' });
+    try {
+      const j = await this.aiPost({ action: 'ping', meta: { file: '' } });
+      if (!j.ok) { set({ busy: false, res: j.error + (j.code === 'editor' ? ' Проверьте, что секрет ниже совпадает со свойством EDITOR_TOKEN.' : ''), color: 'var(--color-accent-900)' }); return; }
+      set({ busy: false, color: 'var(--color-accent-700)', res: 'Готово: ' + j.model + ' ответила за ' + f1(j.ms / 1000, 1) + ' с (' + j.mode + ').' +
+        (j.editorSet ? '' : ' Внимание: в свойствах скрипта нет EDITOR_TOKEN — ИИ сможет вызвать любой, кто знает пароль таблицы, в том числе вход «только просмотр».') });
+    } catch (e) { set({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
+  }
   async gsGet(params) {
     const q = Object.entries(params).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
     const r = await fetch(this.gsUrl + (this.gsUrl.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(this.gsToken || '') + '&' + q + '&t=' + Date.now());
@@ -2554,6 +2598,29 @@ class Component extends DCLogic {
         out.gsConnected = !!this.gsUrl;
         out.copyGs = e => { const b = e.currentTarget; navigator.clipboard.writeText(window.LOGI_GS_SCRIPT || '').then(() => { b.textContent = 'Скопировано ✓'; setTimeout(() => { b.textContent = 'Скопировать код'; }, 1800); }).catch(() => { const ta = document.getElementById('gs-code'); ta && ta.select(); document.execCommand('copy'); }); };
         out.gsNeedGh = !(window.LogiAuth && window.LogiAuth.hasGhToken());
+        // ИИ-импорт: секрет редактора (настройки руководителя) и проверка связи
+        { const A = window.LogiAuth, own = A && A.owner ? A.owner() : { state: 'none', config: {} }, ai = dl.ai || {}, sec = own.config.editorToken || '';
+          const setAi = patch => this.setState(s => s.dialog && s.dialog.type === 'gs' ? { dialog: { ...s.dialog, ai: { ...(s.dialog.ai || {}), ...patch } } } : null);
+          const fail = e => setAi({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' });
+          out.aiInfo = this.gsVersion && this.gsVersion < 8 ? 'Скрипт таблицы версии ' + this.gsVersion + ': для ИИ нужна версия 8 — обновите код (шаги выше).' :
+            own.state === 'open' && sec ? 'В свойства скрипта (Apps Script → ⚙ Настройки проекта → Свойства скрипта) впишите: ANTHROPIC_API_KEY — ключ Claude API, EDITOR_TOKEN — секрет редактора ниже, при желании AI_MODEL (по умолчанию claude-sonnet-5).' :
+            own.state === 'locked' ? 'Секрет редактора есть, но на этом устройстве закрыт: введите пароль входа.' :
+            'Секрет редактора не задан. Нажмите «Новый секрет редактора» (нужны пароль входа и GitHub-токен) и впишите его в свойство скрипта EDITOR_TOKEN.';
+          Object.assign(out, { aiRes: ai.res || '', aiResColor: ai.color || 'var(--color-neutral-700)', aiBusy: !!ai.busy, aiNeedPass: own.state !== 'open', aiPass: ai.pass || '',
+            aiHasSecret: !!sec, aiShowSecret: !!(ai.show && sec), aiSecret: sec, aiShowLabel: ai.show ? 'Скрыть секрет' : 'Показать секрет', aiLocked: own.state === 'locked',
+            onAiPass: e => setAi({ pass: e.target.value }),
+            aiPing: () => this.aiPing(),
+            aiToggle: () => setAi({ show: !ai.show }),
+            aiCopy: e => { const b = e.currentTarget; navigator.clipboard.writeText(sec).then(() => { b.textContent = 'Скопировано ✓'; setTimeout(() => { b.textContent = 'Скопировать'; }, 1800); }).catch(() => {}); },
+            aiUnlock: async () => { setAi({ busy: true, res: 'Открываю…' }); try { await A.unlockOwner(ai.pass || ''); setAi({ busy: false, pass: '', res: 'Секрет редактора открыт на этом устройстве.', color: 'var(--color-accent-700)' }); } catch (e) { fail(e); } },
+            aiNewSecret: async () => {
+              if (sec && !confirm('Заменить секрет редактора? Старый перестанет работать, новый нужно будет вписать в свойство скрипта EDITOR_TOKEN.')) return;
+              const b = new Uint8Array(18); crypto.getRandomValues(b);
+              const fresh = Array.from(b, x => 'abcdefghjkmnpqrstuvwxyz23456789'[x % 31]).join('').replace(/(.{6})(?=.)/g, '$1-');
+              setAi({ busy: true, res: 'Сохраняю в настройки руководителя…' });
+              try { await A.saveOwnerConfig({ editorToken: fresh }, (dl.draft || {}).gh, ai.pass || ''); setAi({ busy: false, pass: '', show: true, res: 'Новый секрет сохранён. Впишите его в свойство скрипта EDITOR_TOKEN — старый больше не подходит.', color: 'var(--color-accent-700)' }); }
+              catch (e) { fail(e); }
+            } }); }
         out.gsWhere = !this.gsUrl ? '' : this.gsShared ? 'Сейчас подключена одна таблица для всех устройств.' : 'Сейчас таблица подключена только на этом устройстве.';
         const say = error => this.setState(s => ({ dialog: s.dialog && { ...s.dialog, error } }));
         // ссылка на таблицу — в общие настройки сайта (нужен GitHub-токен, как для смены пароля)
@@ -2644,7 +2711,7 @@ class Component extends DCLogic {
           const bl = String(dr.bl).trim();
           if (!bl) return this.setState({ dialog: { ...dl, error: 'Укажите BL код' } });
           if (dl.mode === 'new' && D.cmap[bl]) return this.setState({ dialog: { ...dl, error: 'Клиент с таким BL уже есть' } });
-          const rec = { ...dr, bl, lat: la === '' || isNaN(+la) ? null : +la, lon: lo === '' || isNaN(+lo) ? null : +lo };
+          const rec = { ...dr, bl, lat: la === '' || isNaN(+la) ? null : +la, lon: lo === '' || isNaN(+lo) ? null : +lo, marks: normMarks(dr.marks) };
           const old = dl.mode === 'edit' ? D.cmap[dl.id] : null;
           const moved = !old || old.lat !== rec.lat || old.lon !== rec.lon;
           if (rec.district === '__auto' || (!dr._distTouched && moved && rec.lat != null)) { const g = E.guessDistrict(rec.lat, rec.lon, data.clients, dl.id); rec.district = g ? g.district : 'Aniqlanmagan'; }

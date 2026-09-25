@@ -10,6 +10,11 @@
  *   node tools/vault.mjs add-user <логин> [viewer]       добавить пользователя (viewer — только просмотр)
  *   node tools/vault.mjs remove-user <логин>             удалить пользователя
  *   node tools/vault.mjs set-data <data.xlsx>            заменить данные (ключ и пользователи те же)
+ *   node tools/vault.mjs set-editor [секрет]             секрет редактора для ИИ-импорта (свойство скрипта EDITOR_TOKEN)
+ *
+ * Настройки руководителя (vault.owner, сейчас — секрет редактора) шифруются отдельным ключом руководителя.
+ * Он завёрнут паролем только у руководителей (users[…].okey), вход «только просмотр» его не получает.
+ * add-user передаёт ключ руководителя новому руководителю, если он есть у VAULT_LOGIN.
  *
  * Для add-user и set-data нужен пароль существующего пользователя:
  *   VAULT_LOGIN=… VAULT_PASSWORD=… node tools/vault.mjs …
@@ -36,10 +41,25 @@ async function kek(password, salt, iterations) {
   const base = await subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
   return subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 }
-async function wrapFor(v, login, password, dekRaw, role) {
-  const salt = rand(16), iv = rand(12), id = await loginId(v.userSalt, login), keep = role === undefined ? (v.users[id] || {}).role : role;
-  const key = await subtle.encrypt({ name: 'AES-GCM', iv }, await kek(password, salt, v.kdf.iterations), dekRaw);
+async function wrapFor(v, login, password, dekRaw, role, okRaw) {
+  const salt = rand(16), iv = rand(12), id = await loginId(v.userSalt, login), keep = role === undefined ? (v.users[id] || {}).role : role, k = await kek(password, salt, v.kdf.iterations);
+  const key = await subtle.encrypt({ name: 'AES-GCM', iv }, k, dekRaw);
   v.users[id] = { salt: b64(salt), iv: b64(iv), key: b64(new Uint8Array(key)), ...(keep ? { role: keep } : {}) };
+  if (okRaw && keep !== 'viewer') v.users[id].okey = await wrapOwner(k, okRaw);
+}
+async function wrapOwner(k, okRaw) { const iv = rand(12); return { iv: b64(iv), key: b64(new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv }, k, okRaw))) }; }
+async function unwrapOwner(v, login, password) {
+  const u = v.users[await loginId(v.userSalt, login)];
+  if (!u || !u.okey) return null;
+  return new Uint8Array(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(u.okey.iv) }, await kek(password, unb64(u.salt), v.kdf.iterations), unb64(u.okey.key)));
+}
+async function sealJSON(keyRaw, obj) {
+  const iv = rand(12), k = await subtle.importKey('raw', keyRaw, 'AES-GCM', false, ['encrypt']);
+  return { iv: b64(iv), ct: b64(new Uint8Array(await subtle.encrypt({ name: 'AES-GCM', iv }, k, enc.encode(JSON.stringify(obj))))) };
+}
+async function openJSON(keyRaw, box) {
+  const k = await subtle.importKey('raw', keyRaw, 'AES-GCM', false, ['decrypt']);
+  return JSON.parse(new TextDecoder().decode(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, k, unb64(box.ct))));
 }
 async function unwrap(v, login, password) {
   const u = v.users[await loginId(v.userSalt, login)];
@@ -86,7 +106,8 @@ try {
     if (!a1) throw new Error('add-user <логин> [viewer]');
     if (a2 && a2 !== 'viewer') throw new Error('Роль — только viewer (только просмотр) или без роли (всё можно)');
     const v = load(), dekRaw = await existingKey(v), password = process.env.NEW_PASSWORD || genPassword();
-    await wrapFor(v, a1, password, dekRaw, a2 || null);
+    const okRaw = a2 === 'viewer' ? null : await unwrapOwner(v, process.env.VAULT_LOGIN, process.env.VAULT_PASSWORD);
+    await wrapFor(v, a1, password, dekRaw, a2 || null, okRaw);
     save(v); announce(a1, password, !process.env.NEW_PASSWORD); if (a2) console.log('Роль:   только просмотр');
   } else if (cmd === 'remove-user') {
     if (!a1) throw new Error('remove-user <логин>');
@@ -99,8 +120,20 @@ try {
     const v = load();
     await sealData(v, await existingKey(v), readXlsx(a1));
     save(v); console.log('Данные обновлены');
+  } else if (cmd === 'set-editor') {
+    // секрет редактора: создаётся ключ руководителя (если его ещё нет) и заворачивается паролем VAULT_LOGIN
+    const v = load(); await existingKey(v);
+    const { VAULT_LOGIN, VAULT_PASSWORD } = process.env, id = await loginId(v.userSalt, VAULT_LOGIN), u = v.users[id];
+    if (u.role === 'viewer') throw new Error('Секрет редактора задаёт только руководитель');
+    let okRaw = await unwrapOwner(v, VAULT_LOGIN, VAULT_PASSWORD);
+    if (!okRaw && v.owner) throw new Error('У этого входа нет ключа руководителя, а настройки руководителя уже есть — задайте секрет от имени того, у кого он есть');
+    if (!okRaw) { okRaw = rand(32); u.okey = await wrapOwner(await kek(VAULT_PASSWORD, unb64(u.salt), v.kdf.iterations), okRaw); }
+    const cfg = v.owner ? await openJSON(okRaw, v.owner) : {}, secret = a1 || genPassword() + '-' + genPassword();
+    cfg.editorToken = secret; v.owner = await sealJSON(okRaw, cfg);
+    save(v);
+    console.log('Секрет редактора: ' + secret + (a1 ? '' : '\nВпишите его в свойство скрипта EDITOR_TOKEN (Apps Script → Настройки проекта → Свойства скрипта).'));
   } else {
-    console.log('Команды: init <data.xlsx> <логин> | add-user <логин> [viewer] | remove-user <логин> | set-data <data.xlsx>');
+    console.log('Команды: init <data.xlsx> <логин> | add-user <логин> [viewer] | remove-user <логин> | set-data <data.xlsx> | set-editor [секрет]');
     process.exitCode = cmd ? 1 : 0;
   }
 } catch (e) {
