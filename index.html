@@ -479,6 +479,237 @@
     </main>
   </sc-if>
 
+  <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+    <main class="page rep-page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:24px">
+      <div class="rep-print-head">
+        <img src="buraq-brand/logo/buraq-logo.svg" alt="BURAQ logistics" style="height:40px;width:auto">
+        <div style="margin-left:auto;text-align:right;font-size:11px;color:var(--color-neutral-700)"><div>{{ repPrintTitle }}</div><div>Сформирован {{ repMade }}</div></div>
+      </div>
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div>
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Hisobotlar</div>
+          <h1 style="margin:2px 0 0;font-size:38px">{{ repTitle }}</h1>
+          <div class="rep-sub" style="font-size:13px;color:var(--color-neutral-700);margin-top:4px">{{ repSub }}</div>
+        </div>
+        <div class="page-tools no-print" style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+          <div class="viz-seg rep-seg" style="display:flex;border:1px solid var(--color-divider)">
+            <sc-for list="{{ repKinds }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:500;cursor:pointer;white-space:nowrap;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for>
+          </div>
+          <sc-if value="{{ repIsBatch }}">
+            <sc-raw-select class="input" style="width:190px" value="{{ repDate }}" sc-camel-on-change="{{ onRepDate }}"><sc-for list="{{ repDateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for></sc-raw-select>
+          </sc-if>
+          <sc-if value="{{ repIsPeriod }}">
+            <sc-raw-select class="input" style="width:170px" value="{{ repPeriod }}" sc-camel-on-change="{{ onRepPeriod }}"><sc-for list="{{ repPeriodOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select>
+          </sc-if>
+          <sc-if value="{{ repIsCustom }}">
+            <sc-raw-select class="input" style="width:150px" value="{{ repFrom }}" sc-camel-on-change="{{ onRepFrom }}" aria-label="С"><sc-for list="{{ repDateAsc }}" as="o"><option value="{{ o.v }}">с {{ o.l }}</option></sc-for></sc-raw-select>
+            <sc-raw-select class="input" style="width:150px" value="{{ repTo }}" sc-camel-on-change="{{ onRepTo }}" aria-label="По"><sc-for list="{{ repDateAsc }}" as="o"><option value="{{ o.v }}">по {{ o.l }}</option></sc-for></sc-raw-select>
+          </sc-if>
+          <button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ repPrint }}">Печать / PDF</button>
+          <button class="btn btn-primary blueprint" style="white-space:nowrap" sc-camel-on-click="{{ repXlsx }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Скачать Excel</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ repHasNote }}"><div class="rep-note" style="border-left:2px solid var(--color-red);padding:8px 14px;background:var(--color-surface);font-size:13px">{{ repNote }}</div></sc-if>
+
+      <div class="kpi-strip" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--color-divider)">
+        <sc-for list="{{ repKpis }}" as="k" hint-placeholder-count="6">
+          <div style="padding:14px 16px;border-right:1px solid var(--color-divider)">
+            <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div>
+            <div style="font-family:var(--font-heading);font-weight:500;font-size:26px;margin-top:2px;white-space:nowrap">{{ k.value }}</div>
+            <div style="font-size:12px;color:var(--color-neutral-700)">{{ k.sub }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ repHasCost }}">
+        <section class="rep-block rep-cost" style="border:1px solid var(--color-divider);padding:14px 18px;display:flex;flex-direction:column;gap:5px;max-width:640px">
+          <h3 style="margin:0 0 6px">Расходы тремя частями</h3>
+          <sc-for list="{{ repCost }}" as="c"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;color:{{ c.color }};font-weight:{{ c.w }};font-size:{{ c.fs }}"><span>{{ c.l }}</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap">{{ c.v }}</span></div></sc-for>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ repIsBatch }}">
+        <div style="display:flex;flex-direction:column;gap:20px">
+          <sc-for list="{{ repTrips }}" as="t">
+            <section class="trip rep-block" style="border:1px solid var(--color-divider)">
+              <div class="trip-head" style="display:flex;align-items:center;gap:14px 20px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
+                <div style="font-family:var(--font-heading);font-weight:500;font-size:22px;min-width:130px">{{ t.name }}</div>
+                <span class="tag tag-outline">{{ t.tariff }}</span>
+                <span style="font-size:13px">{{ t.info }}</span>
+                <div style="margin-left:auto;text-align:right"><div style="font-family:var(--font-heading);font-weight:500;font-size:20px;white-space:nowrap">{{ t.price }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ t.formula }}</div><div style="font-size:11px;color:var(--color-accent-800)">{{ t.costNote }}</div></div>
+              </div>
+              <sc-raw-table class="table tc">
+                <sc-raw-thead><sc-raw-tr><sc-raw-th style="width:36px">№</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Адрес</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">KG</sc-raw-th><sc-raw-th style="text-align:right">Мест</sc-raw-th><sc-raw-th>Прибытие</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Доля, сум</sc-raw-th></sc-raw-tr></sc-raw-thead>
+                <sc-raw-tbody>
+                  <sc-for list="{{ t.stops }}" as="s">
+                    <sc-raw-tr>
+                      <sc-raw-td class="c1 o-1" style="color:var(--color-neutral-700)">{{ s.n }}</sc-raw-td>
+                      <sc-raw-td class="c3 o-1 c-strong" style="font-weight:500;white-space:nowrap">{{ s.bl }}</sc-raw-td>
+                      <sc-raw-td class="cw c-title"><div>{{ s.brand }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ s.name }}</div></sc-raw-td>
+                      <sc-raw-td class="cw rep-addr" data-label="Адрес" style="max-width:280px"><div class="addr-clamp" title="{{ s.address }}">{{ s.address }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ s.district }}</div></sc-raw-td>
+                      <sc-raw-td data-label="Получатель"><div>{{ s.receiver }}</div><a href="{{ s.telHref }}" style="font-size:12px;white-space:nowrap">{{ s.tel }}</a></sc-raw-td>
+                      <sc-raw-td class="c2" data-label="CBM" style="text-align:right">{{ s.cbm }}</sc-raw-td>
+                      <sc-raw-td class="c2" data-label="KG" style="text-align:right">{{ s.kg }}</sc-raw-td>
+                      <sc-raw-td class="c2" data-label="Мест" style="text-align:right">{{ s.places }}</sc-raw-td>
+                      <sc-raw-td class="c2" data-label="Прибытие">{{ s.eta }}</sc-raw-td>
+                      <sc-raw-td class="c2 o-1 c-end">
+                        <sc-if value="{{ s.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
+                        <sc-if value="{{ s.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
+                        <sc-if value="{{ s.free }}"><span class="tag tag-outline">{{ s.freeTag }}</span></sc-if>
+                      </sc-raw-td>
+                      <sc-raw-td class="c2" data-label="Доля, сум" style="text-align:right">{{ s.share }}</sc-raw-td>
+                    </sc-raw-tr>
+                  </sc-for>
+                </sc-raw-tbody>
+              </sc-raw-table>
+            </section>
+          </sc-for>
+          <sc-if value="{{ repHasLeft }}">
+            <section class="rep-block" style="border:1px dashed var(--color-neutral-500)">
+              <div style="padding:12px 18px;border-bottom:1px solid var(--color-divider)"><h3 style="margin:0">Без рейса</h3><div style="font-size:12px;color:var(--color-neutral-700)">Не входят в стоимость партии.</div></div>
+              <sc-raw-table class="table tc"><sc-raw-tbody>
+                <sc-for list="{{ repLeft }}" as="s">
+                  <sc-raw-tr><sc-raw-td class="c2 c-strong" style="font-weight:500;width:120px">{{ s.bl }}</sc-raw-td><sc-raw-td class="c4">{{ s.name }}</sc-raw-td><sc-raw-td class="c2" style="text-align:right">{{ s.cbm }} м³</sc-raw-td><sc-raw-td class="c2" style="text-align:right">{{ s.kg }} кг</sc-raw-td><sc-raw-td class="c4" style="color:var(--color-neutral-700)">{{ s.why }}</sc-raw-td></sc-raw-tr>
+                </sc-for>
+              </sc-raw-tbody></sc-raw-table>
+            </section>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ repIsCost }}">
+        <section class="rep-block">
+          <h3 style="margin:0 0 10px">По партиям</h3>
+          <div style="border:1px solid var(--color-divider);overflow-x:auto">
+            <sc-raw-table class="table tc">
+              <sc-raw-thead><sc-raw-tr><sc-raw-th>Партия</sc-raw-th><sc-raw-th>Источник</sc-raw-th><sc-raw-th style="text-align:right">Отгрузок</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">Рейсов</sc-raw-th><sc-raw-th style="text-align:right">Стоимость</sc-raw-th><sc-raw-th style="text-align:right">Платим</sc-raw-th><sc-raw-th style="text-align:right">Не платим {{ repSmallHead }}</sc-raw-th><sc-raw-th style="text-align:right">Не платим за кольцом</sc-raw-th><sc-raw-th style="text-align:right">Сум за м³</sc-raw-th><sc-raw-th class="no-print"></sc-raw-th></sc-raw-tr></sc-raw-thead>
+              <sc-raw-tbody>
+                <sc-for list="{{ repBatches }}" as="b">
+                  <sc-raw-tr>
+                    <sc-raw-td class="c3 o-1 c-strong" style="font-weight:500;white-space:nowrap">{{ b.label }}</sc-raw-td>
+                    <sc-raw-td class="c1 o-1 c-end"><span class="tag {{ b.srcCls }}">{{ b.src }}</span></sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Отгрузок" style="text-align:right">{{ b.ships }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="CBM" style="text-align:right">{{ b.cbm }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Рейсов" style="text-align:right">{{ b.trips }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Стоимость" style="text-align:right;white-space:nowrap"><div style="font-weight:500">{{ b.price }}</div><div class="rep-bar" style="height:4px;background:var(--color-neutral-200);margin-top:3px"><div class="bar" style="height:4px;background:var(--color-accent);width:{{ b.bar }};margin-left:auto"></div></div></sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Платим" style="text-align:right">{{ b.paid }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Не платим, мелкий" style="text-align:right">{{ b.small }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="За кольцом" style="text-align:right">{{ b.outside }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Сум за м³" style="text-align:right">{{ b.perM3 }}</sc-raw-td>
+                    <sc-raw-td class="c-actions no-print"><div style="display:flex"><button class="btn btn-ghost" sc-camel-on-click="{{ b.open }}">Отчёт</button></div></sc-raw-td>
+                  </sc-raw-tr>
+                </sc-for>
+                <sc-raw-tr class="rep-total">
+                  <sc-raw-td class="c3 o-1 c-strong" style="font-weight:500">Итого</sc-raw-td><sc-raw-td class="c1 o-1"></sc-raw-td>
+                  <sc-raw-td class="c2" data-label="Отгрузок" style="text-align:right">{{ repTotal.ships }}</sc-raw-td>
+                  <sc-raw-td class="c2" data-label="CBM" style="text-align:right">{{ repTotal.cbm }}</sc-raw-td>
+                  <sc-raw-td class="c2" data-label="Рейсов" style="text-align:right">{{ repTotal.trips }}</sc-raw-td>
+                  <sc-raw-td class="c2" data-label="Стоимость" style="text-align:right;font-weight:500;white-space:nowrap">{{ repTotal.price }}</sc-raw-td>
+                  <sc-raw-td class="c2" data-label="Платим" style="text-align:right">{{ repTotal.paid }}</sc-raw-td>
+                  <sc-raw-td class="c2" data-label="Не платим, мелкий" style="text-align:right">{{ repTotal.small }}</sc-raw-td>
+                  <sc-raw-td class="c2" data-label="За кольцом" style="text-align:right">{{ repTotal.outside }}</sc-raw-td>
+                  <sc-raw-td class="c2" data-label="Сум за м³" style="text-align:right">{{ repTotal.perM3 }}</sc-raw-td>
+                  <sc-raw-td class="no-print"></sc-raw-td>
+                </sc-raw-tr>
+              </sc-raw-tbody>
+            </sc-raw-table>
+          </div>
+        </section>
+        <div class="grid-split" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start">
+          <section class="rep-block">
+            <h3 style="margin:0 0 10px">По машинам</h3>
+            <div style="border:1px solid var(--color-divider);overflow-x:auto">
+              <sc-raw-table class="table tc">
+                <sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th style="text-align:right">Рейсов</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">Км</sc-raw-th><sc-raw-th style="text-align:right">Стоимость</sc-raw-th><sc-raw-th style="text-align:right">Доля</sc-raw-th><sc-raw-th style="text-align:right">За рейс</sc-raw-th></sc-raw-tr></sc-raw-thead>
+                <sc-raw-tbody>
+                  <sc-for list="{{ repByKind }}" as="k">
+                    <sc-raw-tr>
+                      <sc-raw-td class="c4 o-1 c-strong" style="font-weight:500">{{ k.name }}</sc-raw-td>
+                      <sc-raw-td class="c2" data-label="Рейсов" style="text-align:right">{{ k.trips }}</sc-raw-td>
+                      <sc-raw-td class="c2" data-label="CBM" style="text-align:right">{{ k.cbm }}</sc-raw-td>
+                      <sc-raw-td class="c2" data-label="Км" style="text-align:right">{{ k.km }}</sc-raw-td>
+                      <sc-raw-td class="c2" data-label="Стоимость" style="text-align:right;white-space:nowrap">{{ k.price }}</sc-raw-td>
+                      <sc-raw-td class="c2" data-label="Доля" style="text-align:right">{{ k.share }}</sc-raw-td>
+                      <sc-raw-td class="c2" data-label="За рейс" style="text-align:right">{{ k.perTrip }}</sc-raw-td>
+                    </sc-raw-tr>
+                  </sc-for>
+                </sc-raw-tbody>
+              </sc-raw-table>
+            </div>
+          </section>
+          <section class="rep-block">
+            <h3 style="margin:0 0 10px">По районам</h3>
+            <div style="border:1px solid var(--color-divider);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+              <sc-for list="{{ repByDistrict }}" as="d">
+                <div>
+                  <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;margin-bottom:3px"><span>{{ d.name }}</span><span style="color:var(--color-neutral-700);font-variant-numeric:tabular-nums;text-align:right">{{ d.price }} сум · {{ d.pts }} точ. · {{ d.cbm }} м³</span></div>
+                  <div style="height:6px;background:var(--color-neutral-200)"><div class="bar" style="height:6px;background:var(--color-accent);width:{{ d.bar }}"></div></div>
+                  <div style="font-size:11px;color:var(--color-neutral-700);margin-top:2px">платим {{ d.paid }} · не платим {{ d.free }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ repIsFleet }}">
+        <section class="rep-block">
+          <h3 style="margin:0 0 10px">Машины</h3>
+          <div style="border:1px solid var(--color-divider);overflow-x:auto">
+            <sc-raw-table class="table tc">
+              <sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th style="text-align:right">В парке</sc-raw-th><sc-raw-th style="text-align:right">Рейсов</sc-raw-th><sc-raw-th style="text-align:right">Дней</sc-raw-th><sc-raw-th style="text-align:right">Макс. за день</sc-raw-th><sc-raw-th style="text-align:right">Машин в тот день</sc-raw-th><sc-raw-th style="text-align:right">Можно в день</sc-raw-th><sc-raw-th style="text-align:right">Не хватало</sc-raw-th><sc-raw-th>Загрузка м³</sc-raw-th><sc-raw-th style="text-align:right">Загрузка кг</sc-raw-th><sc-raw-th style="text-align:right">Меньше половины</sc-raw-th></sc-raw-tr></sc-raw-thead>
+              <sc-raw-tbody>
+                <sc-for list="{{ repFleet }}" as="f">
+                  <sc-raw-tr>
+                    <sc-raw-td class="c4 o-1 c-strong" style="font-weight:500">{{ f.name }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="В парке" style="text-align:right">{{ f.park }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Рейсов" style="text-align:right">{{ f.trips }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Дней" style="text-align:right">{{ f.days }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Макс. за день" style="text-align:right;white-space:nowrap">{{ f.peak }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Машин в тот день" style="text-align:right">{{ f.cars }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Можно в день" style="text-align:right">{{ f.cap }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Не хватало" style="text-align:right;color:{{ f.shortColor }}">{{ f.short }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Загрузка м³" style="min-width:110px"><div style="display:flex;align-items:center;gap:8px"><span style="min-width:38px">{{ f.fillM3 }}</span><span style="flex:1;height:5px;background:var(--color-neutral-300)"><span class="bar" style="display:block;height:5px;width:{{ f.barM3 }};background:var(--color-accent)"></span></span></div></sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Загрузка кг" style="text-align:right">{{ f.fillKg }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Меньше половины" style="text-align:right">{{ f.under }}</sc-raw-td>
+                  </sc-raw-tr>
+                </sc-for>
+              </sc-raw-tbody>
+            </sc-raw-table>
+          </div>
+          <ul class="rep-notes" style="margin:12px 0 0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:4px;font-size:13px">
+            <sc-for list="{{ repFleetNotes }}" as="n"><li>{{ n.text }}</li></sc-for>
+          </ul>
+        </section>
+        <section class="rep-block">
+          <h3 style="margin:0 0 10px">Сравнение планов</h3>
+          <div style="border:1px solid var(--color-divider);overflow-x:auto">
+            <sc-raw-table class="table tc">
+              <sc-raw-thead><sc-raw-tr><sc-raw-th>Партия</sc-raw-th><sc-raw-th style="text-align:right">План A</sc-raw-th><sc-raw-th style="text-align:right">План B</sc-raw-th><sc-raw-th style="text-align:right">План C</sc-raw-th><sc-raw-th style="text-align:right">Журнал</sc-raw-th><sc-raw-th>Самый дешёвый</sc-raw-th><sc-raw-th class="no-print"></sc-raw-th></sc-raw-tr></sc-raw-thead>
+              <sc-raw-tbody>
+                <sc-for list="{{ repEcon }}" as="e">
+                  <sc-raw-tr>
+                    <sc-raw-td class="c3 o-1 c-strong" style="font-weight:500;white-space:nowrap">{{ e.label }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="План A" style="text-align:right;white-space:nowrap">{{ e.a }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="План B" style="text-align:right;white-space:nowrap">{{ e.b }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="План C" style="text-align:right;white-space:nowrap">{{ e.c }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Журнал" style="text-align:right;white-space:nowrap">{{ e.j }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Самый дешёвый">{{ e.best }}</sc-raw-td>
+                    <sc-raw-td class="c-actions no-print"><div style="display:flex"><button class="btn btn-ghost" sc-camel-on-click="{{ e.open }}">Планы</button></div></sc-raw-td>
+                  </sc-raw-tr>
+                </sc-for>
+              </sc-raw-tbody>
+            </sc-raw-table>
+          </div>
+          <ul class="rep-notes" style="margin:12px 0 0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:4px;font-size:13px">
+            <sc-for list="{{ repEconNotes }}" as="n"><li>{{ n.text }}</li></sc-for>
+          </ul>
+        </section>
+      </sc-if>
+    </main>
+  </sc-if>
+
   <sc-if value="{{ isPlans }}" hint-placeholder-val="{{ false }}">
     <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:24px">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
@@ -896,6 +1127,7 @@ const f1 = (n, d = 1) => (n == null || isNaN(n)) ? '—' : (+n).toLocaleString('
 const money = n => n == null ? '—' : Math.round(n).toLocaleString('ru-RU') + ' сум';
 const dShort = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) : '';
 const dLong = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4) : '';
+const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 const hhmm = m => { m = Math.round(m); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 const telHref = t => t ? 'tel:' + String(t).replace(/[^\d+]/g, '').replace(/^998/, '+998') : '';
 
@@ -1301,18 +1533,271 @@ class Component extends DCLogic {
     return this._memo;
   }
 
+  // планы считаются один раз на партию, пока не изменились данные и настройки (отчёты за период берут все партии)
   plansFor(date) {
     const { data } = this.state, D = this.derived(), E = window.LogiEngine;
-    const key = D.ver + '|' + date + '|' + JSON.stringify(data.settings);
-    if (this._plans && this._plans.key === key) return this._plans.res;
+    const key = D.ver + '|' + JSON.stringify(data.settings);
+    if (!this._plans || this._plans.key !== key) this._plans = { key, byDate: new Map() };
+    if (this._plans.byDate.has(date)) return this._plans.byDate.get(date);
     const stops = data.shipments.filter(s => s.date === date && !E.NO_PLAN.includes(s.status)).map(s => {
       const c = D.cmap[s.bl] || {};
       return { id: s.id, bl: s.bl, cbm: +s.cbm || 0, kg: +s.kg || 0, places: +s.places || 0, lat: c.lat ?? null, lon: c.lon ?? null, zone: (D.zones[s.bl] || {}).zone, client: c };
     });
     const res = E.buildPlans(stops, data.settings);
     res.all = stops;
-    this._plans = { key, res };
+    this._plans.byDate.set(date, res);
     return res;
+  }
+
+  // ---------- Отчёты ----------
+  // Рейсы партии для отчётов. Источник — журнал (машина и номер рейса у отгрузок); если в журнале у партии
+  // нет ни одного рейса — план A. Время по журналу: первый рейс машины выезжает в начале дня,
+  // следующий — после возвращения предыдущего; точки — в порядке объезда, как в планах.
+  reportBatch(date) {
+    const D = this.derived(), E = window.LogiEngine, data = this.state.data, S = data.settings, depot = [S.depotLat, S.depotLon];
+    const key = D.ver + '|' + JSON.stringify(S);
+    if (!this._rep || this._rep.key !== key) this._rep = { key, byDate: new Map() };
+    if (this._rep.byDate.has(date)) return this._rep.byDate.get(date);
+    const ret = t => t.finish + t.back / S.speed * 60 * S.roadK;
+    const caps = { labo: [S.laboM3, S.laboKg], changan: [S.changanM3, S.changanKg], gazel: [S.gazelM3, S.gazelKg], kamaz: [S.cM3, S.cKg] };
+    const stopOf = s => { const c = D.cmap[s.bl] || {}; return { id: s.id, bl: s.bl, cbm: +s.cbm || 0, kg: +s.kg || 0, places: +s.places || 0, lat: c.lat ?? null, lon: c.lon ?? null, zone: (D.zones[s.bl] || {}).zone, client: c }; };
+    const ships = data.shipments.filter(s => s.date === date), keys = Object.keys(D.trips).filter(k => k.startsWith(date + '|'));
+    let src, trips, left;
+    if (keys.length) {
+      src = 'journal';
+      trips = keys.map(k => {
+        const t = D.trips[k], rest = k.slice(date.length + 1), j = rest.lastIndexOf('|'), truck = rest.slice(0, j), route = +rest.slice(j + 1) || 1;
+        const stops = t.items.map(stopOf), cap = caps[t.kind] || [0, 0];
+        return { name: truck + (route > 1 ? ' · рейс ' + route : ''), truck, route, kind: t.kind, car: truck, stops, price: t.price, cost: t.cost,
+          cbm: stops.reduce((a, x) => a + x.cbm, 0), kg: stops.reduce((a, x) => a + x.kg, 0), places: stops.reduce((a, x) => a + x.places, 0), capM3: +cap[0] || 0, capKg: +cap[1] || 0 };
+      });
+      const byCar = {};
+      trips.forEach(t => (byCar[t.truck] = byCar[t.truck] || []).push(t));
+      Object.values(byCar).forEach(list => list.sort((a, b) => a.route - b.route).reduce((at, t) => {
+        const w = t.stops.filter(x => x.lat != null), m = E.tripMetrics(depot, w, S, at);
+        let j = 0; t.arrivals = t.stops.map(x => x.lat != null ? m.arrivals[j++] : null);
+        Object.assign(t, { start: at, real: m.real, ret: w.length ? ret(m) : at, noCoords: t.stops.length - w.length });
+        return t.ret;
+      }, S.dayStart * 1440));
+      const rank = { labo: 0, changan: 1, gazel: 2, kamaz: 3 };
+      trips.sort((a, b) => (rank[a.kind] - rank[b.kind]) || a.truck.localeCompare(b.truck, 'ru', { numeric: true }) || a.route - b.route);
+      left = ships.filter(s => !D.tripOf[s.id]).map(s => ({ ...stopOf(s), why: E.NO_PRICE.includes(s.status) ? ST[s.status] || s.status : !E.vehicleKind(s.truck) ? 'без машины' : 'без номера рейса' }));
+    } else {
+      src = 'plan';
+      const P = this.plansFor(date), inPlan = new Set();
+      trips = P.A.trips.map(t => { const v = t.vehicle || {}; t.stops.forEach(x => inPlan.add(x.id));
+        return { name: t.name, truck: null, route: t.round || 1, kind: t.kind, car: t.car ? t.kind + '-' + t.car : null, stops: t.stops, price: t.price, cost: E.costSplit(t.stops, t.price, S),
+          cbm: t.cbm, kg: t.kg, places: t.places, capM3: v.nomM3 ?? v.m3, capKg: v.nomKg ?? v.kg, start: t.start ?? S.dayStart * 1440, arrivals: t.arrivals, real: t.real, ret: ret(t), noVehicle: !!t.noVehicle, over: !!t.over }; });
+      left = ships.filter(s => !inPlan.has(s.id)).map(s => ({ ...stopOf(s), why: E.NO_PLAN.includes(s.status) ? ST[s.status] || s.status : (D.cmap[s.bl] || {}).lat == null ? 'нет координат' : 'не в плане' }));
+    }
+    const priced = trips.filter(t => t.price && t.price.total != null);
+    const res = { date, src, trips, left, ships, sum: { trips: trips.length, unpriced: trips.length - priced.length, price: priced.reduce((a, t) => a + t.price.total, 0), cost: this.costOf(trips.map(t => t.cost)),
+      km: trips.reduce((a, t) => a + (t.real || 0), 0), cbm: ships.reduce((a, s) => a + (+s.cbm || 0), 0), kg: ships.reduce((a, s) => a + (+s.kg || 0), 0), places: ships.reduce((a, s) => a + (+s.places || 0), 0) } };
+    this._rep.byDate.set(date, res);
+    return res;
+  }
+  // Вкладка «Отчёты»: партия на день, расходы за период, автопарк и экономия
+  reportView(st, S, D) {
+    const E = window.LogiEngine, kind = st.repKind || 'batch', lim = +S.freeOutM3 || 0, KINDS = ['labo', 'changan', 'gazel', 'kamaz'];
+    const pct = x => x == null || isNaN(x) ? '—' : Math.round(x * 100) + ' %', r3 = x => Math.round(x * 1000) / 1000;
+    const sumP = (v, unp) => unp && !v ? 'нет тарифа' : f0(v) + (unp ? ' +' : '');
+    const distName = d => d === 'Aniqlanmagan' || !d ? 'Не определён' : d;
+    const kindsOf = trips => KINDS.map(k => [k, trips.filter(t => t.kind === k).length]).filter(x => x[1]).map(([k, n]) => VEH[k] + ' ' + n).join(' · ');
+    const unpNote = n => n ? 'рейсов без тарифа: ' + n : '';
+    const known = t => t.capM3 > 0 && t.capKg > 0 && (t.cbm > 0 || t.kg > 0);   // рейсы с известным грузом — для загрузки
+    const now = new Date(), ds = D.dates, last = ds[ds.length - 1] || '';
+    const out = { repIsBatch: kind === 'batch', repIsCost: kind === 'cost', repIsFleet: kind === 'fleet', repIsPeriod: kind !== 'batch',
+      repKinds: [['batch', 'Партия на день'], ['cost', 'Расходы за период'], ['fleet', 'Автопарк и экономия']].map(([k, l]) => ({ l, go: () => this.setState({ repKind: k }), bg: kind === k ? 'var(--color-accent)' : 'transparent', fg: kind === k ? 'var(--color-bg)' : 'var(--color-text)' })),
+      repMade: dLong(now.toISOString().slice(0, 10)) + ' ' + hhmm(now.getHours() * 60 + now.getMinutes()),
+      repDateOpts: ds.slice().reverse().map(v => ({ v, l: dLong(v) })), repDateAsc: ds.map(v => ({ v, l: dLong(v) })),
+      repNote: '', repHasNote: false, repKpis: [], repCost: [], repHasCost: false, repEmpty: !ds.length,
+      repPrint: () => this.reportPrint(), repXlsx: () => this.reportXlsx() };
+    if (!ds.length) return Object.assign(out, { repTitle: 'Отчёты', repSub: 'Нет данных', repPrintTitle: '' });
+
+    if (kind === 'batch') {
+      const date = ds.includes(st.repDate) ? st.repDate : last, r = this.reportBatch(date), c = r.sum.cost;
+      Object.assign(out, { repDate: date, onRepDate: e => this.setState({ repDate: e.target.value }), repTitle: 'Отчёт по партии', repSub: 'Партия ' + dLong(date) + ' · ' + (r.src === 'journal' ? 'по журналу' : 'по плану A') });
+      out.repPrintTitle = 'Отчёт по партии ' + dLong(date);
+      out.repNote = r.src === 'plan' ? 'В журнале у этой партии машин ещё нет, поэтому рейсы и стоимость — по плану A. Чтобы записать их в журнал: «Планы» → «Принять план A».'
+        : r.left.length ? r.left.length + ' отгр. без рейса — не входят в стоимость (список внизу).' : '';
+      if (r.ships.length && !r.sum.cbm && !r.sum.kg) out.repNote += (out.repNote ? ' ' : '') + 'У отгрузок партии нет объёма и веса (CBM и KG пустые) — рейсы посчитаны как пустые. Проверьте журнал.';
+      out.repKpis = [
+        { label: 'Отгрузок', value: f0(r.ships.length), sub: f0(r.ships.length - r.left.length) + ' в рейсах' },
+        { label: 'Объём, м³', value: f1(r.sum.cbm, 1), sub: f0(r.sum.kg) + ' кг · ' + f0(r.sum.places) + ' мест' },
+        { label: 'Рейсов', value: f0(r.sum.trips), sub: kindsOf(r.trips) },
+        { label: 'Пробег, км', value: f0(r.sum.km), sub: 'с возвратом на склад' },
+        { label: 'Стоимость, сум', value: sumP(r.sum.price, r.sum.unpriced), sub: unpNote(r.sum.unpriced) || (r.src === 'journal' ? 'по журналу' : 'по плану A') },
+        { label: 'Платим, сум', value: c.n ? f0(c.ours) : '—', sub: c.n ? 'не платим ' + f0(c.notPaid) : '' }];
+      out.repCost = this.costRows(c, S, r.sum.unpriced); out.repHasCost = c.n > 0;
+      out.repTrips = r.trips.map(t => ({ name: t.name, tariff: (t.price ? t.price.label : VEH[t.kind]) + (t.over ? ' · ПЕРЕГРУЗ' : '') + (t.noVehicle ? ' · НЕТ МАШИНЫ' : ''),
+        info: new Set(t.stops.map(x => x.bl)).size + ' точ. · ' + f1(t.cbm, 2) + ' из ' + f1(t.capM3, 1) + ' м³ · ' + f0(t.kg) + ' из ' + f0(t.capKg) + ' кг · ' + f1(t.real, 1) + ' км · ' + hhmm(t.start) + '–' + hhmm(t.ret),
+        price: t.price && t.price.total != null ? money(t.price.total) : 'нет тарифа', formula: t.price && t.price.total != null ? t.price.formula : '', costNote: this.costNote(t.cost),
+        stops: t.stops.map((x, j) => { const cl = x.client || {}, why = t.cost && t.cost.why[j], tel = cl.receiverTel || cl.tel1 || '';
+          return { n: j + 1, bl: x.bl + (x.parts ? ' · ' + x.part + '/' + x.parts : ''), brand: cl.brand || '—', name: cl.name || '', address: cl.address || '', district: distName(cl.district), receiver: cl.receiver || '', tel, telHref: telHref(tel),
+            cbm: f1(x.cbm, 3), kg: f1(x.kg, 1), places: x.places || '—', eta: t.arrivals && t.arrivals[j] != null ? hhmm(t.arrivals[j]) : '—',
+            zIn: x.zone === 'in', zOut: x.zone === 'out', free: !!why, freeTag: why === 'small' ? 'не платим · < ' + f1(lim, 2) + ' м³' : 'не платим',
+            share: t.price && t.price.total != null && !(t.price.dupFlags && t.price.dupFlags[j] && !t.price.perStop[j]) ? f0(t.price.perStop[j]) : '—' }; }) }));
+      out.repLeft = r.left.map(x => ({ bl: x.bl, name: ((x.client.brand || '') + ' ' + (x.client.name || '')).trim() || '—', cbm: f1(x.cbm, 2), kg: f0(x.kg), why: x.why }));
+      out.repHasLeft = r.left.length > 0;
+    } else {
+      const period = this.repPeriodOf(), dates = this.reportDates(), R = dates.map(d => this.reportBatch(d));
+      const months = [...new Set(ds.map(d => d.slice(0, 7)))].reverse();
+      const plabel = period === 'all' ? 'Всё время' : period === 'custom' ? '' : MONTHS[+period.slice(7) - 1] + ' ' + period.slice(2, 6);
+      const range = dates.length ? dLong(dates[0]) + ' – ' + dLong(dates[dates.length - 1]) : 'партий нет';
+      Object.assign(out, { repPeriod: period, repIsCustom: period === 'custom', onRepPeriod: e => this.setState({ repPeriod: e.target.value }),
+        repPeriodOpts: months.map(m => ({ v: 'm:' + m, l: MONTHS[+m.slice(5) - 1] + ' ' + m.slice(0, 4) })).concat([{ v: 'all', l: 'Всё время' }, { v: 'custom', l: 'Свой период…' }]),
+        repFrom: st.repFrom || ds[0], repTo: st.repTo || last, onRepFrom: e => this.setState({ repFrom: e.target.value }), onRepTo: e => this.setState({ repTo: e.target.value }) });
+      const nJ = R.filter(r => r.src === 'journal').length, trips = R.flatMap(r => r.trips);
+      const noVol = R.filter(r => r.ships.length && !r.sum.cbm && !r.sum.kg), withVol = R.filter(r => r.sum.cbm > 0);
+      const volNote = noVol.length ? ' ' + noVol.length + ' парт. без объёма и веса (' + noVol.map(r => dShort(r.date)).join(', ') + '): стоимость по ним посчитана, а загрузка и цена за м³ — без них.' : '';
+      const perM3 = withVol.length ? withVol.reduce((a, r) => a + r.sum.price, 0) / withVol.reduce((a, r) => a + r.sum.cbm, 0) : null;
+      const srcNote = !R.length ? 'В этом периоде партий нет.' : nJ === R.length ? 'Все партии — по журналу.' : nJ ? 'По журналу — ' + nJ + ' из ' + R.length + ' партий, остальные — по плану A (в журнале у них машин нет).' : 'В журнале у этих партий машин ещё нет, поэтому рейсы и стоимость — по плану A. После «Принять план» отчёт пойдёт по журналу.';
+      const T = { ships: R.reduce((a, r) => a + r.ships.length, 0), cbm: R.reduce((a, r) => a + r.sum.cbm, 0), kg: R.reduce((a, r) => a + r.sum.kg, 0), km: R.reduce((a, r) => a + r.sum.km, 0),
+        price: R.reduce((a, r) => a + r.sum.price, 0), unpriced: R.reduce((a, r) => a + r.sum.unpriced, 0), cost: this.costOf(trips.map(t => t.cost)) };
+      out.repSub = (plabel ? plabel + ' · ' : '') + range + ' · ' + R.length + ' ' + (R.length % 10 === 1 && R.length % 100 !== 11 ? 'партия' : [2, 3, 4].includes(R.length % 10) && ![12, 13, 14].includes(R.length % 100) ? 'партии' : 'партий');
+      out.repPeriodKey = period.startsWith('m:') ? period.slice(2) : dates.length ? dates[0] + '_' + dates[dates.length - 1] : 'bosh';   // для имени файла
+
+      if (kind === 'cost') {
+        const c = T.cost;
+        Object.assign(out, { repTitle: 'Расходы за период', repPrintTitle: 'Расходы на доставку · ' + (plabel ? plabel + ' · ' : '') + range, repNote: srcNote + volNote });
+        out.repKpis = [
+          { label: 'Партий', value: f0(R.length), sub: nJ ? 'журнал ' + nJ + ' · план A ' + (R.length - nJ) : 'по плану A' },
+          { label: 'Отгрузок', value: f0(T.ships), sub: f1(T.cbm, 1) + ' м³ · ' + f1(T.kg / 1000, 1) + ' т' },
+          { label: 'Рейсов', value: f0(trips.length), sub: f0(T.km) + ' км' },
+          { label: 'Стоимость, сум', value: sumP(T.price, T.unpriced), sub: unpNote(T.unpriced) || (perM3 ? f0(perM3) + ' сум за м³' : '') },
+          { label: 'Платим, сум', value: c.n ? f0(c.ours) : '—', sub: c.n && T.price ? pct(c.ours / T.price) + ' стоимости' : '' },
+          { label: 'Не платим, сум', value: c.n ? f0(c.notPaid) : '—', sub: c.n ? (lim ? '< ' + f1(lim, 2) + ' м³ ' + f0(c.small) + ' · ' : '') + 'за кольцом ' + f0(c.outside) : '' }];
+        out.repCost = this.costRows(c, S, T.unpriced); out.repHasCost = c.n > 0;
+        const maxP = Math.max(1, ...R.map(r => r.sum.price));
+        out.repBatches = R.map(r => ({ label: dLong(r.date), src: r.src === 'journal' ? 'журнал' : 'план A', srcCls: r.src === 'journal' ? 'tag-accent' : 'tag-outline', ships: f0(r.ships.length), cbm: f1(r.sum.cbm, 1), trips: f0(r.sum.trips),
+          price: sumP(r.sum.price, r.sum.unpriced), paid: r.sum.cost.n ? f0(r.sum.cost.ours) : '—', small: r.sum.cost.n ? f0(r.sum.cost.small) : '—', outside: r.sum.cost.n ? f0(r.sum.cost.outside) : '—',
+          perM3: r.sum.cbm && r.sum.price ? f0(r.sum.price / r.sum.cbm) : '—', bar: (r.sum.price / maxP * 100).toFixed(1) + '%', open: () => this.setState({ repKind: 'batch', repDate: r.date }) }));
+        out.repTotal = { ships: f0(T.ships), cbm: f1(T.cbm, 1), trips: f0(trips.length), price: sumP(T.price, T.unpriced), paid: c.n ? f0(c.ours) : '—', small: c.n ? f0(c.small) : '—', outside: c.n ? f0(c.outside) : '—', perM3: perM3 ? f0(perM3) : '—' };
+        out.repSmallHead = lim ? '< ' + f1(lim, 2) + ' м³' : '< порога';
+        out.repByKind = KINDS.map(k => { const ts = trips.filter(t => t.kind === k), pr = ts.filter(t => t.price && t.price.total != null), p = pr.reduce((a, t) => a + t.price.total, 0);
+          return ts.length ? { name: VEH[k], trips: f0(ts.length), cbm: f1(ts.reduce((a, t) => a + t.cbm, 0), 1), kg: f0(ts.reduce((a, t) => a + t.kg, 0)), km: f0(ts.reduce((a, t) => a + (t.real || 0), 0)),
+            price: sumP(p, ts.length - pr.length), share: T.price ? pct(p / T.price) : '—', perTrip: pr.length ? f0(p / pr.length) : '—', bar: (T.price ? p / T.price * 100 : 0).toFixed(1) + '%',
+            raw: [VEH[k], ts.length, r3(ts.reduce((a, t) => a + t.cbm, 0)), Math.round(ts.reduce((a, t) => a + t.kg, 0)), Math.round(ts.reduce((a, t) => a + (t.real || 0), 0)), p, T.price ? Math.round(p / T.price * 100) : '', pr.length ? Math.round(p / pr.length) : '', ts.length - pr.length || ''] } : null; }).filter(Boolean);
+        const byD = {};
+        R.forEach(r => r.trips.forEach(t => t.stops.forEach((x, j) => {
+          const dn = distName((x.client || {}).district), o = byD[dn] = byD[dn] || { pts: new Set(), cbm: 0, price: 0, paid: 0, free: 0 };
+          o.pts.add(r.date + '|' + x.bl); o.cbm += x.cbm;
+          if (t.price && t.price.total != null) { const v = t.price.perStop[j] || 0; o.price += v; if (t.cost && t.cost.why[j]) o.free += v; else o.paid += v; }
+        })));
+        const dl = Object.entries(byD).sort((a, b) => b[1].price - a[1].price || b[1].cbm - a[1].cbm), maxD = Math.max(1, ...dl.map(x => x[1].price));
+        out.repByDistrict = dl.map(([name, o]) => ({ name, pts: f0(o.pts.size), cbm: f1(o.cbm, 1), price: f0(o.price), paid: f0(o.paid), free: f0(o.free), bar: (o.price / maxD * 100).toFixed(1) + '%',
+          raw: [name, o.pts.size, r3(o.cbm), Math.round(o.price), Math.round(o.paid), Math.round(o.free)] }));
+        this._repX = { kind, out, R, T };
+      } else {
+        // автопарк: рейсы и машины по дням, загрузка; сравнение планов по партиям
+        const per = +S.tripsPerVehicle || 2, park = { labo: +S.laboCount || 0, changan: +S.changanCount || 0, gazel: +S.gazelCount || 0, kamaz: +S.cTrucks || 0 };
+        const notes = [];
+        out.repFleet = KINDS.map(k => {
+          const ts = trips.filter(t => t.kind === k);
+          if (!ts.length && !park[k]) return null;
+          const days = R.map(r => { const x = r.trips.filter(t => t.kind === k); return { date: r.date, n: x.length, cars: new Set(x.map(t => t.car).filter(Boolean)).size, noCar: x.filter(t => t.noVehicle).length }; }).filter(x => x.n);
+          const peak = days.reduce((a, x) => !a || x.n > a.n ? x : a, null), cap = park[k] * per;
+          const short = days.filter(x => x.noCar || (park[k] && (x.n > cap || x.cars > park[k])));
+          const withCap = ts.filter(known), avg = f => withCap.length ? withCap.reduce((a, t) => a + f(t), 0) / withCap.length : null;
+          const fM3 = avg(t => t.cbm / t.capM3), fKg = avg(t => t.kg / t.capKg), under = withCap.filter(t => Math.max(t.cbm / t.capM3, t.kg / t.capKg) < 0.5).length;
+          if (ts.length) {
+            notes.push(VEH[k] + ': больше всего — ' + peak.n + ' ' + reys(peak.n) + ' за день (' + dShort(peak.date) + ')' + (peak.cars ? ' на ' + peak.cars + ' маш.' : '') + (park[k] ? ' из ' + park[k] + ' (можно до ' + cap + (cap % 10 === 1 && cap % 100 !== 11 ? ' рейса' : ' рейсов') + ' в день)' : '') + '. '
+              + (short.length ? 'Не хватало машин в ' + short.length + ' парт.: ' + short.map(x => dShort(x.date)).join(', ') + '.' : park[k] ? 'Машин хватает' + (peak.cars && peak.cars * 2 <= park[k] ? ' с запасом' : '') + '.' : ''));
+            if (fM3 != null) notes.push(VEH[k] + ': средняя загрузка — ' + pct(fM3) + ' по объёму, ' + pct(fKg) + ' по весу' + (under ? '; меньше половины загружены ' + under + ' ' + reys(under) + ' из ' + withCap.length : '') + '.');
+          } else if (park[k]) notes.push(VEH[k] + ': в этом периоде рейсов нет' + (E.priceTrip([{ bl: '-', zone: 'in', cbm: 0, kg: 0 }], k, S).total == null ? ' — у машины нет тарифа, в планах она не используется.' : '.'));
+          return { name: VEH[k], park: park[k] ? f0(park[k]) : '—', trips: f0(ts.length), days: f0(days.length), peak: peak ? peak.n + ' · ' + dShort(peak.date) : '—', cars: peak && peak.cars ? f0(peak.cars) : '—', cap: park[k] ? f0(cap) : '—',
+            short: short.length ? f0(short.length) : 'нет', shortColor: short.length ? 'var(--color-accent-900)' : 'inherit', fillM3: pct(fM3), fillKg: pct(fKg), under: withCap.length ? f0(under) : '—', barM3: ((fM3 || 0) * 100).toFixed(1) + '%',
+            raw: [VEH[k], park[k] || '', ts.length, days.length, peak ? peak.n : '', peak ? dLong(peak.date) : '', peak && peak.cars ? peak.cars : '', park[k] ? cap : '', short.length, fM3 != null ? Math.round(fM3 * 100) : '', fKg != null ? Math.round(fKg * 100) : '', withCap.length ? under : ''] };
+        }).filter(Boolean);
+        const cell = (P, k) => P[k].noFleet ? 'нет машин' : !P[k].sum.trips ? '—' : sumP(P[k].sum.price, P[k].sum.unpriced);
+        const full = (P, k) => !P[k].noFleet && P[k].sum.trips > 0 && !P[k].sum.unpriced;
+        let cmp = { n: 0, a: 0, b: 0, skip: 0 }, jc = { n: 0, j: 0, a: 0 };
+        out.repEcon = R.map(r => {
+          // самый дешёвый — среди планов с ценой у всех рейсов; если у плана без цены части рейсов уже известная сумма меньше — ответа нет
+          const P = this.plansFor(r.date), ks = ['A', 'B', 'C'].filter(k => full(P, k)), min = ks.length ? ks.reduce((a, k) => P[k].sum.price < P[a].sum.price ? k : a) : null;
+          const best = min && !['A', 'B', 'C'].some(k => !P[k].noFleet && P[k].sum.unpriced && P[k].sum.price > 0 && P[k].sum.price < P[min].sum.price) ? min : null;
+          if (full(P, 'A') && full(P, 'B')) { cmp.n++; cmp.a += P.A.sum.price; cmp.b += P.B.sum.price; } else if (P.A.sum.trips || P.B.sum.trips) cmp.skip++;
+          if (r.src === 'journal' && !r.sum.unpriced && full(P, 'A')) { jc.n++; jc.j += r.sum.price; jc.a += P.A.sum.price; }
+          const rawP = k => full(P, k) ? P[k].sum.price : cell(P, k);
+          return { label: dLong(r.date), a: cell(P, 'A'), b: cell(P, 'B'), c: cell(P, 'C'), j: r.src === 'journal' ? sumP(r.sum.price, r.sum.unpriced) : '—', best: best ? 'План ' + best : '—', open: () => this.setState({ tab: 'plans', planDate: r.date }),
+            raw: [dLong(r.date), rawP('A'), rawP('B'), rawP('C'), r.src === 'journal' ? (r.sum.unpriced ? sumP(r.sum.price, r.sum.unpriced) : r.sum.price) : '', best ? 'План ' + best : ''] };
+        });
+        const econ = [];
+        if (cmp.n) { const d = cmp.b - cmp.a, rel = Math.abs(d) / Math.max(cmp.a, cmp.b);
+          econ.push(d > 0 ? 'План A дешевле плана B на ' + money(d) + ' (' + pct(rel) + ') за ' + cmp.n + ' парт.'
+            : d < 0 ? 'План B дешевле плана A на ' + money(-d) + ' (' + pct(rel) + ') за ' + cmp.n + ' парт.: B грузит Gazel сверх кузова (допуск +' + f1(S.bTolM3, 1) + ' м³ / +' + f0(S.bTolKg) + ' кг), A — строго по кузову.'
+            : 'Планы A и B стоят одинаково за ' + cmp.n + ' парт.'); }
+        if (cmp.skip) econ.push('Не сравнивали ' + cmp.skip + ' парт.: в них есть рейсы без тарифа (Kamaz).');
+        if (R.length && R.every(r => { const P = this.plansFor(r.date); return !full(P, 'C'); })) econ.push('План C (только Kamaz) не с чем сравнить: у Kamaz нет тарифа. Заполните его во вкладке «Тарифы».');
+        econ.push(jc.n ? 'По журналу ' + jc.n + ' парт. стоили ' + money(jc.j) + ', план A для них — ' + money(jc.a) + (jc.j - jc.a > 0.5 ? ': по плану вышло бы дешевле на ' + money(jc.j - jc.a) + '.' : jc.a - jc.j > 0.5 ? ': по журналу дешевле на ' + money(jc.a - jc.j) + '.' : ': одинаково.')
+          : 'Сравнение с журналом появится, когда планы будут приняты («Планы» → «Принять план»).');
+        Object.assign(out, { repTitle: 'Автопарк и экономия', repPrintTitle: 'Автопарк и экономия · ' + (plabel ? plabel + ' · ' : '') + range, repNote: srcNote + volNote,
+          repFleetNotes: notes.map(text => ({ text })), repEconNotes: econ.map(text => ({ text })) });
+        out.repKpis = [
+          { label: 'Партий', value: f0(R.length), sub: nJ ? 'журнал ' + nJ + ' · план A ' + (R.length - nJ) : 'по плану A' },
+          { label: 'Рейсов', value: f0(trips.length), sub: kindsOf(trips) },
+          { label: 'Рейсов в день', value: R.length ? f1(trips.length / R.length, 1) : '—', sub: 'в среднем на партию' },
+          { label: 'Пробег, км', value: f0(T.km), sub: R.length ? f0(T.km / R.length) + ' км на партию' : '' },
+          { label: 'Загрузка, м³', value: trips.some(known) ? pct(trips.filter(known).reduce((a, t, i, arr) => a + t.cbm / t.capM3 / arr.length, 0)) : '—', sub: 'средняя по рейсам' },
+          { label: 'Сум за м³', value: perM3 ? f0(perM3) : '—', sub: unpNote(T.unpriced) || 'стоимость / объём' }];
+        this._repX = { kind, out, R, T };
+      }
+    }
+    if (kind === 'batch') this._repX = { kind, out };
+    out.repHasNote = !!out.repNote;
+    return out;
+  }
+  // печать и PDF: печатается только отчёт (css/app.css, @media print); имя PDF — из заголовка страницы
+  reportPrint() {
+    const x = this._repX; if (!x) return;
+    const t0 = document.title, restore = () => { document.title = t0; };
+    document.title = 'BURAQ — ' + (x.out.repPrintTitle || 'Отчёт');
+    window.addEventListener('afterprint', restore, { once: true }); setTimeout(restore, 3000);
+    window.print();
+  }
+  reportXlsx() {
+    const x = this._repX; if (!x) return;
+    const E = window.LogiEngine, o = x.out, sheets = [], num = v => (v == null || isNaN(v)) ? '' : Math.round(v * 1000) / 1000;
+    // лист «Итоги»: заголовок отчёта (первая строка — жирная), пояснение, показатели
+    const kp = [[o.repPrintTitle || o.repTitle], ['Сформирован ' + o.repMade]].concat(o.repNote ? [[o.repNote]] : []).concat([[], ['Показатель', 'Значение', 'Пояснение']]).concat(o.repKpis.map(k => [k.label, k.value, k.sub]));
+    let name;
+    if (x.kind === 'batch') {
+      const r = this.reportBatch(o.repDate), rows = [['Рейс', 'Машина', '№', 'BL', 'Бренд', 'Клиент', 'Адрес', 'Район', 'Получатель', 'Телефон', 'CBM', 'KG', 'Мест', 'Прибытие', 'Зона', 'Не платим', 'Доля, сум', 'Цена рейса', 'Км рейса']];
+      r.trips.forEach(t => t.stops.forEach((s, j) => { const c = s.client || {}, why = t.cost && t.cost.why[j];
+        rows.push([t.name, t.price ? t.price.label : VEH[t.kind], j + 1, s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : ''), c.brand || '', c.name || '', c.address || '', c.district || '', c.receiver || '', c.receiverTel || c.tel1 || '', num(s.cbm), num(s.kg), s.places || '',
+          t.arrivals && t.arrivals[j] != null ? hhmm(t.arrivals[j]) : '', s.zone === 'out' ? 'Снаружи' : s.zone === 'in' ? 'Внутри' : '', why === 'small' ? '< порога' : why === 'out' ? 'за кольцом' : '',
+          t.price && t.price.total != null ? Math.round(t.price.perStop[j] || 0) : '', j === 0 && t.price && t.price.total != null ? t.price.total : '', j === 0 ? Math.round((t.real || 0) * 10) / 10 : '']); }));
+      sheets.push({ name: 'Рейсы ' + dShort(r.date), rows });
+      if (r.left.length) sheets.push({ name: 'Без рейса', rows: [['BL', 'Клиент', 'CBM', 'KG', 'Почему']].concat(r.left.map(s => [s.bl, ((s.client.brand || '') + ' ' + (s.client.name || '')).trim(), num(s.cbm), num(s.kg), s.why])) });
+      sheets.push({ name: 'Итоги', rows: kp.concat(o.repCost.map(c => [c.l, c.v])) });
+      name = 'partiya_' + r.date;
+    } else if (x.kind === 'cost') {
+      sheets.push({ name: 'Итоги', rows: kp.concat(o.repCost.map(c => [c.l, c.v])) });
+      sheets.push({ name: 'По партиям', rows: [['Партия', 'Источник', 'Отгрузок', 'CBM', 'Рейсов', 'Стоимость', 'Платим', 'Не платим < порога', 'Не платим за кольцом', 'Сум за м³']].concat(x.R.map(r => [dLong(r.date), r.src === 'journal' ? 'журнал' : 'план A', r.ships.length, num(r.sum.cbm), r.sum.trips, r.sum.price, Math.round(r.sum.cost.ours), Math.round(r.sum.cost.small), Math.round(r.sum.cost.outside), r.sum.cbm && r.sum.price ? Math.round(r.sum.price / r.sum.cbm) : ''])) });
+      sheets.push({ name: 'По машинам', rows: [['Машина', 'Рейсов', 'CBM', 'KG', 'Км', 'Стоимость', 'Доля, %', 'Сум за рейс', 'Рейсов без тарифа']].concat(o.repByKind.map(k => k.raw)) });
+      sheets.push({ name: 'По районам', rows: [['Район', 'Точек', 'CBM', 'Стоимость', 'Платим', 'Не платим']].concat(o.repByDistrict.map(d => d.raw)) });
+      name = 'xarajatlar_' + o.repPeriodKey;
+    } else {
+      sheets.push({ name: 'Итоги', rows: kp.concat([[]]).concat(o.repFleetNotes.concat(o.repEconNotes).map(n => [n.text])) });
+      sheets.push({ name: 'Машины', rows: [['Машина', 'В парке', 'Рейсов', 'Дней с рейсами', 'Больше всего рейсов за день', 'Дата', 'Машин в тот день', 'Можно рейсов в день', 'Не хватало (партий)', 'Загрузка м³, %', 'Загрузка кг, %', 'Загружены меньше половины']].concat(o.repFleet.map(f => f.raw)) });
+      sheets.push({ name: 'Планы', rows: [['Партия', 'План A', 'План B', 'План C', 'Журнал', 'Самый дешёвый']].concat(o.repEcon.map(e => e.raw)) });
+      name = 'avtopark_' + o.repPeriodKey;
+    }
+    const blob = E.xlsx(sheets), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'BURAQ_' + name + '.xlsx';   // латиницей: так имя файла не теряется ни в одном браузере
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+  }
+  // партии выбранного периода: месяц, всё время или свой период (с … по …)
+  reportDates() {
+    const st = this.state, ds = this.derived().dates, p = this.repPeriodOf();
+    if (p === 'all') return ds;
+    if (p === 'custom') { let a = st.repFrom || ds[0] || '', b = st.repTo || ds[ds.length - 1] || ''; if (a > b) [a, b] = [b, a]; return ds.filter(d => d >= a && d <= b); }
+    return ds.filter(d => d.startsWith(p.slice(2)));
+  }
+  repPeriodOf() {
+    const ds = this.derived().dates, p = this.state.repPeriod, last = ds[ds.length - 1] || '';
+    if (p === 'all' || p === 'custom' || (p && ds.some(d => d.startsWith(String(p).slice(2))))) return p;
+    return 'm:' + last.slice(0, 7);   // по умолчанию — месяц последней партии
   }
 
   // ---------- Визуализация: рейсы плана в 3D (js/logi-viz.js) ----------
@@ -1686,9 +2171,9 @@ class Component extends DCLogic {
 
   renderVals() {
     const st = this.state;
-    const tabsDef = [['journal', 'Журнал'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['plans', 'Планы A/B/C'], ['viz', 'Визуализация'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
+    const tabsDef = [['journal', 'Журнал'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['reports', 'Отчёты'], ['plans', 'Планы A/B/C'], ['viz', 'Визуализация'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
     const tabs = tabsDef.map(([k, l]) => ({ label: l, go: () => this.setState({ tab: k }), color: st.tab === k ? 'var(--color-on-brand)' : 'color-mix(in srgb, var(--color-on-brand) 72%, transparent)', border: st.tab === k ? 'var(--color-red)' : 'transparent' }));
-    const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isViz: false, isTariffs: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
+    const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isViz: false, isTariffs: false, isReports: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
       fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
       account: () => window.LogiAuth && window.LogiAuth.openAccount(), readOnly: this.readOnly };
     const fs = st.fileStatus, fat = st.fileAt ? hhmm(st.fileAt.getHours() * 60 + st.fileAt.getMinutes()) : '';
@@ -1722,7 +2207,7 @@ class Component extends DCLogic {
     const distName = d => d === 'Aniqlanmagan' ? 'Не определён' : (d || '—');
     const out = { ...base, depotName: S.depotName, statusOpts, truckOpts, districtOpts, dateOpts,
       savedNote: st.savedAt ? 'Сохранено ' + hhmm(st.savedAt.getHours() * 60 + st.savedAt.getMinutes()) : '',
-      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isViz: st.tab === 'viz', isTariffs: st.tab === 'tariffs', isCheck: st.tab === 'check' };
+      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isViz: st.tab === 'viz', isTariffs: st.tab === 'tariffs', isReports: st.tab === 'reports', isCheck: st.tab === 'check' };
 
     if (st.tab === 'journal') {
       const q = st.jSearch.trim().toLowerCase();
@@ -1883,6 +2368,8 @@ class Component extends DCLogic {
       out.dDistricts = arr.map(([name, x]) => ({ name, cbm: f1(x.cbm, 1), count: x.n + ' отгр.', pct: (x.cbm / mx * 100).toFixed(1) + '%' }));
       out.dStatuses = lists.statuses.map(v => ({ l: ST[v], n: data.shipments.filter(s => s.status === v).length })).filter(x => x.n);
     }
+
+    if (st.tab === 'reports') Object.assign(out, this.reportView(st, S, D));
 
     if (st.tab === 'plans' && st.planDate) {
       const P = this.plansFor(st.planDate);

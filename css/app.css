@@ -140,3 +140,36 @@ html.read-only .set-input { pointer-events: none; background: var(--color-surfac
 }
 .ro-badge + .app-account { margin-left: 0; }
 @media (max-width: 700px) { .ro-badge { display: none; } }
+
+/* «Отчёты»: шапка с логотипом видна только при печати; печатается только отчёт (A4, без меню и кнопок) */
+.rep-print-head { display: none; align-items: center; gap: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--color-red); }
+.rep-total td { border-top: 1px solid var(--color-text); }
+@media print {
+  @page { size: A4; margin: 12mm 10mm; }
+  html, body, .app { background: var(--color-bg) !important; }
+  .app-header, .no-print, .auth, #auth { display: none !important; }
+  main.page { animation: none !important; max-width: none !important; padding: 0 !important; gap: 14px !important; }
+  .rep-print-head { display: flex; }
+  .rep-page h1 { font-size: 26px !important; }
+  .rep-page .kpi-strip { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+  .rep-page .kpi-strip > div { padding: 8px 10px !important; }
+  .rep-page .kpi-strip > div > div:nth-child(2) { font-size: 18px !important; }
+  .rep-page .grid-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
+  .rep-page .table th, .rep-page .table td { padding: 4px 5px !important; }
+  .rep-page .table td, .rep-page .table td *, .rep-page .table th { font-size: 9.5px !important; line-height: 1.3 !important; }
+  .rep-page .rep-addr { width: 32%; max-width: none !important; }
+  .rep-page .tag { padding: 1px 6px !important; white-space: nowrap; }
+  .rep-page .trip-head { flex-wrap: nowrap !important; gap: 10px !important; padding: 8px 12px !important; break-inside: avoid; }
+  .rep-page .trip-head > div:first-child { font-size: 16px !important; min-width: 0 !important; white-space: nowrap; }
+  .rep-page .trip-head > span { font-size: 10px !important; }
+  .rep-page .trip-head > div:last-child > div:first-child { font-size: 15px !important; }
+  .rep-page .addr-clamp { display: block; -webkit-line-clamp: unset; line-clamp: unset; overflow: visible; }
+  .rep-page .trip, .rep-page section, .rep-page section > div { overflow: visible !important; }   /* блок с прокруткой в печати не делится на страницы */
+  .rep-page table { break-inside: auto !important; }   /* js/dc-runtime.js запрещает разрыв таблиц — длинный рейс переходит на следующую страницу строками */
+  .rep-page .kpi-strip, .rep-cost, .rep-page tr { break-inside: avoid; }
+  .rep-page .trip-head, .rep-page h3 { break-after: avoid; }
+  .rep-page thead { display: table-header-group; }
+  .bar { animation: none !important; }
+  .rep-page a { color: inherit; text-decoration: none; }
+  .bar, .tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
