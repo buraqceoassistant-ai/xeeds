@@ -95,6 +95,21 @@
     return { label, total, points: uniq.length, formula: formula + ' тыс.', perStop, dupFlags: pts.map(p => p.dup != null) };
   }
 
+  // Расходы рейса тремя частями: внутри кольца, снаружи от порога, снаружи меньше порога (S.freeOutM3, обычно 1 м³) —
+  // за такие точки компания не платит. Рейсы и груз не меняются, делится только цена: доля точки — как в журнале
+  // (perStop, пропорционально тарифу точки). Точка — BL в рейсе, её объём — отгрузки целиком (у разделённой — вся).
+  // Груз без объёма к мелкому не относится: объём неизвестен.
+  function costSplit(stops, price, S) {
+    if (!price || price.total == null) return null;
+    const lim = +S.freeOutM3 || 0, vol = {};
+    stops.forEach(s => { vol[s.bl] = (vol[s.bl] || 0) + (+(s.whole != null ? s.whole : s.cbm) || 0); });
+    const free = stops.map(s => s.zone === 'out' && lim > 0 && vol[s.bl] > 0 && vol[s.bl] < lim - 1e-9);
+    const r = { inside: 0, outBig: 0, outSmall: 0, freePts: new Set(stops.filter((s, i) => free[i]).map(s => s.bl)).size, free };
+    stops.forEach((s, i) => { const v = price.perStop[i] || 0; if (free[i]) r.outSmall += v; else if (s.zone === 'out') r.outBig += v; else r.inside += v; });
+    r.ours = r.inside + r.outBig;
+    return r;
+  }
+
   function nnOrder(depot, stops) {
     const left = stops.slice(), out = []; let cur = depot;
     while (left.length) {
@@ -185,7 +200,7 @@
       let pl = shares.slice(0, -1).map(x => Math.floor(places * x + EPS));
       pl.push(places - pl.reduce((a, b) => a + b, 0));
       if (PL && pl[k - 1] > PL) { shares = Array(k).fill(1 / k); const b = Math.floor(places / k), e = places - b * k; pl = shares.map((_, i) => b + (i < e ? 1 : 0)); }
-      const parts = shares.map((x, i) => ({ ...s, cbm: cbm * x, kg: kg * x, places: pl[i], part: i + 1, parts: k }));
+      const parts = shares.map((x, i) => ({ ...s, cbm: cbm * x, kg: kg * x, places: pl[i], part: i + 1, parts: k, whole: cbm }));   // whole — объём всей отгрузки
       notes.push({ bl: s.bl, client: s.client, cbm, kg, places, parts: k, sizes: parts.map(x => ({ cbm: x.cbm, kg: x.kg })), indivisible: places > 0 && places < k });
       out.push(...parts);
     });
@@ -544,5 +559,5 @@
     return best ? { district: best[0], km: pts[0][1] } : null;
   }
 
-  window.LogiEngine = { guessDistrict, km, bearing, inside, distToRing, zoneOf, priceTrip, vehicleKind, buildPlans, yRoute, yPoint, xlsx, NO_PRICE, NO_PLAN, withKeles, ringLength, KELES, TKAD_V2 };
+  window.LogiEngine = { guessDistrict, km, bearing, inside, distToRing, zoneOf, priceTrip, costSplit, vehicleKind, buildPlans, yRoute, yPoint, xlsx, NO_PRICE, NO_PLAN, withKeles, ringLength, KELES, TKAD_V2 };
 })();

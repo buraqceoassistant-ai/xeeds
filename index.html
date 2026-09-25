@@ -113,6 +113,7 @@
           <div style="padding:14px 16px;border-right:1px solid var(--color-divider)">
             <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div>
             <div style="font-family:var(--font-heading);font-weight:500;font-size:26px;margin-top:2px">{{ k.value }}</div>
+            <div style="font-size:12px;color:var(--color-neutral-700);min-height:0">{{ k.sub }}</div>
           </div>
         </sc-for>
       </div>
@@ -147,6 +148,7 @@
                   <sc-if value="{{ r.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
                   <sc-if value="{{ r.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
                   <sc-if value="{{ r.zNone }}"><span class="tag tag-neutral">Нет коорд.</span></sc-if>
+                  <sc-if value="{{ r.free }}"><span class="tag tag-outline" title="Снаружи кольца, груз точки меньше порога из «Тарифов» — за доставку не платим">не платим</span></sc-if>
                   <sc-if value="{{ r.border }}"><div style="font-size:11px;color:var(--color-neutral-700);margin-top:2px">у границы</div></sc-if>
                 </sc-raw-td>
                 <sc-raw-td data-label="Доля, сум" style="text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums"><div>{{ r.share }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ r.tripInfo }}</div></sc-raw-td>
@@ -440,7 +442,7 @@
                     <sc-raw-td class="c2" data-label="Снаружи" style="text-align:right">{{ b.out }}</sc-raw-td>
                     <sc-raw-td class="c2" data-label="Без коорд." style="text-align:right">{{ b.noc }}</sc-raw-td>
                     <sc-raw-td class="c2" data-label="Без машины" style="text-align:right">{{ b.noTruck }}</sc-raw-td>
-                    <sc-raw-td class="c4" data-label="Стоимость (журнал)" style="text-align:right;white-space:nowrap">{{ b.price }}</sc-raw-td>
+                    <sc-raw-td class="c4" data-label="Стоимость (журнал)" style="text-align:right;white-space:nowrap"><div>{{ b.price }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ b.ours }}</div></sc-raw-td>
                     <sc-raw-td class="c-actions c3 o-1" style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn btn-ghost" sc-camel-on-click="{{ b.openJ }}">Журнал</button><button class="btn btn-ghost" sc-camel-on-click="{{ b.openP }}">Планы</button></div></sc-raw-td>
                   </sc-raw-tr>
                 </sc-for>
@@ -504,6 +506,15 @@
               <span style="font-size:12px;color:var(--color-neutral-700)">Итого</span>
               <span style="font-family:var(--font-heading);font-weight:500;font-size:26px">{{ p.price }}</span>
             </div>
+            <sc-if value="{{ p.hasCost }}">
+              <div class="plan-cost" style="display:flex;flex-direction:column;gap:4px;font-size:13px;margin-top:-4px">
+                <sc-for list="{{ p.cost }}" as="c"><div style="display:flex;justify-content:space-between;gap:12px;color:{{ c.color }}"><span>{{ c.l }}</span><span style="font-variant-numeric:tabular-nums;white-space:nowrap">{{ c.v }}</span></div></sc-for>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-top:1px solid var(--color-divider);padding-top:8px;margin-top:4px">
+                  <span style="font-weight:500">Наши расходы</span>
+                  <span style="font-family:var(--font-heading);font-weight:500;font-size:20px;white-space:nowrap">{{ p.ours }}</span>
+                </div>
+              </div>
+            </sc-if>
             <div style="font-size:12px;color:var(--color-neutral-700);min-height:16px">{{ p.diff }}</div>
           </button>
         </sc-for>
@@ -535,7 +546,7 @@
                 <span>{{ t.time }}</span>
               </div>
               <div class="trip-price" style="margin-left:auto;display:flex;align-items:center;gap:16px">
-                <div style="text-align:right"><div style="font-family:var(--font-heading);font-weight:500;font-size:20px">{{ t.price }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ t.formula }}</div></div>
+                <div style="text-align:right"><div style="font-family:var(--font-heading);font-weight:500;font-size:20px">{{ t.price }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ t.formula }}</div><div style="font-size:11px;color:var(--color-accent-800)">{{ t.costNote }}</div></div>
                 <button class="btn btn-secondary" sc-camel-on-click="{{ t.open3d }}">Загрузка 3D</button>
                 <a class="btn btn-secondary" href="{{ t.yHref }}" target="_blank" style="text-decoration:none">Открыть в Яндекс Картах</a>
               </div>
@@ -558,6 +569,7 @@
                     <sc-raw-td class="c2 o-1 c-end">
                       <sc-if value="{{ s.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
                       <sc-if value="{{ s.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
+                      <sc-if value="{{ s.free }}"><span class="tag tag-outline" title="Снаружи кольца, груз точки меньше порога из «Тарифов» — за доставку не платим">не платим</span></sc-if>
                     </sc-raw-td>
                     <sc-raw-td class="c2" data-label="Точка, сум" style="text-align:right">{{ s.pt }}</sc-raw-td>
                   </sc-raw-tr>
@@ -942,6 +954,7 @@ class Component extends DCLogic {
     if (S.cM3 === 35 && S.cKg === 5000) Object.assign(changed, { cM3: 50, cKg: 15000 });
     if (S.gazelM3 == null || (S.gazelM3 === 18 && S.gazelKg === 2000)) Object.assign(changed, { gazelM3: 23, gazelKg: 4000 });
     if (S.laboKg === 800) changed.laboKg = 550;
+    if (S.freeOutM3 == null) changed.freeOutM3 = 1;   // снаружи кольца точка меньше 1 м³ — не платим (данные до этой настройки)
     Object.assign(S, changed);
     return changed;
   }
@@ -1081,8 +1094,8 @@ class Component extends DCLogic {
     // Старый скрипт в таблице не записывает новые настройки (B55–B58): оставляем значения сайта
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
-      changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5 };
-    this.gsScriptOld = !(j.v >= 5); this.gsVersion = +j.v || 0;
+      changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6 };
+    this.gsScriptOld = !(j.v >= 6); this.gsVersion = +j.v || 0;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -1249,7 +1262,7 @@ class Component extends DCLogic {
     const E = window.LogiEngine, S = data.settings, ring = data.ring;
     const cmap = {}, zones = {};
     data.clients.forEach(c => { cmap[c.bl] = c; zones[c.bl] = E.zoneOf(c, ring, S.ringBuffer); });
-    const share = {}, tripOf = {}, trips = {};
+    const share = {}, tripOf = {}, trips = {}, free = {};
     data.shipments.forEach(s => {
       const kind = E.vehicleKind(s.truck);
       if (!kind || s.route == null || s.route === '' || E.NO_PRICE.includes(s.status)) return;
@@ -1259,11 +1272,11 @@ class Component extends DCLogic {
     Object.entries(trips).forEach(([k, t]) => {
       const stops = t.items.map(s => ({ bl: s.bl, cbm: s.cbm, kg: s.kg, zone: (zones[s.bl] || {}).zone }));
       const p = E.priceTrip(stops, t.kind, S);
-      t.price = p;
-      t.items.forEach((s, i) => { share[s.id] = p.perStop[i]; tripOf[s.id] = k; });
+      t.price = p; t.cost = E.costSplit(stops, p, S);   // внутри / снаружи от порога / снаружи меньше порога — не платим
+      t.items.forEach((s, i) => { share[s.id] = p.perStop[i]; tripOf[s.id] = k; if (t.cost && t.cost.free[i]) free[s.id] = true; });
     });
     const dates = [...new Set(data.shipments.map(s => s.date))].sort();
-    this._memo = { ver, data, cmap, zones, share, tripOf, trips, dates };
+    this._memo = { ver, data, cmap, zones, share, tripOf, trips, dates, free };
     return this._memo;
   }
 
@@ -1444,7 +1457,8 @@ class Component extends DCLogic {
       { title: 'Kamaz', fields: [F('kamazBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — рейсы Kamaz без цены'), F('kamazPt', '1 точка', 'сум'), F('cTrucks', 'Машин в автопарке', 'шт', 'Столько Kamaz делят город в плане C')] },
       { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), F('depotLat', 'Широта', '°', 'Внимание: в Excel помечено как примерное'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
       { title: 'Машины для планов', fields: [F('gazelM3', 'Gazel — объём кузова', 'м³', 'Сколько реально помещается. В плане A — строго до этого'), F('gazelKg', 'Gazel — грузоподъёмность', 'кг'), F('bTolM3', 'План B — допуск Gazel по объёму', 'м³', 'Сверх объёма кузова. 5 → в плане B Gazel берёт до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³; 0 — без допуска'), F('bTolKg', 'План B — допуск Gazel по весу', 'кг', 'Сверх грузоподъёмности. Груз больше Gazel с допуском едет на Kamaz'), F('cM3', 'Kamaz — объём кузова', 'м³'), F('cKg', 'Kamaz — грузоподъёмность', 'кг', 'Груз больше Kamaz делится на несколько рейсов'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения')] },
-      { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Только для листов планов в Excel'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), F('tripsPerVehicle', 'Рейсов на машину в день', 'шт', 'Машин не хватает — второй рейс той, что раньше вернётся'), { ...F('smartLabo', 'Labo в планах A и B', '', '1 — Labo, если груз помещается и так дешевле; 0 — без Labo'), value: S.smartLabo ?? 1 }] }
+      { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Только для листов планов в Excel'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), F('tripsPerVehicle', 'Рейсов на машину в день', 'шт', 'Машин не хватает — второй рейс той, что раньше вернётся'),
+        F('freeOutM3', 'Снаружи кольца: не платим, если груз точки меньше', 'м³', 'Расходы в планах — тремя частями: внутри кольца, снаружи от этого объёма и снаружи меньше него (не платим). Рейсы не меняются. 0 — платим за все точки'), { ...F('smartLabo', 'Labo в планах A и B', '', '1 — Labo, если груз помещается и так дешевле; 0 — без Labo'), value: S.smartLabo ?? 1 }] }
     ];
   }
 
@@ -1460,6 +1474,19 @@ class Component extends DCLogic {
       if (!g) return c; changed = true; return { ...c, district: g.district };
     });
     if (changed) this.commit({ ...d, clients });
+  }
+
+  // Расходы тремя частями по рейсам (E.costSplit): рейсы без тарифа не входят
+  costOf(trips) {
+    const r = { inside: 0, outBig: 0, outSmall: 0, ours: 0, freePts: 0, n: 0 };
+    trips.forEach(c => { if (!c) return; r.n++; ['inside', 'outBig', 'outSmall', 'ours', 'freePts'].forEach(k => { r[k] += c[k]; }); });
+    return r;
+  }
+  costRows(c, S, plus) {
+    const lim = +S.freeOutM3 || 0, m = f1(lim, 2) + ' м³', p = plus ? ' +' : '';
+    return [{ l: 'Внутри кольца', v: f0(c.inside) + p, color: 'var(--color-text)' },
+      { l: lim ? 'Снаружи, от ' + m : 'Снаружи кольца', v: f0(c.outBig) + p, color: 'var(--color-text)' }]
+      .concat(lim ? [{ l: 'Снаружи, меньше ' + m + ' — не платим', v: f0(c.outSmall) + p, color: 'var(--color-neutral-700)' }] : []);
   }
 
   renderVals() {
@@ -1508,15 +1535,15 @@ class Component extends DCLogic {
         .sort((a, b) => b.date.localeCompare(a.date) || a.bl.localeCompare(b.bl, 'ru', { numeric: true }));
       const tripSet = new Set();
       rows.forEach(s => D.tripOf[s.id] && tripSet.add(D.tripOf[s.id]));
-      const priceSum = [...tripSet].reduce((a, k) => a + (D.trips[k].price.total || 0), 0);
+      const priceSum = [...tripSet].reduce((a, k) => a + (D.trips[k].price.total || 0), 0), jc = this.costOf([...tripSet].map(k => D.trips[k].cost));
       out.jStats = [
         { label: 'Отгрузок', value: f0(rows.length) },
         { label: 'CBM, м³', value: f1(rows.reduce((a, s) => a + (+s.cbm || 0), 0), 1) },
         { label: 'KG', value: f0(rows.reduce((a, s) => a + (+s.kg || 0), 0)) },
         { label: 'Мест', value: f0(rows.reduce((a, s) => a + (+s.places || 0), 0)) },
-        { label: 'Рейсов / стоимость', value: tripSet.size + ' · ' + (priceSum ? f0(priceSum) : '—') },
+        { label: 'Рейсов / стоимость', value: tripSet.size + ' · ' + (priceSum ? f0(priceSum) : '—'), sub: priceSum ? 'наши расходы ' + f0(jc.ours) + (jc.outSmall ? ' · не платим ' + f0(jc.outSmall) : '') : '' },
         { label: 'Без машины', value: f0(rows.filter(s => !E.vehicleKind(s.truck) && !E.NO_PRICE.includes(s.status)).length) }
-      ];
+      ].map(k => ({ sub: '', ...k }));
       const shown = rows.slice(0, st.jLimit);
       out.jHasMore = rows.length > shown.length;
       out.jMoreLabel = 'Показать ещё (' + (rows.length - shown.length) + ')';
@@ -1525,7 +1552,7 @@ class Component extends DCLogic {
         const c = D.cmap[s.bl] || {}, t = D.trips[D.tripOf[s.id]], sh = D.share[s.id];
         return { date: dShort(s.date), bl: s.bl, brand: c.brand || '—', name: c.name || (D.cmap[s.bl] ? '' : 'нет в справочнике'), district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1),
           cbm: s.cbm ? f1(s.cbm, 3) : '—', kg: s.kg ? f1(s.kg, 1) : '—', places: s.places || '—', truck: s.truck, route: s.route ?? '', status: s.status, ...zf(s.bl), editing: st.editRow === s.id, notEditing: st.editRow !== s.id, truckLabel: TR[s.truck] || s.truck, routeLabel: s.route ?? '—', statusLabel: ST[s.status] || s.status, onStartEdit: () => this.setState({ editRow: s.id }), onDone: () => this.setState({ editRow: null }),
-          share: sh != null ? f0(sh) : '—', tripInfo: t ? (t.price.total != null ? 'рейс ' + f0(t.price.total) : t.price.label + ': нет тарифа') : '',
+          share: sh != null ? f0(sh) : '—', free: !!D.free[s.id], tripInfo: t ? (t.price.total != null ? 'рейс ' + f0(t.price.total) : t.price.label + ': нет тарифа') : '',
           hasPoint: c.lat != null, pointHref: c.lat != null ? E.yPoint(c.lat, c.lon) : '',
           onTruck: e => this.updShip(s.id, { truck: e.target.value }), onRoute: e => this.updShip(s.id, { route: e.target.value === '' ? null : +e.target.value }), onStatus: e => this.updShip(s.id, { status: e.target.value }), onEdit: () => this.openShipment(s) };
       });
@@ -1639,10 +1666,10 @@ class Component extends DCLogic {
       out.dBatches = D.dates.slice().reverse().map(d => {
         const sh = data.shipments.filter(s => s.date === d);
         const tk = new Set(sh.map(s => D.tripOf[s.id]).filter(Boolean));
-        const pr = [...tk].reduce((a, k) => a + (D.trips[k].price.total || 0), 0);
+        const pr = [...tk].reduce((a, k) => a + (D.trips[k].price.total || 0), 0), dc = this.costOf([...tk].map(k => D.trips[k].cost));
         return { label: dLong(d), count: sh.length, cbm: f1(sh.reduce((a, s) => a + (+s.cbm || 0), 0), 1), kg: f0(sh.reduce((a, s) => a + (+s.kg || 0), 0)), places: f0(sh.reduce((a, s) => a + (+s.places || 0), 0)),
           out: sh.filter(s => (D.zones[s.bl] || {}).zone === 'out').length, noc: sh.filter(s => !(D.zones[s.bl] || {}).zone).length, noTruck: sh.filter(s => !E.vehicleKind(s.truck) && !E.NO_PRICE.includes(s.status)).length,
-          price: pr ? money(pr) : '—', openJ: () => this.setState({ tab: 'journal', jDate: d }), openP: () => this.setState({ tab: 'plans', planDate: d }) };
+          price: pr ? money(pr) : '—', ours: pr && dc.outSmall ? 'наши ' + f0(dc.ours) + ' · не платим ' + f0(dc.outSmall) : '', openJ: () => this.setState({ tab: 'journal', jDate: d }), openP: () => this.setState({ tab: 'plans', planDate: d }) };
       });
       const byD = {};
       data.shipments.forEach(s => { const dn = distName((D.cmap[s.bl] || {}).district || 'Aniqlanmagan'); const x = byD[dn] = byD[dn] || { cbm: 0, n: 0 }; x.cbm += +s.cbm || 0; x.n++; });
@@ -1658,15 +1685,17 @@ class Component extends DCLogic {
       const full = shown.filter(k => P[k].sum.trips && !P[k].sum.unpriced), minP = full.length ? Math.min(...full.map(k => P[k].sum.price)) : null;
       const kindsOf = s => ['labo', 'changan', 'gazel', 'kamaz'].filter(k => s[k]).map(k => VEH[k] + ' ' + s[k]).join(' · ');
       out.planCols = shown.length;
-      out.planCards = shown.map(k => { const s = P[k].sum, sel = planKey === k, noPrice = s.unpriced && !s.price;
+      const costs = {}; ['A', 'B', 'C'].forEach(k => { costs[k] = this.costOf(P[k].trips.map(t => E.costSplit(t.stops, t.price, S))); });
+      out.planCards = shown.map(k => { const s = P[k].sum, sel = planKey === k, noPrice = s.unpriced && !s.price, c = costs[k];
         return { title: PLAN_INFO[k].title, desc: PLAN_INFO[k].desc(S), trips: s.trips, kinds: kindsOf(s), real: f0(s.real) + ' км', outside: s.outside + ' · ' + f1(s.outsideCbm, 1) + ' м³',
           price: P[k].noFleet ? 'нет машин' : noPrice ? 'нет тарифа' : money(s.price) + (s.unpriced ? ' +' : ''),
           cheapest: full.length > 1 && full.includes(k) && s.price === minP,
+          hasCost: !P[k].noFleet && c.n > 0, cost: this.costRows(c, S, s.unpriced), ours: money(c.ours) + (s.unpriced ? ' +' : ''),
           diff: P[k].noFleet ? 'Задайте объём и грузоподъёмность Kamaz во вкладке «Тарифы»' : s.unpriced ? '+ ' + s.unpriced + ' ' + reys(s.unpriced) + ' Kamaz без тарифа — заполните тариф во вкладке «Тарифы»' : (minP == null || s.price === minP || !full.includes(k) ? '' : '+' + f0(s.price - minP) + ' сум к самому дешёвому'),
           bg: sel ? 'var(--color-accent-100)' : 'transparent', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', go: () => this.setState({ planKey: k }) }; });
       const cS = P.C.sum;
       out.planCTitle = PLAN_INFO.C.title;
-      out.planCInfo = st.planC ? '' : P.C.noFleet ? 'нет машин' : cS.trips + ' ' + reys(cS.trips) + (cS.unpriced && !cS.price ? ' · нет тарифа' : ' · ' + money(cS.price) + (cS.unpriced ? ' +' : ''));
+      out.planCInfo = st.planC ? '' : P.C.noFleet ? 'нет машин' : cS.trips + ' ' + reys(cS.trips) + (cS.unpriced && !cS.price ? ' · нет тарифа' : ' · ' + money(cS.price) + (cS.unpriced ? ' +' : '') + (costs.C.outSmall ? ' · наши ' + f0(costs.C.ours) : ''));
       out.planCAct = st.planC ? 'Свернуть ▴' : 'Показать ▾';
       out.togglePlanC = () => { const v = !st.planC; try { localStorage.setItem('logi-plan-c', v ? '1' : '0'); } catch (e) {} this.setState({ planC: v, planKey: !v && st.planKey === 'C' ? 'A' : st.planKey }); };
       const plan = P[planKey];
@@ -1677,6 +1706,8 @@ class Component extends DCLogic {
         notes.push(x.bl + ((x.client && x.client.brand) ? ' ' + x.client.brand : '') + ': ' + f1(x.cbm, 1) + ' м³ / ' + f0(x.kg) + ' кг — больше самой большой машины (' + big.label + ' ' + f1(big.m3, 1) + ' м³ / ' + f0(big.kg) + ' кг), разделена на ' + x.parts + ' ' + reys(x.parts) + (x.sizes ? ': ' + x.sizes.map(z => f1(z.cbm, 1) + ' м³ / ' + f0(z.kg) + ' кг').join(' + ') + '. Остаток едет машиной, в которую помещается, можно вместе с другими точками' : '') + '.' + (x.indivisible ? ' Мест всего ' + x.places + ' — проверьте, можно ли так делить груз.' : '')); });
       if (plan.sum.unpriced) { const np = [...new Set(plan.trips.filter(t => t.price.total == null).map(t => VEH[t.kind]))].join(', ');
         notes.push(np + ' без тарифа: ' + plan.sum.unpriced + ' ' + reys(plan.sum.unpriced) + ' не входят в сумму. Заполните базовую цену и цену точки во вкладке «Тарифы».'); }
+      const pc = costs[planKey];
+      if (pc.freePts) notes.push('Снаружи кольца, груз точки меньше ' + f1(S.freeOutM3, 2) + ' м³: ' + pc.freePts + ' ' + (pc.freePts === 1 ? 'точка' : pc.freePts < 5 ? 'точки' : 'точек') + ' — за доставку не платим, ' + money(pc.outSmall) + '. Рейсы те же, делится только цена: доля точки — от цены рейса пропорционально тарифу точки (как «Доля» в журнале). Наши расходы по плану — ' + money(pc.ours) + (plan.sum.unpriced ? ' (рейсы без тарифа не входят)' : '') + '. Порог — во вкладке «Тарифы».');
       if (plan.sum.second) notes.push('Машин меньше, чем рейсов: ' + plan.sum.second + ' ' + reys(plan.sum.second) + ' — вторым кругом (в названии «рейс 2»), время — после возвращения машины.');
       if (plan.sum.noVehicle) { const nv = {}; plan.trips.filter(t => t.noVehicle).forEach(t => { nv[t.kind] = (nv[t.kind] || 0) + 1; });
         notes.push('Не хватает машин: ' + Object.entries(nv).map(([k, c]) => VEH[k] + ' — ещё ' + c + ' ' + reys(c) + ' (в автопарке ' + (fleetN[k] || 0) + ' × ' + (S.tripsPerVehicle || 1) + ')').join(', ') + '. Добавьте машины или рейсы на машину во вкладке «Тарифы».'); }
@@ -1687,14 +1718,15 @@ class Component extends DCLogic {
         const v = t.vehicle;
         let prev = depot;
         const nM3 = v.nomM3 ?? v.m3, nKg = v.nomKg ?? v.kg, upM3 = t.cbm > nM3 + 1e-6, upKg = t.kg > nKg + 1e-6;   // сверх кузова — за счёт допуска Gazel в плане B
-        return { name: t.name, tariff: t.price.label + (t.over ? ' · ПЕРЕГРУЗ' : (upM3 || upKg) ? ' · с допуском' : '') + (t.noVehicle ? ' · НЕТ МАШИНЫ' : ''), stopsN: new Set(t.stops.map(s => s.bl)).size,
+        const tc = E.costSplit(t.stops, t.price, S);
+        return { costNote: tc && tc.outSmall ? 'наши ' + f0(tc.ours) + ' · не платим ' + f0(tc.outSmall) : '', name: t.name, tariff: t.price.label + (t.over ? ' · ПЕРЕГРУЗ' : (upM3 || upKg) ? ' · с допуском' : '') + (t.noVehicle ? ' · НЕТ МАШИНЫ' : ''), stopsN: new Set(t.stops.map(s => s.bl)).size,
           cbm: f1(t.cbm, 2) + ' из ' + f1(nM3, 1) + (v.tolM3 ? ' (+' + f1(v.tolM3, 1) + ')' : ''), kg: f0(t.kg) + ' из ' + f0(nKg) + (v.tolKg ? ' (+' + f0(v.tolKg) + ')' : ''),
           cbmPct: Math.min(100, t.cbm / nM3 * 100).toFixed(0) + '%', kgPct: Math.min(100, t.kg / nKg * 100).toFixed(0) + '%',
           cbmBar: upM3 || t.over ? 'var(--color-accent-900)' : 'var(--color-accent)', kgBar: upKg || t.over ? 'var(--color-accent-900)' : 'var(--color-accent)',
           km: f1(t.real, 1) + ' км (реальн.)', time: hhmm(t.start ?? S.dayStart * 1440) + '–' + hhmm(t.finish + t.back / S.speed * 60 * S.roadK), price: t.price.total != null ? money(t.price.total) : 'нет тарифа', formula: t.price.formula,
           yHref: E.yRoute(depot, t.stops.map(s => [s.lat, s.lon])), open3d: () => this.setState({ tab: 'viz', planKey, vizTrip: ti, vizStep: 0, vizSel: null }),
           stops: t.stops.map((s, j) => { const c = s.client, leg = E.km(prev, [s.lat, s.lon]); prev = [s.lat, s.lon];
-            return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : ''), brand: c.brand || '—', name: c.name || '', district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', pointHref: E.yPoint(s.lat, s.lon), pt: t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') }; }) };
+            return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : ''), brand: c.brand || '—', name: c.name || '', district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', free: !!(tc && tc.free[j]), pointHref: E.yPoint(s.lat, s.lon), pt: t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') }; }) };
       });
       out.planNoCoords = P.noCoords.map(s => ({ bl: s.bl, name: (s.client.brand || '') + ' ' + (s.client.name || ''), cbm: f1(s.cbm, 2), kg: f0(s.kg), onEdit: () => { const c = D.cmap[s.bl]; if (c) this.openClient(c); } }));
       out.planHasNoCoords = P.noCoords.length > 0;
