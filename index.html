@@ -957,7 +957,9 @@ class Component extends DCLogic {
     if (S.cM3 === 35 && S.cKg === 5000) Object.assign(changed, { cM3: 50, cKg: 15000 });
     if (S.gazelM3 == null || (S.gazelM3 === 18 && S.gazelKg === 2000)) Object.assign(changed, { gazelM3: 23, gazelKg: 4000 });
     if (S.laboKg === 800) changed.laboKg = 550;
-    if (S.freeOutM3 == null) changed.freeOutM3 = 1;   // груз точки меньше 1 м³ — не платим (данные до этой настройки)
+    if (S.freeOutM3 == null) changed.freeOutM3 = 1;
+    // склад отправки: примерная точка из Excel → точная, по ссылке владельца (google.com/maps?q=41.383782,69.233623)
+    if (S.depotLat === 41.380417 && S.depotLon === 69.235222) Object.assign(changed, { depotLat: 41.383782, depotLon: 69.233623 });   // груз точки меньше 1 м³ — не платим (данные до этой настройки)
     Object.assign(S, changed);
     return changed;
   }
@@ -1458,7 +1460,7 @@ class Component extends DCLogic {
       { title: 'Changan', fields: [F('changanBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('changanBase', 'Базовая цена рейса', 'сум', 'Пусто — Changan в планах не используется'), F('changanPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('changanM3', 'Объём кузова', 'м³'), F('changanKg', 'Грузоподъёмность', 'кг'), F('changanCount', 'Машин в автопарке', 'шт')] },
       { title: 'Labo', fields: [F('laboBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём груза', 'м³', 'Кузов 1,94 × 1,33 м, борт 0,29 м: ' + f1(S.laboM3, 1) + ' м³ — груз до ' + f1((+S.laboM3 || 0) / (1.94 * 1.33), 2) + ' м высотой. Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг', 'Labo UzAuto — 550 кг'), F('laboCount', 'Машин в автопарке', 'шт')] },
       { title: 'Kamaz', fields: [F('kamazBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — рейсы Kamaz без цены'), F('kamazPt', '1 точка', 'сум'), F('cTrucks', 'Машин в автопарке', 'шт', 'Столько Kamaz делят город в плане C')] },
-      { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), F('depotLat', 'Широта', '°', 'Внимание: в Excel помечено как примерное'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
+      { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), { ...F('depotLink', 'Ссылка на склад', '', this.state.depotLinkInfo || 'Вставьте ссылку из Google или Яндекс Карт — широта и долгота заполнятся сами', 'text'), value: this.state.depotLinkDraft || '' }, F('depotLat', 'Широта', '°', 'Отсюда начинаются все рейсы: от точки зависят километры и время'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
       { title: 'Машины для планов', fields: [F('gazelM3', 'Gazel — объём кузова', 'м³', 'Сколько реально помещается. В плане A — строго до этого'), F('gazelKg', 'Gazel — грузоподъёмность', 'кг'), F('bTolM3', 'План B — допуск Gazel по объёму', 'м³', 'Сверх объёма кузова. 5 → в плане B Gazel берёт до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³; 0 — без допуска'), F('bTolKg', 'План B — допуск Gazel по весу', 'кг', 'Сверх грузоподъёмности. Груз больше Gazel с допуском едет на Kamaz'), F('cM3', 'Kamaz — объём кузова', 'м³'), F('cKg', 'Kamaz — грузоподъёмность', 'кг', 'Груз больше Kamaz делится на несколько рейсов'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения')] },
       { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Только для листов планов в Excel'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), F('tripsPerVehicle', 'Рейсов на машину в день', 'шт', 'Машин не хватает — второй рейс той, что раньше вернётся'),
         F('freeOutM3', 'Не платим за доставку, если груз точки меньше', 'м³', 'И за точки за кольцом — при любом объёме. Расходы в планах — тремя частями: платим (внутри кольца, от этого объёма), не платим — меньше него, не платим — за кольцом. Рейсы не меняются. 0 — не платим только за кольцом'), { ...F('smartLabo', 'Labo в планах A и B', '', '1 — Labo, если груз помещается и так дешевле; 0 — без Labo'), value: S.smartLabo ?? 1 }] }
@@ -1570,6 +1572,16 @@ class Component extends DCLogic {
         return { dialog: { ...s.dialog, draft: d, linkInfo: base + '. ' + (got.length ? 'Заполнено: ' + got.join(', ') + '.' : 'Адрес не нашёлся — впишите вручную.' + (needDist ? ' Район определится по соседним клиентам.' : '')), linkBad: false } };
       });
     }, 350);
+  }
+  // «Тарифы» → «Склад отправки» → ссылка: координаты склада из ссылки на карту (короткие — через скрипт таблицы)
+  async depotFromLink(link) {
+    if (!String(link || '').trim()) return;
+    this.setState({ depotLinkInfo: 'Ищу координаты…' });
+    const r = await this.locateLink(link);
+    if (!r || r.error) return this.setState({ depotLinkInfo: (r && r.error) || 'Нужна ссылка из Google или Яндекс Карт.' });
+    const lat = +r.lat.toFixed(6), lon = +r.lon.toFixed(6), data = this.state.data;
+    this.commit({ ...data, settings: { ...data.settings, depotLat: lat, depotLon: lon } });
+    this.setState({ depotLinkInfo: '✓ Склад: ' + lat + ', ' + lon + ' (' + r.how + '). Планы пересчитаны.' });
   }
   // «Проверка»: клиентам без координат, но со ссылкой, — координаты и район по ссылкам
   async fixCoordsFromLinks() {
@@ -1905,7 +1917,14 @@ class Component extends DCLogic {
 
     if (st.tab === 'tariffs') {
       out.settingGroups = this.settingDefs();
-      out.onSetting = e => { const { name, value, type } = e.target; const v = type === 'number' ? (value === '' ? null : +value) : value; this.commit({ ...data, settings: { ...S, [name]: v } }); };
+      out.onSetting = e => {
+        const { name, value, type } = e.target;
+        if (name === 'depotLink') {   // ссылка на склад → широта и долгота (набор вручную — с паузой)
+          this.setState({ depotLinkDraft: value }); clearTimeout(this._depotT);
+          this._depotT = setTimeout(() => this.depotFromLink(value), 400); return;
+        }
+        const v = type === 'number' ? (value === '' ? null : +value) : value; this.commit({ ...data, settings: { ...S, [name]: v } });
+      };
       out.calc = st.calc;
       out.onCalc = e => { const { name, value } = e.target; this.setState(s => ({ calc: { ...s.calc, [name]: name === 'kind' ? value : +value } })); };
       const c = st.calc, stops = [];
