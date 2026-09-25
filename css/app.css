@@ -128,3 +128,15 @@ main.map-layout { animation: fade-in var(--t-page) ease both; }
 .addr-clamp { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .addr-more { background: none; border: 0; padding: 0; margin-top: 2px; font: inherit; font-size: 12px; color: var(--color-accent); cursor: pointer; }
 .addr-more:hover { text-decoration: underline; }
+
+/* Вход «только просмотр» (html.read-only — js/auth.js): кнопки правок скрыты, поля не меняются */
+html.read-only [data-edit] { display: none !important; }
+html.read-only .ro-lock { pointer-events: none; border-color: transparent !important; padding-left: 0 !important; }
+html.read-only .set-input { pointer-events: none; background: var(--color-surface); }
+.ro-badge {
+  align-self: center; flex: none; margin-left: auto; padding: 4px 12px; border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--color-on-brand) 45%, transparent); color: var(--color-on-brand);
+  font-size: 11px; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
+}
+.ro-badge + .app-account { margin-left: 0; }
+@media (max-width: 700px) { .ro-badge { display: none; } }

@@ -6,7 +6,9 @@
    Смена пароля записывает новый vault.json в репозиторий через GitHub API
    (нужен токен с правом Contents: Read and write), после чего сайт пересобирается.
    Там же, зашифрованные тем же ключом, лежат общие настройки сайта (vault.config),
-   например ссылка на Google Таблицу — её получают все устройства после входа. */
+   например ссылка на Google Таблицу — её получают все устройства после входа.
+   Роль пользователя — vault.users[…].role: нет роли — руководитель (всё можно), 'viewer' — только просмотр
+   (сайт скрывает правки и ничего не записывает; см. index.html, readOnly). */
 (function () {
   'use strict';
   var REPO = { owner: 'buraqceoassistant-ai', repo: 'xeeds', path: 'data/vault.json' };
@@ -52,9 +54,10 @@
     catch (e) { throw new Error(BAD); }
   }
   async function wrapKey(v, login, password, dekRaw) {
-    var salt = rand(16), iv = rand(12);
+    var salt = rand(16), iv = rand(12), id = await loginId(v, login), role = (v.users[id] || {}).role;
     var key = await subtle.encrypt({ name: 'AES-GCM', iv: iv }, await kek(v, password, salt, 'encrypt'), dekRaw);
-    v.users[await loginId(v, login)] = { salt: b64(salt), iv: b64(iv), key: b64(new Uint8Array(key)) };
+    v.users[id] = { salt: b64(salt), iv: b64(iv), key: b64(new Uint8Array(key)) };
+    if (role) v.users[id].role = role;   // смена пароля роль не меняет
   }
   async function decryptData(v, dekRaw) {
     var dek = await subtle.importKey('raw', dekRaw, 'AES-GCM', false, ['decrypt']);
@@ -74,16 +77,23 @@
     return JSON.parse(new TextDecoder().decode(await subtle.decrypt({ name: 'AES-GCM', iv: unb64(box.iv) }, dek, unb64(box.ct))));
   }
 
-  var vaultP = null, openKey = null;
+  var vaultP = null, openKey = null, role = 'owner';
   window.LOGI_CONFIG = {};
+  // роль вошедшего: по логину, сохранённому при входе (старые входы без логина — руководитель)
+  async function roleOf(v, login) {
+    var u = login ? v.users[await loginId(v, login)] : null;
+    role = u && u.role === 'viewer' ? 'viewer' : 'owner';
+    document.documentElement.classList.toggle('read-only', role === 'viewer');
+  }
   function vault() {
     return vaultP || (vaultP = fetch(VAULT_URL, { cache: 'no-cache' }).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }).catch(function (e) { vaultP = null; throw e; }));
   }
-  async function openData(keyB64) {
+  async function openData(keyB64, login) {
     var v = await vault(), xlsx = await decryptData(v, unb64(keyB64));
+    await roleOf(v, login || get(LOGIN));
     try { window.LOGI_CONFIG = v.config ? await decryptJSON(unb64(keyB64), v.config) : {}; } catch (e) { window.LOGI_CONFIG = {}; }
     openKey = keyB64;
     window.LOGI_TEMPLATE_B64 = b64(xlsx);
@@ -126,7 +136,7 @@
     setState('busy'); err.textContent = ''; btn.disabled = true; btn.textContent = 'Проверяю…';
     try {
       var k = b64(await unwrapKey(await vault(), login, pass));
-      await openData(k);
+      await openData(k, login);
       var remember = document.getElementById('auth-remember').checked;
       drop(KEY); drop(KEY_PREV); drop(LOGIN);
       put(KEY, k, remember); put(LOGIN, login, remember);
@@ -184,10 +194,11 @@
   function openAccount() {
     var login = get(LOGIN);
     var d = dialog('Аккаунт',
-      '<div class="dialog-body">' + (login ? 'Вы вошли как <b>' + esc(login) + '</b>.' : 'Вход выполнен.') + '</div>',
+      '<div class="dialog-body">' + (login ? 'Вы вошли как <b>' + esc(login) + '</b>.' : 'Вход выполнен.') +
+        (role === 'viewer' ? '<br>Доступ: <b>только просмотр</b> — всё видно, изменить ничего нельзя. Пароль этого входа меняет руководитель.' : '') + '</div>',
       '<button class="btn btn-ghost" data-act="logout" style="margin-right:auto">Выйти</button>' +
       '<button class="btn btn-secondary" data-act="close">Закрыть</button>' +
-      '<button class="btn btn-primary" data-act="passwd">Сменить пароль</button>');
+      (role === 'viewer' ? '' : '<button class="btn btn-primary" data-act="passwd">Сменить пароль</button>'));
     d.addEventListener('click', function (e) {
       var a = e.target.closest('[data-act]'); if (!a) return;
       if (a.dataset.act === 'close') closeDialog();
@@ -321,6 +332,7 @@
   window.LogiAuth = {
     logout: logout, openAccount: openAccount, saveConfig: saveConfig,
     config: function () { return window.LOGI_CONFIG || {}; },
+    role: function () { return role; },
     hasGhToken: function () { return !!get(GH_TOKEN); }
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();

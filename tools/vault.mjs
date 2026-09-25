@@ -7,7 +7,7 @@
  * В репозиторий попадает только vault.json — без пароля он бесполезен.
  *
  *   node tools/vault.mjs init <data.xlsx> <логин>        новое хранилище, пароль генерируется
- *   node tools/vault.mjs add-user <логин>                добавить пользователя
+ *   node tools/vault.mjs add-user <логин> [viewer]       добавить пользователя (viewer — только просмотр)
  *   node tools/vault.mjs remove-user <логин>             удалить пользователя
  *   node tools/vault.mjs set-data <data.xlsx>            заменить данные (ключ и пользователи те же)
  *
@@ -36,10 +36,10 @@ async function kek(password, salt, iterations) {
   const base = await subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
   return subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 }
-async function wrapFor(v, login, password, dekRaw) {
-  const salt = rand(16), iv = rand(12);
+async function wrapFor(v, login, password, dekRaw, role) {
+  const salt = rand(16), iv = rand(12), id = await loginId(v.userSalt, login), keep = role === undefined ? (v.users[id] || {}).role : role;
   const key = await subtle.encrypt({ name: 'AES-GCM', iv }, await kek(password, salt, v.kdf.iterations), dekRaw);
-  v.users[await loginId(v.userSalt, login)] = { salt: b64(salt), iv: b64(iv), key: b64(new Uint8Array(key)) };
+  v.users[id] = { salt: b64(salt), iv: b64(iv), key: b64(new Uint8Array(key)), ...(keep ? { role: keep } : {}) };
 }
 async function unwrap(v, login, password) {
   const u = v.users[await loginId(v.userSalt, login)];
@@ -83,10 +83,11 @@ try {
     await wrapFor(v, a2, password, dekRaw);
     save(v); announce(a2, password, !process.env.NEW_PASSWORD);
   } else if (cmd === 'add-user') {
-    if (!a1) throw new Error('add-user <логин>');
+    if (!a1) throw new Error('add-user <логин> [viewer]');
+    if (a2 && a2 !== 'viewer') throw new Error('Роль — только viewer (только просмотр) или без роли (всё можно)');
     const v = load(), dekRaw = await existingKey(v), password = process.env.NEW_PASSWORD || genPassword();
-    await wrapFor(v, a1, password, dekRaw);
-    save(v); announce(a1, password, !process.env.NEW_PASSWORD);
+    await wrapFor(v, a1, password, dekRaw, a2 || null);
+    save(v); announce(a1, password, !process.env.NEW_PASSWORD); if (a2) console.log('Роль:   только просмотр');
   } else if (cmd === 'remove-user') {
     if (!a1) throw new Error('remove-user <логин>');
     const v = load(), id = await loginId(v.userSalt, a1);
@@ -99,7 +100,7 @@ try {
     await sealData(v, await existingKey(v), readXlsx(a1));
     save(v); console.log('Данные обновлены');
   } else {
-    console.log('Команды: init <data.xlsx> <логин> | add-user <логин> | remove-user <логин> | set-data <data.xlsx>');
+    console.log('Команды: init <data.xlsx> <логин> | add-user <логин> [viewer] | remove-user <логин> | set-data <data.xlsx>');
     process.exitCode = cmd ? 1 : 0;
   }
 } catch (e) {

@@ -602,5 +602,5 @@
     return best ? { district: best[0], km: pts[0][1] } : null;
   }
 
-  window.LogiEngine = { guessDistrict, km, bearing, inside, distToRing, zoneOf, priceTrip, costSplit, coordsFromLink, vehicleKind, buildPlans, yRoute, yPoint, xlsx, NO_PRICE, NO_PLAN, withKeles, ringLength, KELES, TKAD_V2 };
+  window.LogiEngine = { guessDistrict, km, bearing, inside, distToRing, zoneOf, nnOrder, priceTrip, costSplit, coordsFromLink, vehicleKind, buildPlans, yRoute, yPoint, xlsx, NO_PRICE, NO_PLAN, withKeles, ringLength, KELES, TKAD_V2 };
 })();
