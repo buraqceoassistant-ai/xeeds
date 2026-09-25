@@ -48,6 +48,7 @@
     if (/^gazel/i.test(truck)) return 'gazel';
     if (/^labo/i.test(truck)) return 'labo';
     if (/^kamaz/i.test(truck)) return 'kamaz';
+    if (/^changan/i.test(truck)) return 'changan';
     return null;
   }
   // stops: [{bl, zone, cbm, kg, ref}] in order. kind: gazel|labo|kamaz|auto
@@ -58,10 +59,11 @@
     if (kind === 'auto') kind = (cbm <= S.laboM3 && kg <= S.laboKg) ? 'labo' : 'gazel';
     if (kind === 'labo') { label = 'Labo'; base = S.laboBase; ptIn = ptOut = S.laboPt; }
     else if (kind === 'kamaz') { label = 'Kamaz'; base = S.kamazBase; ptIn = ptOut = S.kamazPt; }
+    else if (kind === 'changan') { label = 'Changan'; base = S.changanBase; ptIn = ptOut = S.changanPt; }
     else { const heavy = kg > S.gazelHeavyKg; label = heavy ? 'Gazel (тяжёлый)' : 'Gazel'; base = heavy ? S.gazelHeavy : S.gazelBase; ptIn = S.gazelPtIn; ptOut = S.gazelPtOut; }
     if (base == null || ptIn == null) return { label, total: null, points: 0, formula: 'нет тарифа', perStop: stops.map(() => null) };
     // points already included in the base price: separate setting per vehicle (Gazel B52, Labo B55, Kamaz B56)
-    const inc = +(kind === 'labo' ? S.laboBaseIncludesPts : kind === 'kamaz' ? S.kamazBaseIncludesPts : S.baseIncludesPts) || 0;
+    const inc = +(kind === 'labo' ? S.laboBaseIncludesPts : kind === 'kamaz' ? S.kamazBaseIncludesPts : kind === 'changan' ? S.changanBaseIncludesPts : S.baseIncludesPts) || 0;
     const seen = {}; let idx = 0;
     const pts = [];
     stops.forEach((s, i) => {
@@ -102,14 +104,15 @@
     }
     return out;
   }
-  function tripMetrics(depot, stops, S) {
-    let cur = depot, dist = 0, t = S.dayStart * 24 * 60; const arrivals = [];
+  // start — minutes from midnight when the trip leaves the depot (default: the start of the day)
+  function tripMetrics(depot, stops, S, start) {
+    let cur = depot, dist = 0, t = start != null ? start : S.dayStart * 24 * 60; const arrivals = [];
     stops.forEach(s => { const d = km(cur, [s.lat, s.lon]); dist += d; t += d / S.speed * 60 * S.roadK; arrivals.push(t); t += (s.bl === (arrivals.length > 1 ? stops[arrivals.length - 2].bl : null) ? 0 : S.unloadMin); cur = [s.lat, s.lon]; });
     const back = stops.length ? km(cur, depot) : 0;
     return { dist, back, real: (dist + back) * S.roadK, arrivals, finish: t };
   }
   // ---------- planner ----------
-  // Every trip gets a vehicle (Labo, Gazel or Kamaz) that carries its whole load: volume, weight,
+  // Every trip gets a vehicle (Labo, Changan, Gazel or Kamaz) that carries its whole load: volume, weight,
   // places and number of points. A shipment bigger than the largest vehicle is split into parts.
   // Among vehicles that fit, the cheapest by tariff wins. In plans A and B Kamaz (and any vehicle without
   // a tariff) carries only cargo that fits no regular vehicle: Gazel first, Kamaz only when it does not fit.
@@ -117,10 +120,12 @@
   // Plan A keeps every vehicle within its body: Gazel up to gazelM3 / gazelKg.
   const EPS = 1e-6, UNPRICED = 1e8, KM_COST = 1000;
   const known = s => (s.cbm || 0) > 0 || (s.kg || 0) > 0;
+  const small = v => v.kind === 'labo' || v.kind === 'changan';   // груз без объёма и веса на маленькую машину не ставим
   function fleetOf(S, kinds, opt = {}) {
     const all = {
       labo: { kind: 'labo', label: 'Labo', m3: +S.laboM3, kg: +S.laboKg },
       gazel: { kind: 'gazel', label: 'Gazel', m3: +S.gazelM3, kg: +S.gazelKg },
+      changan: { kind: 'changan', label: 'Changan', m3: +S.changanM3, kg: +S.changanKg },
       kamaz: { kind: 'kamaz', label: 'Kamaz', m3: +S.cM3, kg: +S.cKg }
     };
     const onlyIfNeeded = opt.onlyIfNeeded || [], tol = opt.tol || {};
@@ -143,11 +148,11 @@
     if (l.points > maxStops) return null;
     const ordered = nnOrder(depot, stops);
     const regular = fleet.filter(v => v.priced && !v.onlyIfNeeded);
-    const needsBig = s => !regular.some(v => fitsIn(load([s]), v) && (v.kind !== 'labo' || known(s)));
+    const needsBig = s => !regular.some(v => fitsIn(load([s]), v) && (!small(v) || known(s)));
     let best = null;
     fleet.forEach(v => {
       if (!fitsIn(l, v)) return;
-      if (v.kind === 'labo' && !stops.every(known)) return;   // cargo without volume and weight never goes on a Labo
+      if (small(v) && !stops.every(known)) return;   // cargo without volume and weight never goes on a Labo or Changan
       // Kamaz in A/B and vehicles without a tariff carry only cargo that fits no regular vehicle
       if ((v.onlyIfNeeded || !v.priced) && regular.length && !stops.every(needsBig)) return;
       const price = priceTrip(ordered, v.kind, S);
@@ -392,7 +397,7 @@
       sectors[sectors.length - 1].push(s); acc += w(s);
     });
     const out = [];
-    sectors.forEach((sec, k) => partition(sec, fleet, S.bcMaxStops || 99, S, depot).forEach((t, i) => out.push({ ...t, name: 'Kamaz-' + (k + 1) + ' · рейс ' + (i + 1) })));
+    sectors.forEach((sec, k) => partition(sec, fleet, S.bcMaxStops || 99, S, depot).forEach((t, i) => out.push({ ...t, name: 'Kamaz-' + (k + 1) + ' · рейс ' + (i + 1), car: k + 1, round: i + 1 })));
     return out;
   }
 
@@ -400,13 +405,39 @@
     const depot = [S.depotLat, S.depotLon];
     const withC = stopsAll.filter(s => s.lat != null), noC = stopsAll.filter(s => s.lat == null);
     withC.forEach(s => { s.angle = bearing(depot, [s.lat, s.lon]); s.depotKm = km(depot, [s.lat, s.lon]); });
+    // Trips go to the vehicles of the fleet (Gazel 9, Changan 1, Labo 1, Kamaz 2 — «Тарифы»): the longest trips first,
+    // one per vehicle; the rest as a second trip of the vehicle that is back first (up to tripsPerVehicle a day).
+    // A trip beyond that gets no vehicle and is flagged. Plan C brings its own trucks and runs (car, round).
+    const COUNT = { gazel: S.gazelCount, changan: S.changanCount, labo: S.laboCount, kamaz: S.cTrucks }, PER = Math.max(1, S.tripsPerVehicle | 0 || 1);
+    const back = t => t.finish + t.back / S.speed * 60 * S.roadK;
+    const RANK = { labo: 0, changan: 1, gazel: 2, kamaz: 3 };
     const finish = raw => {
-      const cnt = {};
-      return raw.map(t => {
-        const name = t.name || (cnt[t.v.label] = (cnt[t.v.label] || 0) + 1, t.v.label + '-' + cnt[t.v.label]);
-        const m = tripMetrics(depot, t.stops, S);
-        return { name, stops: t.stops, cbm: t.l.cbm, kg: t.l.kg, places: t.l.places, ...m, price: t.price, kind: t.v.kind, vehicle: t.v, over: !!t.over, outside: t.stops.filter(s => s.zone === 'out') };
+      const trips = raw.map(t => ({ name: t.name, car: t.car, round: t.round, stops: t.stops, cbm: t.l.cbm, kg: t.l.kg, places: t.l.places, ...tripMetrics(depot, t.stops, S), start: S.dayStart * 1440,
+        price: t.price, kind: t.v.kind, vehicle: t.v, over: !!t.over, outside: t.stops.filter(s => s.zone === 'out') }));
+      const leave = (t, at) => Object.assign(t, tripMetrics(depot, t.stops, S, at), { start: at });   // the trip starts later: arrivals move
+      // runs given by the plan: each next run of a truck leaves when the previous one is back
+      const own = {};
+      trips.filter(t => t.car).forEach(t => (own[t.kind + t.car] = own[t.kind + t.car] || []).push(t));
+      Object.values(own).forEach(runs => runs.sort((a, b) => a.round - b.round).reduce((at, t) => (leave(t, at), back(t)), S.dayStart * 1440));
+      const byKind = {};
+      trips.filter(t => !t.car).forEach(t => (byKind[t.kind] = byKind[t.kind] || []).push(t));
+      Object.keys(byKind).forEach(kind => {
+        const list = byKind[kind], n = COUNT[kind] | 0, label = list[0].vehicle.label;
+        if (n <= 0) { list.forEach((t, k) => { t.name = label + '-' + (k + 1); }); return; }   // число машин не задано
+        const dur = t => back(t) - t.start;
+        const order = list.slice().sort((a, b) => dur(b) - dur(a)), cars = [];
+        order.slice(0, n).forEach((t, k) => { cars.push({ no: k + 1, free: back(t), used: 1 }); Object.assign(t, { name: label + '-' + (k + 1), car: k + 1, round: 1 }); });
+        order.slice(n).sort((a, b) => dur(a) - dur(b)).forEach(t => {
+          const car = cars.filter(c => c.used < PER).sort((a, b) => a.free - b.free || a.no - b.no)[0];
+          if (!car) { Object.assign(t, { name: label + ' · нет машины', noVehicle: true }); return; }
+          car.used++;
+          leave(t, car.free);
+          Object.assign(t, { name: label + '-' + car.no + ' · рейс ' + car.used, car: car.no, round: car.used });
+          car.free = back(t);
+        });
       });
+      // по машинам: Labo, Changan, Gazel, Kamaz; у каждой — её рейсы по порядку
+      return trips.map((t, i) => ({ t, i })).sort((a, b) => (RANK[a.t.kind] - RANK[b.t.kind]) || ((a.t.car || 999) - (b.t.car || 999)) || ((a.t.round || 0) - (b.t.round || 0)) || a.i - b.i).map(x => x.t);
     };
     const plan = (kinds, build, opt) => {
       const fleet = fleetOf(S, kinds, opt), splits = [];
@@ -414,9 +445,9 @@
       const items = splitOversize(withC, fleet, splits);
       return { trips: finish(build(items, fleet)), splits, fleet };
     };
-    const ab = S.smartLabo !== 0 ? ['labo', 'gazel', 'kamaz'] : ['gazel', 'kamaz'];
-    const A = plan(ab, (items, fleet) => cheapest(items, fleet, S.aMaxStops || 99, S, depot), { onlyIfNeeded: ['kamaz'] });   // строго по кузову
-    const B = plan(ab, (items, fleet) => consolidate(items, fleet, S.bcMaxStops || 99, S, depot, evaluator(items, fleet, S.bcMaxStops || 99, S, depot).ev),
+    const lab = kinds => S.smartLabo !== 0 ? kinds : kinds.filter(k => k !== 'labo');
+    const A = plan(lab(['labo', 'changan', 'gazel', 'kamaz']), (items, fleet) => cheapest(items, fleet, S.aMaxStops || 99, S, depot), { onlyIfNeeded: ['kamaz'] });   // строго по кузову
+    const B = plan(lab(['labo', 'gazel', 'kamaz']), (items, fleet) => cheapest(items, fleet, S.bcMaxStops || 99, S, depot),   // тот же поиск, свои правила
       { onlyIfNeeded: ['kamaz'], tol: { gazel: { m3: S.bTolM3, kg: S.bTolKg } } });   // Gazel с допуском
     const C = plan(['kamaz'], (items, fleet) => kamazRuns(items, fleet, S, depot));
     const sum = trips => {
@@ -429,7 +460,8 @@
         outsideCbm: trips.reduce((a, t) => a + t.outside.reduce((x, s) => x + s.cbm, 0), 0),
         price: priced.reduce((a, t) => a + t.price.total, 0),
         unpriced: trips.length - priced.length,
-        labo: n('labo'), gazel: n('gazel'), kamaz: n('kamaz'), over: trips.filter(t => t.over).length
+        labo: n('labo'), changan: n('changan'), gazel: n('gazel'), kamaz: n('kamaz'), over: trips.filter(t => t.over).length,
+        noVehicle: trips.filter(t => t.noVehicle).length, second: trips.filter(t => t.round > 1).length
       };
     };
     const out = { noCoords: noC };

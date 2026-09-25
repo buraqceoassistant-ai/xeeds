@@ -4,7 +4,7 @@
  * кузов делится на ячейки, груз заполняет их стенка за стенкой от кабины к дверям, в стенке — снизу вверх.
  * Порядок — как при разгрузке: последнюю точку грузят первой (к кабине), точка 1 оказывается у дверей.
  * Кузов: Labo — бортовой, размеры производителя, высота груза — из объёма во «Тарифах»;
- * Gazel и Kamaz — фургоны с типичными шириной и высотой, длина — из объёма во «Тарифах».
+ * Changan, Gazel и Kamaz — фургоны с типичными шириной и высотой, длина — из объёма во «Тарифах».
  * Груз больше кузова (допуск плана B) показан за дверями полупрозрачным.
  *
  * layout() — чистый расчёт, работает и без 3D. Сцену рисует three.js
@@ -17,6 +17,7 @@
   // Labo (UzAuto): кузов 1,94 × 1,33 м, борт 0,29 м; машина 3,495 × 1,4 × 1,8 м, колёсная база 1,84 м.
   const BODY = {
     labo: { flat: true, l: 1.94, w: 1.33, side: 0.29, cab: 1.45, cabW: 1.4, cabH: 1.47, wheel: 0.27, front: 0.55, base: 1.84, cabColor: '#f1f2f4' },
+    changan: { w: 1.75, h: 1.7, cab: 1.5, cabH: 1.95, wheel: 0.32, cabColor: '#f1f2f4' },   // точные размеры — когда придут от владельца
     gazel: { w: 2.1, h: 1.9, cab: 1.75, cabH: 2.15, wheel: 0.36, cabColor: '#f1f2f4' },
     kamaz: { w: 2.45, h: 2.6, cab: 2.2, cabH: 3.0, wheel: 0.5, cabColor: '#d9772b' }
   };
@@ -45,7 +46,7 @@
   function layout(trip) {
     const veh = trip.vehicle || {}, kind = trip.kind || veh.kind || 'gazel';
     const B = bodyOf(kind, veh.nomM3 != null ? veh.nomM3 : veh.m3);
-    const c = Math.cbrt(B.v / (kind === 'labo' ? 250 : 700));   // ~700 ячеек в кузове: видно груз и быстро рисуется
+    const c = Math.cbrt(B.v / (kind === 'labo' ? 250 : kind === 'changan' ? 450 : 700));   // ~700 ячеек в кузове: видно груз и быстро рисуется
     const n = { x: Math.max(1, Math.round(B.l / c)), y: Math.max(1, Math.round(B.h / c)), z: Math.max(1, Math.round(B.w / c)) };
     const cell = { x: B.l / n.x, y: B.h / n.y, z: B.w / n.z }, cellV = cell.x * cell.y * cell.z, wall = n.y * n.z, cap = n.x * wall;
     const points = pointsOf(trip), cells = [];

@@ -859,11 +859,13 @@ const LS_KEY = 'logi-site-v2';
 const ST = { 'Rejada': 'В плане', 'Yolda': 'В пути', 'Yetkazildi': 'Доставлено', 'Qolib ketgan': 'Осталось', 'Mijoz ozi oldi': 'Клиент забрал сам', 'Bekor qilindi': 'Отменено' };
 const TR = { 'Belgilanmagan': 'Не назначена', 'Mijoz ozi oladi': 'Клиент заберёт' };
 const PLAN_INFO = {
-  A: { title: 'A — экономичный', desc: S => 'Самый дешёвый по тарифам без перегруза: как можно меньше рейсов, маршруты по направлениям. Labo, Gazel и Kamaz. Gazel строго до ' + f1(S.gazelM3, 1) + ' м³ / ' + f0(S.gazelKg) + ' кг, Kamaz — только если груз больше.' },
+  A: { title: 'A — экономичный', desc: S => 'Самый дешёвый по тарифам без перегруза: как можно меньше рейсов, маршруты по направлениям. Labo, Changan, Gazel и Kamaz. Gazel строго до ' + f1(S.gazelM3, 1) + ' м³ / ' + f0(S.gazelKg) + ' кг, Kamaz — только если груз больше.' },
   B: { title: 'B — Gazel и Labo', desc: S => 'Как можно меньше машин: Gazel и Labo. Gazel можно загрузить с допуском — до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³ / ' + f0((+S.gazelKg || 0) + (+S.bTolKg || 0)) + ' кг. Kamaz — только если груз больше.' },
   C: { title: 'C — только Kamaz', desc: () => 'Большие машины делают несколько рейсов, каждая на своей стороне города.' }
 };
-const VEH = { labo: 'Labo', gazel: 'Gazel', kamaz: 'Kamaz' };
+const VEH = { labo: 'Labo', changan: 'Changan', gazel: 'Gazel', kamaz: 'Kamaz' };
+// Машины автопарка для журнала (Sozlamalar C24:C39). Госномера придут позже — тогда имена поменяются.
+const FLEET_TRUCKS = ['Gazel-1', 'Gazel-2', 'Gazel-3', 'Gazel-4', 'Gazel-5', 'Gazel-6', 'Gazel-7', 'Gazel-8', 'Gazel-9', 'Changan', 'Labo', 'Kamaz-1', 'Kamaz-2', 'Mijoz ozi oladi', 'Belgilanmagan'];
 const reys = n => n % 10 === 1 && n % 100 !== 11 ? 'рейс' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'рейса' : 'рейсов';
 const f0 = n => (n == null || isNaN(n)) ? '—' : Math.round(n).toLocaleString('ru-RU');
 const f1 = (n, d = 1) => (n == null || isNaN(n)) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d });
@@ -917,6 +919,7 @@ class Component extends DCLogic {
         let ptsFix = false; try { ptsFix = localStorage.getItem('logi-base-pts-v1') === '1'; } catch (e) {}
         if (!ptsFix) { this.firstPointRule(data); try { localStorage.setItem('logi-base-pts-v1', '1'); } catch (e) {} }
         this.capacityFix(data.settings);
+        if (this.once('logi-fleet-v2')) { this.gazel19(data.settings); this.fleetList(data); }
         this.setReady(data);
         const gs = this.gsChoose();
         if (gs.url) this.gsStart(gs.url, gs.token);
@@ -941,6 +944,21 @@ class Component extends DCLogic {
     if (S.laboKg === 800) changed.laboKg = 550;
     Object.assign(S, changed);
     return changed;
+  }
+  // Автопарк со слов владельца (25.09): 9 Gazel по 19 м³, Changan 9 м³ вместо Isuzu, 1 Labo, 2 Kamaz, до 2 рейсов в день.
+  // Прежние 23 м³ у Gazel → 19, список машин журнала → автопарк. Каждое — один раз (для устройства или для таблицы),
+  // чтобы потом можно было поменять во «Тарифах» и в таблице.
+  once(mark) {
+    let done = false; try { done = localStorage.getItem(mark) === '1'; } catch (e) {}
+    if (!done) { try { localStorage.setItem(mark, '1'); } catch (e) {} }
+    return !done;
+  }
+  gazel19(S) { if (S.gazelM3 !== 23) return null; S.gazelM3 = 19; return { gazelM3: 19 }; }
+  fleetList(d) {
+    const t = d.lists && d.lists.trucks;
+    if (!t || t.includes('Changan')) return false;
+    d.lists = { ...d.lists, trucks: FLEET_TRUCKS.slice() };
+    return true;
   }
   staleNotes(d) {
     d.notes = (d.notes || []).map(s => ({ ...s, items: s.items.filter(i => !/bazaviy narxga kiradimi/i.test(i.what)) }));
@@ -1027,6 +1045,9 @@ class Component extends DCLogic {
   // Правила, которые должны попасть и в таблицу. Каждое срабатывает один раз для таблицы на устройстве.
   gsMigrations(data) {
     const cap = this.capacityFix(data.settings), ops = Object.keys(cap).length ? [{ t: 'set', v: cap }] : [], mark = 'logi-mig-base-pts:' + this.gsUrl;
+    // новый автопарк — в таблицу, один раз: объём Gazel скрипт хранит с версии 3, список машин пишет с версии 5
+    if (this.gsVersion >= 3 && data.settings.gazelM3 === 23 && this.once('logi-mig-gazel19:' + this.gsUrl)) ops.push({ t: 'set', v: this.gazel19(data.settings) });
+    if (this.gsVersion >= 5 && data.lists && data.lists.trucks && !data.lists.trucks.includes('Changan') && this.once('logi-mig-trucks:' + this.gsUrl)) { this.fleetList(data); ops.push({ t: 'trucks', v: FLEET_TRUCKS }); }
     let done = false; try { done = localStorage.getItem(mark) === '1'; } catch (e) {}
     if (!done) {
       try { localStorage.setItem(mark, '1'); } catch (e) {}
@@ -1040,8 +1061,9 @@ class Component extends DCLogic {
     this.staleNotes(data);
     // Старый скрипт в таблице не записывает новые настройки (B55–B58): оставляем значения сайта
     // и просим обновить код скрипта.
-    const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4 };   // с какой версии скрипт хранит настройку
-    this.gsScriptOld = !(j.v >= 4);
+    const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
+      changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5 };
+    this.gsScriptOld = !(j.v >= 5); this.gsVersion = +j.v || 0;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -1396,12 +1418,13 @@ class Component extends DCLogic {
     const S = this.state.data.settings;
     const F = (key, label, unit, hint, type) => ({ key, label, unit: unit || '', hint: hint || '', type: type || 'number', value: S[key] ?? '' });
     return [
-      { title: 'Gazel', fields: [F('baseIncludesPts', 'Точек в базовой цене', 'шт', '1 — первая точка входит в базу, доплата со 2-й; 0 — платная каждая'), F('gazelBase', 'Базовая цена рейса', 'сум'), F('gazelHeavy', 'Базовая цена — тяжёлый груз', 'сум'), F('gazelHeavyKg', 'Порог тяжёлого груза', 'кг', 'Если вес рейса больше — тяжёлый тариф'), F('gazelPtIn', '1 точка внутри кольца', 'сум'), F('gazelPtOut', '1 точка снаружи кольца', 'сум')] },
-      { title: 'Labo', fields: [F('laboBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём груза', 'м³', 'Кузов 1,94 × 1,33 м, борт 0,29 м: ' + f1(S.laboM3, 1) + ' м³ — груз до ' + f1((+S.laboM3 || 0) / (1.94 * 1.33), 2) + ' м высотой. Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг', 'Labo UzAuto — 550 кг')] },
-      { title: 'Kamaz', fields: [F('kamazBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — рейсы Kamaz без цены'), F('kamazPt', '1 точка', 'сум')] },
+      { title: 'Gazel', fields: [F('baseIncludesPts', 'Точек в базовой цене', 'шт', '1 — первая точка входит в базу, доплата со 2-й; 0 — платная каждая'), F('gazelBase', 'Базовая цена рейса', 'сум'), F('gazelHeavy', 'Базовая цена — тяжёлый груз', 'сум'), F('gazelHeavyKg', 'Порог тяжёлого груза', 'кг', 'Если вес рейса больше — тяжёлый тариф'), F('gazelPtIn', '1 точка внутри кольца', 'сум'), F('gazelPtOut', '1 точка снаружи кольца', 'сум'), F('gazelCount', 'Машин в автопарке', 'шт')] },
+      { title: 'Changan', fields: [F('changanBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('changanBase', 'Базовая цена рейса', 'сум', 'Пусто — Changan в планах не используется'), F('changanPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('changanM3', 'Объём кузова', 'м³'), F('changanKg', 'Грузоподъёмность', 'кг'), F('changanCount', 'Машин в автопарке', 'шт')] },
+      { title: 'Labo', fields: [F('laboBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('laboBase', 'Базовая цена рейса', 'сум'), F('laboPt', '1 точка', 'сум', 'Одинаково внутри и снаружи'), F('laboM3', 'Объём груза', 'м³', 'Кузов 1,94 × 1,33 м, борт 0,29 м: ' + f1(S.laboM3, 1) + ' м³ — груз до ' + f1((+S.laboM3 || 0) / (1.94 * 1.33), 2) + ' м высотой. Рейс помещается — в плане выбирается Labo'), F('laboKg', 'Грузоподъёмность', 'кг', 'Labo UzAuto — 550 кг'), F('laboCount', 'Машин в автопарке', 'шт')] },
+      { title: 'Kamaz', fields: [F('kamazBaseIncludesPts', 'Точек в базовой цене', 'шт', '0 — платная каждая точка; 1 — первая входит в базу'), F('kamazBase', 'Базовая цена рейса', 'сум', 'Пусто — рейсы Kamaz без цены'), F('kamazPt', '1 точка', 'сум'), F('cTrucks', 'Машин в автопарке', 'шт', 'Столько Kamaz делят город в плане C')] },
       { title: 'Склад отправки', fields: [F('depotName', 'Название', '', '', 'text'), F('depotLat', 'Широта', '°', 'Внимание: в Excel помечено как примерное'), F('depotLon', 'Долгота', '°'), F('roadK', 'Коэффициент дороги', '×', 'Прямая → реальная дорога, обычно 1,25–1,40')] },
-      { title: 'Машины для планов', fields: [F('gazelM3', 'Gazel — объём кузова', 'м³', 'Сколько реально помещается. В плане A — строго до этого'), F('gazelKg', 'Gazel — грузоподъёмность', 'кг'), F('bTolM3', 'План B — допуск Gazel по объёму', 'м³', 'Сверх объёма кузова. 5 → в плане B Gazel берёт до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³; 0 — без допуска'), F('bTolKg', 'План B — допуск Gazel по весу', 'кг', 'Сверх грузоподъёмности. Груз больше Gazel с допуском едет на Kamaz'), F('cM3', 'Kamaz — объём кузова', 'м³'), F('cKg', 'Kamaz — грузоподъёмность', 'кг', 'Груз больше Kamaz делится на несколько рейсов'), F('cTrucks', 'Kamaz — машин для плана C', 'шт'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения'), F('isuzuM3', 'Isuzu — объём', 'м³', 'Только для листов планов в Excel'), F('isuzuKg', 'Isuzu — грузоподъёмность', 'кг', 'Только для листов планов в Excel')] },
-      { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Только для листов планов в Excel'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), { ...F('smartLabo', 'Labo в планах A и B', '', '1 — Labo, если груз помещается и так дешевле; 0 — без Labo'), value: S.smartLabo ?? 1 }] }
+      { title: 'Машины для планов', fields: [F('gazelM3', 'Gazel — объём кузова', 'м³', 'Сколько реально помещается. В плане A — строго до этого'), F('gazelKg', 'Gazel — грузоподъёмность', 'кг'), F('bTolM3', 'План B — допуск Gazel по объёму', 'м³', 'Сверх объёма кузова. 5 → в плане B Gazel берёт до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³; 0 — без допуска'), F('bTolKg', 'План B — допуск Gazel по весу', 'кг', 'Сверх грузоподъёмности. Груз больше Gazel с допуском едет на Kamaz'), F('cM3', 'Kamaz — объём кузова', 'м³'), F('cKg', 'Kamaz — грузоподъёмность', 'кг', 'Груз больше Kamaz делится на несколько рейсов'), F('maxPlaces', 'Макс. мест на машину', 'шт', 'Пусто — без ограничения')] },
+      { title: 'Правила планов', fields: [F('aMaxStops', 'План A — макс. точек в рейсе', 'шт'), F('bcMaxStops', 'Планы B и C — макс. точек', 'шт'), F('bSmallM3', 'План B — порог мелкого груза', 'м³', 'Только для листов планов в Excel'), F('speed', 'Средняя скорость', 'км/ч'), F('unloadMin', 'Разгрузка на точке', 'мин'), F('tripsPerVehicle', 'Рейсов на машину в день', 'шт', 'Машин не хватает — второй рейс той, что раньше вернётся'), { ...F('smartLabo', 'Labo в планах A и B', '', '1 — Labo, если груз помещается и так дешевле; 0 — без Labo'), value: S.smartLabo ?? 1 }] }
     ];
   }
 
@@ -1613,7 +1636,7 @@ class Component extends DCLogic {
       // план C свёрнут, пока его не откроют; «самый дешёвый» — среди показанных планов, где у всех рейсов есть цена
       const shown = st.planC ? ['A', 'B', 'C'] : ['A', 'B'], planKey = shown.includes(st.planKey) ? st.planKey : 'A';
       const full = shown.filter(k => P[k].sum.trips && !P[k].sum.unpriced), minP = full.length ? Math.min(...full.map(k => P[k].sum.price)) : null;
-      const kindsOf = s => ['labo', 'gazel', 'kamaz'].filter(k => s[k]).map(k => VEH[k] + ' ' + s[k]).join(' · ');
+      const kindsOf = s => ['labo', 'changan', 'gazel', 'kamaz'].filter(k => s[k]).map(k => VEH[k] + ' ' + s[k]).join(' · ');
       out.planCols = shown.length;
       out.planCards = shown.map(k => { const s = P[k].sum, sel = planKey === k, noPrice = s.unpriced && !s.price;
         return { title: PLAN_INFO[k].title, desc: PLAN_INFO[k].desc(S), trips: s.trips, kinds: kindsOf(s), real: f0(s.real) + ' км', outside: s.outside + ' · ' + f1(s.outsideCbm, 1) + ' м³',
@@ -1628,10 +1651,15 @@ class Component extends DCLogic {
       out.togglePlanC = () => { const v = !st.planC; try { localStorage.setItem('logi-plan-c', v ? '1' : '0'); } catch (e) {} this.setState({ planC: v, planKey: !v && st.planKey === 'C' ? 'A' : st.planKey }); };
       const plan = P[planKey];
       const notes = [];
-      if (plan.fleet) notes.push('Вместимость машин: ' + plan.fleet.map(v => v.label + ' ' + f1(v.nomM3, 1) + ' м³ / ' + f0(v.nomKg) + ' кг' + (v.tolM3 || v.tolKg ? ' + допуск ' + f1(v.tolM3, 1) + ' м³ / ' + f0(v.tolKg) + ' кг' : '') + (v.priced ? '' : ' (нет тарифа)')).join(' · ') + (S.maxPlaces ? ' · до ' + S.maxPlaces + ' мест' : '') + '. Меняется во вкладке «Тарифы».');
+      const fleetN = { gazel: S.gazelCount, changan: S.changanCount, labo: S.laboCount, kamaz: S.cTrucks };
+      if (plan.fleet) notes.push('Машины: ' + plan.fleet.map(v => (fleetN[v.kind] ? fleetN[v.kind] + ' × ' : '') + v.label + ' ' + f1(v.nomM3, 1) + ' м³ / ' + f0(v.nomKg) + ' кг' + (v.tolM3 || v.tolKg ? ' + допуск ' + f1(v.tolM3, 1) + ' м³ / ' + f0(v.tolKg) + ' кг' : '') + (v.priced ? '' : ' (нет тарифа)')).join(' · ') + '; рейсов на машину в день — до ' + (S.tripsPerVehicle || 1) + (S.maxPlaces ? ' · до ' + S.maxPlaces + ' мест' : '') + '. Меняется во вкладке «Тарифы».');
       plan.splits.forEach(x => { const big = plan.fleet.reduce((a, b) => (b.m3 + b.kg / 1000 > a.m3 + a.kg / 1000 ? b : a));
         notes.push(x.bl + ((x.client && x.client.brand) ? ' ' + x.client.brand : '') + ': ' + f1(x.cbm, 1) + ' м³ / ' + f0(x.kg) + ' кг — больше самой большой машины (' + big.label + ' ' + f1(big.m3, 1) + ' м³ / ' + f0(big.kg) + ' кг), разделена на ' + x.parts + ' ' + reys(x.parts) + (x.sizes ? ': ' + x.sizes.map(z => f1(z.cbm, 1) + ' м³ / ' + f0(z.kg) + ' кг').join(' + ') + '. Остаток едет машиной, в которую помещается, можно вместе с другими точками' : '') + '.' + (x.indivisible ? ' Мест всего ' + x.places + ' — проверьте, можно ли так делить груз.' : '')); });
-      if (plan.sum.unpriced) notes.push('Kamaz без тарифа: ' + plan.sum.unpriced + ' ' + reys(plan.sum.unpriced) + ' не входят в сумму. Заполните базовую цену и цену точки Kamaz во вкладке «Тарифы».');
+      if (plan.sum.unpriced) { const np = [...new Set(plan.trips.filter(t => t.price.total == null).map(t => VEH[t.kind]))].join(', ');
+        notes.push(np + ' без тарифа: ' + plan.sum.unpriced + ' ' + reys(plan.sum.unpriced) + ' не входят в сумму. Заполните базовую цену и цену точки во вкладке «Тарифы».'); }
+      if (plan.sum.second) notes.push('Машин меньше, чем рейсов: ' + plan.sum.second + ' ' + reys(plan.sum.second) + ' — вторым кругом (в названии «рейс 2»), время — после возвращения машины.');
+      if (plan.sum.noVehicle) { const nv = {}; plan.trips.filter(t => t.noVehicle).forEach(t => { nv[t.kind] = (nv[t.kind] || 0) + 1; });
+        notes.push('Не хватает машин: ' + Object.entries(nv).map(([k, c]) => VEH[k] + ' — ещё ' + c + ' ' + reys(c) + ' (в автопарке ' + (fleetN[k] || 0) + ' × ' + (S.tripsPerVehicle || 1) + ')').join(', ') + '. Добавьте машины или рейсы на машину во вкладке «Тарифы».'); }
       if (plan.sum.over) notes.push('Не помещается ни в одну машину и не делится: ' + plan.trips.filter(t => t.over).map(t => t.stops[0].bl).join(', ') + '. Проверьте вместимость машин во вкладке «Тарифы».');
       if (plan.noFleet) notes.push('Для этого плана нет машин: задайте объём и грузоподъёмность Kamaz во вкладке «Тарифы».');
       out.planNotes = notes.map(text => ({ text })); out.planHasNotes = notes.length > 0;
@@ -1639,11 +1667,11 @@ class Component extends DCLogic {
         const v = t.vehicle;
         let prev = depot;
         const nM3 = v.nomM3 ?? v.m3, nKg = v.nomKg ?? v.kg, upM3 = t.cbm > nM3 + 1e-6, upKg = t.kg > nKg + 1e-6;   // сверх кузова — за счёт допуска Gazel в плане B
-        return { name: t.name, tariff: t.price.label + (t.over ? ' · ПЕРЕГРУЗ' : (upM3 || upKg) ? ' · с допуском' : ''), stopsN: new Set(t.stops.map(s => s.bl)).size,
+        return { name: t.name, tariff: t.price.label + (t.over ? ' · ПЕРЕГРУЗ' : (upM3 || upKg) ? ' · с допуском' : '') + (t.noVehicle ? ' · НЕТ МАШИНЫ' : ''), stopsN: new Set(t.stops.map(s => s.bl)).size,
           cbm: f1(t.cbm, 2) + ' из ' + f1(nM3, 1) + (v.tolM3 ? ' (+' + f1(v.tolM3, 1) + ')' : ''), kg: f0(t.kg) + ' из ' + f0(nKg) + (v.tolKg ? ' (+' + f0(v.tolKg) + ')' : ''),
           cbmPct: Math.min(100, t.cbm / nM3 * 100).toFixed(0) + '%', kgPct: Math.min(100, t.kg / nKg * 100).toFixed(0) + '%',
           cbmBar: upM3 || t.over ? 'var(--color-accent-900)' : 'var(--color-accent)', kgBar: upKg || t.over ? 'var(--color-accent-900)' : 'var(--color-accent)',
-          km: f1(t.real, 1) + ' км (реальн.)', time: hhmm(S.dayStart * 1440) + '–' + hhmm(t.finish + t.back / S.speed * 60 * S.roadK), price: t.price.total != null ? money(t.price.total) : 'нет тарифа', formula: t.price.formula,
+          km: f1(t.real, 1) + ' км (реальн.)', time: hhmm(t.start ?? S.dayStart * 1440) + '–' + hhmm(t.finish + t.back / S.speed * 60 * S.roadK), price: t.price.total != null ? money(t.price.total) : 'нет тарифа', formula: t.price.formula,
           yHref: E.yRoute(depot, t.stops.map(s => [s.lat, s.lon])), open3d: () => this.setState({ tab: 'viz', planKey, vizTrip: ti, vizStep: 0, vizSel: null }),
           stops: t.stops.map((s, j) => { const c = s.client, leg = E.km(prev, [s.lat, s.lon]); prev = [s.lat, s.lon];
             return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : ''), brand: c.brand || '—', name: c.name || '', district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', pointHref: E.yPoint(s.lat, s.lon), pt: t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') }; }) };
