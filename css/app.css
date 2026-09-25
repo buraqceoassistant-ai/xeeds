@@ -17,12 +17,14 @@ html.locked, html.locked body { overflow: hidden; }
 .auth[data-state="open"] { opacity: 0; pointer-events: none; }
 .auth-card {
   width: min(380px, 100%); display: flex; flex-direction: column; gap: 14px;
-  padding: 0 24px 24px; background: var(--color-bg); box-shadow: var(--shadow-lg);
+  padding: 0 24px 24px; background: var(--color-bg); box-shadow: var(--shadow-lg); border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  overflow: hidden;
 }
 .auth[data-state="checking"] .auth-card, .auth[data-state="open"] .auth-card { display: none; }
+/* белый логотип на фирменном синем; охранное поле — не меньше 10 % ширины логотипа со всех сторон */
 .auth-logo {
-  height: 132px; margin: 0 -24px 4px;
-  background: var(--color-brand) url(../img/logo.png) center / 264px 264px no-repeat;
+  height: 132px; margin: 0 -24px 4px; border-bottom: 1px solid var(--color-red);
+  background: var(--color-brand) url(../buraq-brand/logo/buraq-logo-white.svg) center / 220px auto no-repeat;
 }
 .auth-title { margin: 0; font-size: 28px; }
 .auth-sub { margin: -10px 0 4px; font-size: 13px; color: var(--color-neutral-700); }
@@ -39,11 +41,25 @@ html.locked, html.locked body { overflow: hidden; }
 /* ── Кнопка «Аккаунт» в шапке и её диалоги ── */
 .app-account {
   flex: none; align-self: center; margin-left: auto;
-  padding: 6px 10px; background: none; border: 1px solid var(--color-divider);
-  font: 600 13px/1.2 var(--font-heading); letter-spacing: .02em; text-transform: uppercase;
-  color: var(--color-neutral-700); cursor: pointer;
+  padding: 7px 16px; background: none; border: 1px solid color-mix(in srgb, var(--color-on-brand) 70%, transparent); border-radius: var(--radius-pill);
+  font: 500 12px/1.2 var(--font-heading); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--color-on-brand); cursor: pointer;
 }
-.app-account:hover { color: var(--color-accent-700); border-color: var(--color-accent); }
+.app-account:hover { border-color: var(--color-on-brand); background: color-mix(in srgb, var(--color-on-brand) 10%, transparent); }
+
+/* ── Фирменная шапка: белый логотип на синем (buraq-brand/logo/buraq-logo-white.svg), охранное поле ~10 % ширины ── */
+.app-logo {
+  width: 124px; height: 100%; flex: none;
+  background: url(../buraq-brand/logo/buraq-logo-white.svg) center / 104px auto no-repeat;
+}
+.app-tabs > button:hover { color: var(--color-on-brand) !important; }
+
+/* ── Фирменная деталь: тонкая красная стрелка перед подзаголовком страницы (————→) ── */
+.eyebrow { display: flex; align-items: center; gap: 10px; }
+.eyebrow::before {
+  content: ""; flex: none; width: 36px; height: 7px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='7' viewBox='0 0 36 7'%3E%3Cpath d='M0 3.5H35M31 0.5L35 3.5L31 6.5' fill='none' stroke='%23DE0441' stroke-width='1.2'/%3E%3C/svg%3E") no-repeat;
+}
 .acc-backdrop { z-index: 4000; }
 .acc-dialog { width: min(480px, 100%) !important; max-height: 92vh; overflow-y: auto; background: var(--color-bg) !important; }
 .acc-form { display: flex; flex-direction: column; gap: 12px; }

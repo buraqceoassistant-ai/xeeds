@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Логистика — отгрузки и клиенты</title>
+<title>BURAQ logistics — отгрузки и клиенты</title>
 <meta name="description" content="Журнал отгрузок, клиенты, карта точек, планы маршрутов и тарифы. Работает с Excel и Google Таблицей.">
-<meta name="theme-color" content="#0e2e54">
+<meta name="theme-color" content="#0E2E54">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Логистика">
+<meta name="apple-mobile-web-app-title" content="BURAQ">
 <link rel="stylesheet" href="css/design-system.css">
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/mobile.css">
@@ -47,14 +47,14 @@
 </div>
 <x-dc>
 <div class="app" style="min-height:100vh;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);font-size:14px">
-  <header class="app-header" style="position:sticky;top:0;z-index:1000;background:var(--color-bg);border-bottom:1px solid var(--color-divider)">
-    <div class="app-bar" style="max-width:1560px;margin:0 auto;display:flex;align-items:stretch;gap:20px;padding:0 20px;height:56px;overflow:hidden">
+  <header class="app-header" style="position:sticky;top:0;z-index:1000;background:var(--color-brand);border-bottom:1px solid var(--color-red)">
+    <div class="app-bar" style="max-width:1560px;margin:0 auto;display:flex;align-items:stretch;gap:20px;padding:0 20px;height:60px;overflow:hidden">
       <div class="app-brand" style="display:flex;align-items:center;gap:10px;position:relative;flex:none">
-        <div class="app-logo" role="img" aria-label="BURAQ logistics" style="width:143px;height:73px;background:url(img/logo.png) center / cover no-repeat;border-radius:85px"></div>
+        <div class="app-logo" role="img" aria-label="BURAQ logistics"></div>
       </div>
       <nav class="app-tabs" style="display:flex;align-items:stretch;gap:4px;margin-left:12px">
         <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="6">
-          <button sc-camel-on-click="{{ t.go }}" style="background:none;border:0;border-bottom:2px solid {{ t.border }};padding:0 12px;font-family:var(--font-heading);font-weight:600;font-size:15px;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;color:{{ t.color }};cursor:pointer" style-hover="color:var(--color-accent)">{{ t.label }}</button>
+          <button sc-camel-on-click="{{ t.go }}" style="background:none;border:0;border-bottom:2px solid {{ t.border }};padding:0 12px;font-family:var(--font-heading);font-weight:500;font-size:13px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:{{ t.color }};cursor:pointer" style-hover="color:var(--color-accent)">{{ t.label }}</button>
         </sc-for>
       </nav>
       <button class="app-account" sc-camel-on-click="{{ account }}" title="Смена пароля и выход">Аккаунт</button>
@@ -92,7 +92,7 @@
     <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;position:relative">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px">
         <div>
-          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Yuborishlar</div>
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Yuborishlar</div>
           <h1 style="margin:2px 0 0;font-size:38px">Журнал отгрузок</h1>
         </div>
         <div class="page-tools" style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -112,7 +112,7 @@
         <sc-for list="{{ jStats }}" as="k" hint-placeholder-count="6">
           <div style="padding:14px 16px;border-right:1px solid var(--color-divider)">
             <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div>
-            <div style="font-family:var(--font-heading);font-weight:600;font-size:26px;margin-top:2px">{{ k.value }}</div>
+            <div style="font-family:var(--font-heading);font-weight:500;font-size:26px;margin-top:2px">{{ k.value }}</div>
           </div>
         </sc-for>
       </div>
@@ -170,7 +170,7 @@
     <main class="page" style="max-width:1560px;margin:0 auto;padding:28px">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px">
         <div>
-          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Mijozlar</div>
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Mijozlar</div>
           <h1 style="margin:2px 0 0;font-size:38px">Клиенты</h1>
         </div>
         <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:8px">{{ cCount }}</div>
@@ -225,7 +225,7 @@
       <section style="margin-top:32px">
         <div class="page-head" style="display:flex;align-items:flex-end;gap:14px;margin-bottom:12px;flex-wrap:wrap">
           <div>
-            <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Qoshimcha omborlar</div>
+            <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Qoshimcha omborlar</div>
             <h2 style="margin:2px 0 0;font-size:28px">Дополнительные склады</h2>
           </div>
           <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:5px">{{ whCount }} · если у клиента несколько складов</div>
@@ -264,7 +264,7 @@
     <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:24px">
       <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
         <div>
-          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Tekshirish</div>
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Tekshirish</div>
           <h1 style="margin:2px 0 0;font-size:38px">Проверка данных</h1>
         </div>
         <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:8px;max-width:560px;text-wrap:pretty">Считается заново при каждом изменении. Нажмите на BL, чтобы исправить.</div>
@@ -290,17 +290,17 @@
         <sc-for list="{{ checks }}" as="c" hint-placeholder-count="8">
           <div class="check-row" style="display:grid;grid-template-columns:minmax(220px,300px) 70px minmax(0,1fr);gap:18px;padding:14px 18px;border-bottom:1px solid var(--color-divider);align-items:start">
             <div>
-              <div style="font-weight:600;font-size:15px">{{ c.title }}</div>
+              <div style="font-weight:500;font-size:15px">{{ c.title }}</div>
               <div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty;margin-top:2px">{{ c.desc }}</div>
             </div>
-            <div style="font-family:var(--font-heading);font-weight:600;font-size:28px;line-height:1;text-align:right">
+            <div style="font-family:var(--font-heading);font-weight:500;font-size:28px;line-height:1;text-align:right">
               <sc-if value="{{ c.warn }}"><span style="color:var(--color-accent-900)">{{ c.value }}</span></sc-if>
               <sc-if value="{{ c.info }}"><span>{{ c.value }}</span></sc-if>
               <sc-if value="{{ c.ok }}"><span style="color:var(--color-accent-700);font-size:18px">OK</span></sc-if>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
               <sc-for list="{{ c.items }}" as="i">
-                <button sc-camel-on-click="{{ i.go }}" title="{{ i.sub }}" style="border:1px solid var(--color-divider);background:var(--color-bg);padding:3px 8px;font:inherit;font-size:12px;color:inherit;cursor:pointer;display:flex;gap:6px" style-hover="border-color:var(--color-accent)"><span style="font-weight:600">{{ i.label }}</span><span style="color:var(--color-neutral-700);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ i.sub }}</span></button>
+                <button sc-camel-on-click="{{ i.go }}" title="{{ i.sub }}" style="border:1px solid var(--color-divider);background:var(--color-bg);padding:3px 8px;font:inherit;font-size:12px;color:inherit;cursor:pointer;display:flex;gap:6px" style-hover="border-color:var(--color-accent)"><span style="font-weight:500">{{ i.label }}</span><span style="color:var(--color-neutral-700);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ i.sub }}</span></button>
               </sc-for>
               <span style="font-size:12px;color:var(--color-neutral-700)">{{ c.more }}</span>
             </div>
@@ -333,7 +333,7 @@
     <main class="map-layout" style="display:grid;grid-template-columns:340px minmax(0,1fr);height:calc(100vh - {{ mapTopOffset }})">
       <aside class="map-aside" style="border-right:1px solid var(--color-divider);padding:24px;overflow:auto;display:flex;flex-direction:column;gap:18px">
         <div>
-          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Xarita</div>
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Xarita</div>
           <h1 style="margin:2px 0 0;font-size:34px">Карта точек</h1>
         </div>
         <div class="field"><label>Что показать</label>
@@ -362,7 +362,7 @@
           <sc-for list="{{ mapStats }}" as="k">
             <div style="padding:10px 12px;border-bottom:1px solid var(--color-divider)">
               <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div>
-              <div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ k.value }}</div>
+              <div style="font-family:var(--font-heading);font-weight:500;font-size:22px">{{ k.value }}</div>
             </div>
           </sc-for>
         </div>
@@ -410,7 +410,7 @@
   <sc-if value="{{ isDash }}" hint-placeholder-val="{{ false }}">
     <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:28px">
       <div>
-        <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Boshqaruv paneli</div>
+        <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Boshqaruv paneli</div>
         <h1 style="margin:2px 0 0;font-size:38px">Дашборд</h1>
       </div>
       <div class="kpi-cards" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:20px">
@@ -418,7 +418,7 @@
           <div class="blueprint" style="padding:18px 18px 16px">
             <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
             <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div>
-            <div style="font-family:var(--font-heading);font-weight:600;font-size:34px;line-height:1.1;margin-top:4px">{{ k.value }}</div>
+            <div style="font-family:var(--font-heading);font-weight:500;font-size:34px;line-height:1.1;margin-top:4px">{{ k.value }}</div>
             <div style="font-size:12px;color:var(--color-neutral-700)">{{ k.sub }}</div>
           </div>
         </sc-for>
@@ -473,7 +473,7 @@
     <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:24px">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
         <div>
-          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Reja A / B / C</div>
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Reja A / B / C</div>
           <h1 style="margin:2px 0 0;font-size:38px">Планы маршрутов</h1>
         </div>
         <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:8px">{{ planSummary }}</div>
@@ -491,18 +491,18 @@
           <button class="blueprint" sc-camel-on-click="{{ p.go }}" style="text-align:left;background:{{ p.bg }};color:inherit;font:inherit;padding:20px;cursor:pointer;display:flex;flex-direction:column;gap:12px;border-color:{{ p.border }}">
             <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-              <div style="font-family:var(--font-heading);font-weight:600;font-size:24px">{{ p.title }}</div>
+              <div style="font-family:var(--font-heading);font-weight:500;font-size:24px">{{ p.title }}</div>
               <sc-if value="{{ p.cheapest }}"><span class="tag tag-accent">самый дешёвый</span></sc-if>
             </div>
             <div style="font-size:13px;color:var(--color-neutral-800);text-wrap:pretty;min-height:40px">{{ p.desc }}</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--color-divider);padding-top:12px;gap:8px">
-              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Рейсов</div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ p.trips }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ p.kinds }}</div></div>
-              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Реальный км</div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ p.real }}</div></div>
-              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Снаружи</div><div style="font-family:var(--font-heading);font-weight:600;font-size:22px">{{ p.outside }}</div></div>
+              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Рейсов</div><div style="font-family:var(--font-heading);font-weight:500;font-size:22px">{{ p.trips }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ p.kinds }}</div></div>
+              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Реальный км</div><div style="font-family:var(--font-heading);font-weight:500;font-size:22px">{{ p.real }}</div></div>
+              <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-neutral-700)">Снаружи</div><div style="font-family:var(--font-heading);font-weight:500;font-size:22px">{{ p.outside }}</div></div>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--color-divider);padding-top:12px">
               <span style="font-size:12px;color:var(--color-neutral-700)">Итого</span>
-              <span style="font-family:var(--font-heading);font-weight:600;font-size:26px">{{ p.price }}</span>
+              <span style="font-family:var(--font-heading);font-weight:500;font-size:26px">{{ p.price }}</span>
             </div>
             <div style="font-size:12px;color:var(--color-neutral-700);min-height:16px">{{ p.diff }}</div>
           </button>
@@ -510,7 +510,7 @@
       </div>
 
       <button class="plan-c-bar" sc-camel-on-click="{{ togglePlanC }}" style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;width:100%;text-align:left;background:transparent;color:inherit;font:inherit;font-size:13px;padding:10px 16px;border:1px dashed var(--color-divider);cursor:pointer">
-        <span style="font-family:var(--font-heading);font-weight:600;font-size:16px">{{ planCTitle }}</span>
+        <span style="font-family:var(--font-heading);font-weight:500;font-size:16px">{{ planCTitle }}</span>
         <span style="color:var(--color-neutral-700)">{{ planCInfo }}</span>
         <span style="margin-left:auto;color:var(--color-accent-700);white-space:nowrap">{{ planCAct }}</span>
       </button>
@@ -525,7 +525,7 @@
         <sc-for list="{{ planTrips }}" as="t" hint-placeholder-count="3">
           <section class="trip" style="border:1px solid var(--color-divider)">
             <div class="trip-head" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
-              <div style="font-family:var(--font-heading);font-weight:600;font-size:22px;min-width:150px">{{ t.name }}</div>
+              <div style="font-family:var(--font-heading);font-weight:500;font-size:22px;min-width:150px">{{ t.name }}</div>
               <span class="tag tag-outline">{{ t.tariff }}</span>
               <div style="display:flex;gap:18px;font-size:13px;flex-wrap:wrap">
                 <span>{{ t.stopsN }} точ.</span>
@@ -535,9 +535,9 @@
                 <span>{{ t.time }}</span>
               </div>
               <div class="trip-price" style="margin-left:auto;display:flex;align-items:center;gap:16px">
-                <div style="text-align:right"><div style="font-family:var(--font-heading);font-weight:600;font-size:20px">{{ t.price }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ t.formula }}</div></div>
+                <div style="text-align:right"><div style="font-family:var(--font-heading);font-weight:500;font-size:20px">{{ t.price }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ t.formula }}</div></div>
                 <button class="btn btn-secondary" sc-camel-on-click="{{ t.open3d }}">Загрузка 3D</button>
-                <a class="btn btn-primary blueprint" href="{{ t.yHref }}" target="_blank" style="text-decoration:none"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Открыть в Яндекс Картах</a>
+                <a class="btn btn-secondary" href="{{ t.yHref }}" target="_blank" style="text-decoration:none">Открыть в Яндекс Картах</a>
               </div>
             </div>
             <sc-raw-table class="table tc">
@@ -568,7 +568,7 @@
         </sc-for>
         <sc-if value="{{ planHasNoCoords }}">
           <section style="border:1px dashed var(--color-neutral-500)">
-            <div style="padding:14px 18px;border-bottom:1px solid var(--color-divider)"><div style="font-family:var(--font-heading);font-weight:600;font-size:20px">Без координат — распределить вручную</div><div style="font-size:12px;color:var(--color-neutral-700)">Эти отгрузки не попали ни в один план и не входят в стоимость. Добавьте координаты клиенту.</div></div>
+            <div style="padding:14px 18px;border-bottom:1px solid var(--color-divider)"><div style="font-family:var(--font-heading);font-weight:500;font-size:20px">Без координат — распределить вручную</div><div style="font-size:12px;color:var(--color-neutral-700)">Эти отгрузки не попали ни в один план и не входят в стоимость. Добавьте координаты клиенту.</div></div>
             <sc-raw-table class="table tc"><sc-raw-tbody>
               <sc-for list="{{ planNoCoords }}" as="s">
                 <sc-raw-tr><sc-raw-td class="c2 c-strong" style="font-weight:500;width:120px">{{ s.bl }}</sc-raw-td><sc-raw-td class="c4">{{ s.name }}</sc-raw-td><sc-raw-td class="c2" style="text-align:right">{{ s.cbm }} м³</sc-raw-td><sc-raw-td class="c2" style="text-align:right">{{ s.kg }} кг</sc-raw-td><sc-raw-td class="c2 c-actions" style="width:120px"><button class="btn btn-ghost" sc-camel-on-click="{{ s.onEdit }}">Клиент</button></sc-raw-td></sc-raw-tr>
@@ -584,7 +584,7 @@
     <main class="page viz-page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:18px">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
         <div>
-          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Yuklash 3D</div>
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Yuklash 3D</div>
           <h1 style="margin:2px 0 0;font-size:38px">Визуализация планов</h1>
         </div>
         <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:8px">{{ vizSummary }}</div>
@@ -593,7 +593,7 @@
             <sc-for list="{{ dateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for>
           </sc-raw-select>
           <div class="viz-seg" style="display:flex;border:1px solid var(--color-divider)">
-            <sc-for list="{{ vizPlanOpts }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for>
+            <sc-for list="{{ vizPlanOpts }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:500;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for>
           </div>
         </div>
       </div>
@@ -601,7 +601,7 @@
       <div class="viz-trips" style="display:flex;gap:8px;flex-wrap:wrap">
         <sc-for list="{{ vizTripOpts }}" as="o">
           <button sc-camel-on-click="{{ o.go }}" style="border:1px solid {{ o.border }};background:{{ o.bg }};color:inherit;font:inherit;padding:8px 12px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:112px">
-            <span style="font-family:var(--font-heading);font-weight:600;font-size:16px">{{ o.l }}</span>
+            <span style="font-family:var(--font-heading);font-weight:500;font-size:16px">{{ o.l }}</span>
             <span style="font-size:12px;color:{{ o.subColor }}">{{ o.sub }}</span>
           </button>
         </sc-for>
@@ -620,13 +620,13 @@
         <aside class="viz-side" style="display:flex;flex-direction:column;gap:14px;border:1px solid var(--color-divider);background:var(--color-surface);padding:16px">
           <sc-if value="{{ vizIsOne }}">
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">
-              <div style="font-family:var(--font-heading);font-weight:600;font-size:24px">{{ vizTitle }}</div>
+              <div style="font-family:var(--font-heading);font-weight:500;font-size:24px">{{ vizTitle }}</div>
               <div style="font-size:13px;color:var(--color-neutral-700)">{{ vizPrice }}</div>
             </div>
             <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
               <sc-for list="{{ vizBars }}" as="b">
                 <div>
-                  <div style="display:flex;justify-content:space-between;gap:8px"><span>{{ b.l }}</span><span style="font-weight:600;color:{{ b.color }}">{{ b.v }}</span></div>
+                  <div style="display:flex;justify-content:space-between;gap:8px"><span>{{ b.l }}</span><span style="font-weight:500;color:{{ b.color }}">{{ b.v }}</span></div>
                   <div style="height:6px;background:var(--color-neutral-300);margin-top:4px"><div style="height:6px;width:{{ b.pct }};background:{{ b.bar }}"></div></div>
                 </div>
               </sc-for>
@@ -647,7 +647,7 @@
                 <button sc-camel-on-click="{{ p.go }}" style="display:flex;gap:10px;align-items:flex-start;text-align:left;border:1px solid {{ p.border }};background:{{ p.bg }};color:inherit;font:inherit;padding:8px;cursor:pointer;opacity:{{ p.opacity }}">
                   <span style="flex:none;width:26px;height:26px;border-radius:50%;background:{{ p.color }};color:{{ p.fg }};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px">{{ p.n }}</span>
                   <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
-                    <span style="font-weight:600">{{ p.bl }} <span style="font-weight:400;color:var(--color-neutral-700)">{{ p.name }}</span></span>
+                    <span style="font-weight:500">{{ p.bl }} <span style="font-weight:400;color:var(--color-neutral-700)">{{ p.name }}</span></span>
                     <span style="font-size:12px;color:var(--color-neutral-700)">{{ p.info }}</span>
                   </span>
                 </button>
@@ -655,11 +655,11 @@
             </div>
           </sc-if>
           <sc-if value="{{ vizIsAll }}">
-            <div style="font-family:var(--font-heading);font-weight:600;font-size:24px">{{ vizTitle }}</div>
+            <div style="font-family:var(--font-heading);font-weight:500;font-size:24px">{{ vizTitle }}</div>
             <div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">Нажмите на машину или выберите рейс вверху — откроется загрузка по точкам.</div>
             <sc-for list="{{ vizAllRows }}" as="r">
               <button sc-camel-on-click="{{ r.go }}" style="display:flex;flex-direction:column;gap:6px;text-align:left;border:1px solid var(--color-divider);background:var(--color-bg);color:inherit;font:inherit;padding:10px;cursor:pointer">
-                <span style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:600">{{ r.name }}</span><span style="font-size:12px;color:var(--color-neutral-700)">{{ r.pts }}</span></span>
+                <span style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:500">{{ r.name }}</span><span style="font-size:12px;color:var(--color-neutral-700)">{{ r.pts }}</span></span>
                 <span style="display:flex;gap:10px;align-items:center;font-size:12px"><span style="width:88px">{{ r.cbm }}</span><span style="flex:1;height:5px;background:var(--color-neutral-300)"><span style="display:block;height:5px;width:{{ r.cbmPct }};background:{{ r.cbmBar }}"></span></span></span>
                 <span style="display:flex;gap:10px;align-items:center;font-size:12px"><span style="width:88px">{{ r.kg }}</span><span style="flex:1;height:5px;background:var(--color-neutral-300)"><span style="display:block;height:5px;width:{{ r.kgPct }};background:{{ r.kgBar }}"></span></span></span>
                 <sc-if value="{{ r.hasOver }}"><span style="font-size:12px;color:var(--color-danger)">{{ r.over }}</span></sc-if>
@@ -676,7 +676,7 @@
     <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:24px">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
         <div>
-          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Sozlamalar</div>
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Sozlamalar</div>
           <h1 style="margin:2px 0 0;font-size:38px">Тарифы и расчёт цены</h1>
         </div>
         <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:8px;max-width:520px;text-wrap:pretty">Изменения сразу пересчитывают журнал, планы и дашборд.</div>
@@ -715,7 +715,7 @@
           </div>
           <div style="border-top:1px solid var(--color-divider);padding-top:14px">
             <div style="font-size:12px;color:var(--color-neutral-700)">{{ calcRes.label }} · {{ calcRes.formula }}</div>
-            <div style="font-family:var(--font-heading);font-weight:600;font-size:36px">{{ calcRes.total }}</div>
+            <div style="font-family:var(--font-heading);font-weight:500;font-size:36px">{{ calcRes.total }}</div>
           </div>
           <div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty">Рейс = дата + машина + № рейса. Отменённые, «клиент забрал сам» и «осталось» в цену не входят. Одинаковый BL в рейсе — одна точка. Доля каждой отгрузки пропорциональна тарифу её точки.</div>
         </aside>
@@ -776,7 +776,7 @@
         </div>
         <sc-if value="{{ gsAsk }}">
           <div class="gs-ask" style="border:1px solid var(--color-accent);background:var(--color-accent-100);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
-            <div style="font-weight:600">Данные в таблице и на сайте отличаются</div>
+            <div style="font-weight:500">Данные в таблице и на сайте отличаются</div>
             <div style="font-size:13px;text-wrap:pretty">{{ gsAskInfo }}</div>
             <div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty">«Взять из таблицы» — сайт покажет то, что в таблице. «Записать сайт в таблицу» — таблица станет такой же, как сайт.</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1348,7 +1348,7 @@ class Component extends DCLogic {
     } else this.map.doubleClickZoom.enable();
     const depot = [S.depotLat, S.depotLon];
     L.marker(depot, { icon: L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border:2px solid ' + v('--color-text') + ';background:' + v('--color-bg') + ';transform:rotate(45deg)"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) }).bindTooltip('Склад: ' + S.depotName).addTo(lay);
-    const popup = (c, extra) => '<div style="font-family:Barlow,sans-serif;font-size:13px;line-height:1.4"><b>' + c.bl + '</b> ' + (c.brand || '') + '<br>' + (c.name || '') + (c.district ? ' · ' + c.district : '') + (c.receiverTel || c.tel1 ? '<br><a href="' + telHref(c.receiverTel || c.tel1) + '">' + (c.receiverTel || c.tel1) + '</a>' : '') + (extra || '') + '<br><a target="_blank" href="' + E.yPoint(c.lat, c.lon) + '">Открыть в Яндекс Картах</a></div>';
+    const popup = (c, extra) => '<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.4"><b>' + c.bl + '</b> ' + (c.brand || '') + '<br>' + (c.name || '') + (c.district ? ' · ' + c.district : '') + (c.receiverTel || c.tel1 ? '<br><a href="' + telHref(c.receiverTel || c.tel1) + '">' + (c.receiverTel || c.tel1) + '</a>' : '') + (extra || '') + '<br><a target="_blank" href="' + E.yPoint(c.lat, c.lon) + '">Открыть в Яндекс Картах</a></div>';
     const dot = (c, extra) => {
       const z = (D.zones[c.bl] || {}).zone;
       L.circleMarker([c.lat, c.lon], { radius: 6, weight: 2, color: z === 'out' ? v('--color-accent-900') : v('--color-accent'), fillColor: z === 'out' ? v('--color-accent-900') : v('--color-bg'), fillOpacity: 1 }).bindPopup(popup(c, extra)).addTo(lay);
@@ -1356,7 +1356,7 @@ class Component extends DCLogic {
     (this.state.data.warehouses || []).forEach(w => {
       if (w.lat == null) return;
       L.marker([w.lat, w.lon], { icon: L.divIcon({ className: '', html: '<div style="width:10px;height:10px;border:2px solid ' + v('--color-accent-900') + ';background:' + v('--color-accent-200') + '"></div>', iconSize: [10, 10], iconAnchor: [5, 5] }) })
-        .bindPopup('<div style="font-family:Barlow,sans-serif;font-size:13px;line-height:1.4"><b>' + w.bl + '</b> ' + (w.brand || '') + '<br>Доп. склад: ' + (w.name || '') + '<br><a target="_blank" href="' + E.yPoint(w.lat, w.lon) + '">Открыть в Яндекс Картах</a></div>').addTo(lay);
+        .bindPopup('<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.4"><b>' + w.bl + '</b> ' + (w.brand || '') + '<br>Доп. склад: ' + (w.name || '') + '<br><a target="_blank" href="' + E.yPoint(w.lat, w.lon) + '">Открыть в Яндекс Картах</a></div>').addTo(lay);
     });
     const pts = [];
     if (this.state.mapDate === 'all') {
@@ -1368,7 +1368,7 @@ class Component extends DCLogic {
       if (this.state.mapPlan !== 'none') {
         P[this.state.mapPlan].trips.forEach((t, i) => {
           L.polyline([depot].concat(t.stops.map(s => [s.lat, s.lon])), { color: v(shades[i % 6]), weight: 3, opacity: 0.9, dashArray: dashes[i % 6] }).bindTooltip(t.name).addTo(lay);
-          t.stops.forEach((s, j) => L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div style="font:600 11px Barlow,sans-serif;color:' + v('--color-bg') + ';background:' + v(shades[i % 6]) + ';min-width:18px;height:18px;line-height:18px;text-align:center;padding:0 3px">' + (i + 1) + '.' + (j + 1) + '</div>', iconSize: [24, 18], iconAnchor: [12, 22] }) }).addTo(lay));
+          t.stops.forEach((s, j) => L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div style="font:500 11px Inter,sans-serif;color:' + v('--color-bg') + ';background:' + v(shades[i % 6]) + ';min-width:18px;height:18px;line-height:18px;text-align:center;padding:0 3px">' + (i + 1) + '.' + (j + 1) + '</div>', iconSize: [24, 18], iconAnchor: [12, 22] }) }).addTo(lay));
         });
       }
       const seen = {};
@@ -1445,7 +1445,7 @@ class Component extends DCLogic {
   renderVals() {
     const st = this.state;
     const tabsDef = [['journal', 'Журнал'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['plans', 'Планы A/B/C'], ['viz', 'Визуализация'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
-    const tabs = tabsDef.map(([k, l]) => ({ label: l, go: () => this.setState({ tab: k }), color: st.tab === k ? 'var(--color-accent-700)' : 'var(--color-text)', border: st.tab === k ? 'var(--color-accent)' : 'transparent' }));
+    const tabs = tabsDef.map(([k, l]) => ({ label: l, go: () => this.setState({ tab: k }), color: st.tab === k ? 'var(--color-on-brand)' : 'color-mix(in srgb, var(--color-on-brand) 72%, transparent)', border: st.tab === k ? 'var(--color-red)' : 'transparent' }));
     const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isViz: false, isTariffs: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
       fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
       account: () => window.LogiAuth && window.LogiAuth.openAccount() };

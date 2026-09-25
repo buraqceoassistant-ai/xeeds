@@ -30,22 +30,17 @@ const SHELL = [
   'js/vendor/leaflet/images/marker-icon.png',
   'js/vendor/leaflet/images/marker-icon-2x.png',
   'js/vendor/leaflet/images/marker-shadow.png',
-  'img/logo.png',
+  'buraq-brand/logo/buraq-logo-white.svg',
+  'buraq-brand/logo/buraq-logo.svg',
+  'fonts/inter-latin-wght-normal.woff2',
+  'fonts/inter-latin-ext-wght-normal.woff2',
+  'fonts/inter-cyrillic-wght-normal.woff2',
+  'fonts/inter-cyrillic-ext-wght-normal.woff2',
   'icons/favicon-32.png',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
-  'icons/icon-maskable-512.png',
-  'fonts/barlow-400-latin.woff2',
-  'fonts/barlow-400-latin-ext.woff2',
-  'fonts/barlow-500-latin.woff2',
-  'fonts/barlow-500-latin-ext.woff2',
-  'fonts/barlow-700-latin.woff2',
-  'fonts/barlow-700-latin-ext.woff2',
-  'fonts/barlow-condensed-400-latin.woff2',
-  'fonts/barlow-condensed-400-latin-ext.woff2',
-  'fonts/barlow-condensed-600-latin.woff2',
-  'fonts/barlow-condensed-600-latin-ext.woff2'
+  'icons/icon-maskable-512.png'
 ];
 
 self.addEventListener('install', event => {

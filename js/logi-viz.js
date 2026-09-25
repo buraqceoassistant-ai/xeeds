@@ -21,8 +21,8 @@
     gazel: { w: 2.1, h: 1.9, cab: 1.75, cabH: 2.15, wheel: 0.36, cabColor: '#f1f2f4' },
     kamaz: { w: 2.45, h: 2.6, cab: 2.2, cabH: 3.0, wheel: 0.5, cabColor: '#d9772b' }
   };
-  // красный — последним: им же помечено «сверх кузова»
-  const PALETTE = ['#4e79a7', '#f28e2b', '#59a14f', '#b07aa1', '#edc948', '#17becf', '#ff9da7', '#9c755f', '#76b7b2', '#bcbd22', '#6b6ecf', '#e377c2', '#393b79', '#98df8a', '#e15759'];
+  // первая точка — фирменный синий BURAQ; красный бренда не используется: им помечено «сверх кузова»
+  const PALETTE = ['#034CAA', '#f28e2b', '#59a14f', '#b07aa1', '#edc948', '#17becf', '#ff9da7', '#9c755f', '#76b7b2', '#bcbd22', '#6b6ecf', '#e377c2', '#0E2E54', '#98df8a', '#8c6d31'];
   const colorOf = n => PALETTE[(Math.max(1, n) - 1) % PALETTE.length];
   const light = hex => { const v = parseInt(hex.slice(1), 16), r = v >> 16, g = (v >> 8) & 255, b = v & 255; return 0.299 * r + 0.587 * g + 0.114 * b > 160; };
 

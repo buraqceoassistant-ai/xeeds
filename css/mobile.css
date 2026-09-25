@@ -37,11 +37,11 @@
   .app-header { display: contents !important; }
   .app-bar {
     position: sticky; top: 0; z-index: 1000;
-    background: var(--color-bg); border-bottom: 1px solid var(--color-divider);
-    height: 48px !important; gap: 6px !important;
+    background: var(--color-brand); border-bottom: 1px solid var(--color-red);
+    height: 52px !important; gap: 6px !important;
     padding: 0 0 0 max(12px, env(safe-area-inset-left)) !important;
   }
-  .app-logo { width: 92px !important; height: 36px !important; border-radius: 18px !important; }
+  .app-logo { width: 96px !important; background-size: 80px auto !important; }
   .app-tabs { margin-left: 0 !important; }
   .app-tabs > button { padding: 0 10px !important; font-size: 14px !important; }
   .app-account { margin: 0 max(10px, env(safe-area-inset-right)) 0 0; padding: 6px 8px; font-size: 12px; }
