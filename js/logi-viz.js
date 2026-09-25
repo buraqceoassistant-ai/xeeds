@@ -128,11 +128,16 @@
     const still = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };   // без анимаций
     const small = Math.min(window.innerWidth, window.innerHeight) < 700;
 
-    const renderer = new T.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Скорость: чёткость не выше 1,5 (дальше разницы почти не видно, а кадр в 2–4 раза дороже) и снижается сама,
+    // если устройство не успевает; сглаживание — только на обычных экранах; на ноутбуке — мощная видеокарта.
+    const hiDpi = (window.devicePixelRatio || 1) >= 1.5;
+    let dpr = Math.min(window.devicePixelRatio || 1, 1.5), slow = 0;
+    const renderer = new T.WebGLRenderer({ antialias: !hiDpi, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(dpr);
     renderer.outputColorSpace = T.SRGBColorSpace;
     renderer.toneMapping = T.NeutralToneMapping;
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap;
+    renderer.shadowMap.autoUpdate = false;   // машины стоят: тени считаются один раз на сцену, а не каждый кадр
     const cv = renderer.domElement;
     cv.style.display = 'block'; cv.style.touchAction = 'none'; cv.style.outline = 'none';
     cv.style.opacity = '0'; cv.style.transition = 'opacity .35s ease';   // проявляется, когда шейдеры готовы
@@ -154,10 +159,12 @@
     sun.shadow.radius = 4; sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
     scene.add(sun, sun.target);
     const fill = new T.DirectionalLight(0xffffff, 0.9); scene.add(fill, fill.target);   // со стороны камеры, без теней
-    let root = null, ground = null, grid = null, pick = [], cur = {}, disposed = false, raf = 0, tween = null, anims = [], compiling = null;
+    let root = null, ground = null, grid = null, pick = [], hits = [], cur = {}, disposed = false, raf = 0, tween = null, anims = [], compiling = null;
 
     // общие материалы сцены: создаются один раз, освобождаются в dispose()
+    // Standard — с отражениями (краска, стёкла, диски); Lambert — проще и быстрее (груз, земля, резина, рама)
     const shared = new Set(), std = o => { const m = new T.MeshStandardMaterial(o); shared.add(m); return m; };
+    const lam = o => { const m = new T.MeshLambertMaterial(o); shared.add(m); return m; };
     const logoTex = [];
     const logoMat = file => {   // логотип — готовый файл из бренд-бука, без изменений
       const c = document.createElement('canvas'); c.width = 1052; c.height = 362;
@@ -175,25 +182,55 @@
       navy: std({ color: C.navy, roughness: 0.34, metalness: 0.15 }),
       red: std({ color: C.red, roughness: 0.4 }),
       glass: std({ color: '#15263c', roughness: 0.06, metalness: 0.4, envMapIntensity: 1.6 }),
-      rubber: std({ color: '#1d2126', roughness: 0.92 }),
+      rubber: lam({ color: '#1d2126' }),
       rim: std({ color: '#cdd3da', roughness: 0.28, metalness: 0.75 }),
-      dark: std({ color: '#2b3138', roughness: 0.6, metalness: 0.3 }),
-      fender: std({ color: '#262b31', roughness: 0.8 }),
-      chassis: std({ color: '#39414a', roughness: 0.7, metalness: 0.2 }),
+      dark: lam({ color: '#2b3138' }),
+      fender: lam({ color: '#262b31' }),
+      chassis: lam({ color: '#39414a' }),
       frame: std({ color: '#e7ebf0', roughness: 0.35, metalness: 0.35 }),
-      floor: std({ color: '#8e97a2', roughness: 0.8 }),
-      board: std({ color: '#e9edf2', roughness: 0.5, metalness: 0.1 }),
-      panel: std({ color: '#dde7f3', roughness: 0.12, transparent: true, opacity: 0.12, depthWrite: false, side: T.DoubleSide }),
+      floor: lam({ color: '#9aa3ad' }),
+      board: lam({ color: '#eef1f5' }),
+      panel: std({ color: '#dde7f3', roughness: 0.12, transparent: true, opacity: 0.12, depthWrite: false }),
       head: std({ color: '#ffffff', emissive: '#fff3d6', emissiveIntensity: 0.9, roughness: 0.2 }),
       tail: std({ color: C.red, emissive: C.red, emissiveIntensity: 0.5, roughness: 0.3 }),
-      cargo: std({ color: '#ffffff', roughness: 0.72 }),
-      cargoOut: std({ color: '#ffffff', roughness: 0.72, transparent: true, opacity: 0.5, depthWrite: false }),
-      ground: std({ color: C.bg, roughness: 1 }),
+      cargo: lam({ color: '#ffffff' }),
+      cargoOut: lam({ color: '#ffffff', transparent: true, opacity: 0.5, depthWrite: false }),
+      ground: lam({ color: C.bg }),
       logo: logoMat('buraq-logo.svg'),            // на белой кабине — основной
       logoWhite: logoMat('buraq-logo-white.svg')  // на синей — белый
     };
     // невидимый объём кузова: тень от машины с грузом одним блоком, а не от сотен коробок
     const shadowOnly = new T.MeshBasicMaterial({ colorWrite: false, depthWrite: false }); shared.add(shadowOnly);
+    const pickMat = new T.MeshBasicMaterial(); shared.add(pickMat);   // невидимые коробки-«мишени» машин для нажатия
+    const noShadow = new Set([M.glass, M.logo, M.logoWhite, M.head, M.tail, M.red, M.panel]);
+    // слияние: все неподвижные детали всех машин — одна сетка на материал (десятки вызовов отрисовки вместо сотен)
+    const m4b = new T.Matrix4();
+    const flipWinding = geo => Object.values(geo.attributes).forEach(a => {   // зеркальная деталь: порядок вершин обратно
+      const s = a.itemSize, arr = a.array;
+      for (let i = 0; i + 2 < a.count; i += 3) for (let j = 0; j < s; j++) { const p = (i + 1) * s + j, q = (i + 2) * s + j, t = arr[p]; arr[p] = arr[q]; arr[q] = t; }
+    });
+    function mergeParts(trucks) {
+      const byMat = new Map(), src = new Set();
+      trucks.forEach(g => g.userData.parts.forEach(ms => {
+        ms.updateMatrix(); m4b.multiplyMatrices(g.matrix, ms.matrix);
+        const geo = ms.geometry.index ? ms.geometry.toNonIndexed() : ms.geometry.clone();
+        Object.keys(geo.attributes).forEach(a => { if (a !== 'position' && a !== 'normal' && a !== 'uv') geo.deleteAttribute(a); });
+        geo.clearGroups(); geo.applyMatrix4(m4b);
+        if (m4b.determinant() < 0) flipWinding(geo);
+        src.add(ms.geometry);
+        if (!byMat.has(ms.material)) byMat.set(ms.material, []);
+        byMat.get(ms.material).push(geo);
+      }));
+      byMat.forEach((list, mat) => {
+        const geo = T.mergeGeometries(list, false);
+        list.forEach(x => x.dispose());
+        if (!geo) return;
+        const mesh = new T.Mesh(geo, mat);
+        mesh.castShadow = !noShadow.has(mat); mesh.matrixAutoUpdate = false;
+        root.add(mesh);
+      });
+      src.forEach(x => x.dispose());
+    }
 
     // кадры рисуются, только пока что-то движется: камера, инерция, анимация груза
     let last = 0;
@@ -202,6 +239,9 @@
       // первые кадры анимации задержались (сборка шейдеров) — она ждёт, а не проскакивает
       const lag = last ? now - last - 16 : 0, wait = a => { if (a.t0 != null && (a.f = (a.f || 0) + 1) <= 3 && lag > 84) a.t0 += lag; };
       anims.forEach(wait); if (tween) wait(tween);
+      // устройство не успевает (кадр дольше 30 мс раз за разом) — чёткость ниже, движение плавнее
+      if (last) { if (lag > 14) slow++; else if (slow) slow--; }
+      if (slow > 10 && dpr > 0.75) { dpr = Math.max(0.75, dpr - 0.25); renderer.setPixelRatio(dpr); slow = 0; }
       last = now;
       let moving = false;
       if (tween) moving = stepTween(now) || moving;
@@ -303,10 +343,10 @@
 
     // одна машина с грузом; кабина к x<0, кузов от x=0 (стенка кабины) до x=L (двери), y — вверх, z — поперёк
     function truck(lay, o) {
-      const g = new T.Group(), B = lay.body, L = B.l, W = B.w, H = B.h, kind = lay.kind, meshes = [];
-      const add = (ms, shadow) => { if (shadow !== false) { ms.castShadow = true; ms.receiveShadow = true; } g.add(ms); meshes.push(ms); return ms; };
+      const g = new T.Group(), B = lay.body, L = B.l, W = B.w, H = B.h, kind = lay.kind, parts = [];
+      const add = ms => { parts.push(ms); return ms; };   // неподвижная деталь: после расстановки машин сольётся с остальными
       const box = (sx, sy, sz, x, y, z, m, shadow) => { const ms = new T.Mesh(new T.BoxGeometry(sx, sy, sz), m); ms.position.set(x, y, z); return add(ms, shadow); };
-      const rbox = (sx, sy, sz, x, y, z, m, rad, shadow) => { const ms = new T.Mesh(new T.RoundedBoxGeometry(sx, sy, sz, 2, Math.min(rad, sx / 2.01, sy / 2.01, sz / 2.01)), m); ms.position.set(x, y, z); return add(ms, shadow); };
+      const rbox = (sx, sy, sz, x, y, z, m, rad, shadow) => { const ms = new T.Mesh(new T.RoundedBoxGeometry(sx, sy, sz, 1, Math.min(rad, sx / 2.01, sy / 2.01, sz / 2.01)), m); ms.position.set(x, y, z); return add(ms, shadow); };
       const cab = B.cab, cH = B.cabH, CW = B.cabW || W * 0.97, F = cabForm(kind, cab, cH), k = Math.min(1, Math.max(0.5, (L + cab) / 7.5));   // подписи мельче у маленькой машины
       const X = u => -GAP - u, Y = v => CAB_Y + v;   // из координат кабины в координаты машины
       const r = B.wheel, wy = wheelY(r), tw = 0.22 + r * 0.24, track = Math.max(W, CW) / 2 - tw / 2 - 0.03;
@@ -341,7 +381,7 @@
       [-1, 1].forEach(sd => { const m = new T.Mesh(wgeo, M.glass); m.position.z = sd * (CW / 2 + 0.002); m.scale.z = sd; add(m, false); });
       // логотип на дверях — пропорции 526 × 181, с полем вокруг
       const lw = Math.min(cab * 0.52, (F.belt - split) * 0.6 * 526 / 181), lh = lw * 181 / 526, lgeo = new T.PlaneGeometry(lw, lh);
-      [-1, 1].forEach(sd => { const m = new T.Mesh(lgeo, navyCab ? M.logoWhite : M.logo); m.position.set(X(cab * 0.42), Y((split + F.belt) / 2 + 0.02), sd * (CW / 2 + 0.004)); if (sd < 0) m.rotation.y = Math.PI; g.add(m); });
+      [-1, 1].forEach(sd => { const m = new T.Mesh(lgeo, navyCab ? M.logoWhite : M.logo); m.position.set(X(cab * 0.42), Y((split + F.belt) / 2 + 0.02), sd * (CW / 2 + 0.004)); if (sd < 0) m.rotation.y = Math.PI; add(m); });
       // передок: фары, решётка, бампер, зеркала, ручки дверей
       const xf = X(cab), lwid = Math.min(0.3, CW * 0.18);
       [-1, 1].forEach(sd => rbox(0.05, 0.11 + cH * 0.02, lwid, xf - 0.012, Y(F.light), sd * (CW / 2 - lwid / 2 - 0.08), M.head, 0.02, false));
@@ -386,7 +426,7 @@
       } else {
         // фургон: стенки как тонированное стекло (груз видно), каркас, рёбра и створки дверей
         rbox(L, 0.1, W, L / 2, -0.05, 0, M.floor, 0.02);
-        const shell = new T.Mesh(new T.BoxGeometry(L, H, W), M.panel); shell.position.set(L / 2, H / 2, 0); g.add(shell);
+        const shell = new T.Mesh(new T.BoxGeometry(L, H, W), M.panel); shell.position.set(L / 2, H / 2, 0); add(shell);
         const f = 0.05, fr = (sx, sy, sz, x, y, z) => rbox(sx, sy, sz, x, y, z, M.frame, 0.015);
         [0, H].forEach(y => [-1, 1].forEach(sd => fr(L + f, f, f, L / 2, y, sd * W / 2)));
         [0, L].forEach(x => { [-1, 1].forEach(sd => fr(f, H + f, f, x, H / 2, sd * W / 2)); fr(f, f, W, x, H, 0); });
@@ -397,7 +437,8 @@
       // груз
       const hidden = p => o.step && p <= o.step;   // уже выгруженные точки
       const inC = lay.cells.filter(q => q.ix < lay.n.x), outC = lay.cells.filter(q => q.ix >= lay.n.x);
-      const cell = lay.cell, geo = new T.RoundedBoxGeometry(cell.x * 0.94, cell.y * 0.94, cell.z * 0.94, 1, Math.min(cell.x, cell.y, cell.z) * 0.12);
+      const cell = lay.cell, geo = o.labels ? new T.RoundedBoxGeometry(cell.x * 0.94, cell.y * 0.94, cell.z * 0.94, 1, Math.min(cell.x, cell.y, cell.z) * 0.12)
+        : new T.BoxGeometry(cell.x * 0.94, cell.y * 0.94, cell.z * 0.94);   // в обзоре коробки мелкие — скругления не видны
       const cargo = [];
       const inst = (list, mat, over) => {
         if (!list.length) return;
@@ -407,12 +448,12 @@
           base: list.map(q => new T.Vector3((q.ix + 0.5) * cell.x, (q.iy + 0.5) * cell.y, -W / 2 + (q.iz + 0.5) * cell.z)) };
         list.forEach((q, i) => { place(im, i, hidden(q.p) ? 0 : 1); im.setColorAt(i, tint(q, o.sel)); });
         im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
-        g.add(im); meshes.push(im); cargo.push(im);
+        g.add(im); cargo.push(im);
       };
       inst(inC, M.cargo);
       inst(outC, M.cargoOut, true);
       const loadedX = inC.length ? Math.min(L, (Math.max(...inC.map(q => q.ix)) + 1) * cell.x) : 0, px = B.flat ? loadedX : L;
-      if (px > 0) { const sh = new T.Mesh(new T.BoxGeometry(px, H, W), shadowOnly); sh.position.set(px / 2, H / 2, 0); sh.castShadow = true; g.add(sh); }
+      if (px > 0) { const sh = new T.Mesh(new T.BoxGeometry(px, H, W), shadowOnly); sh.position.set(px / 2, H / 2, 0); add(sh); }
       if (outC.length) {
         const x0 = lay.n.x * cell.x, x1 = (Math.max(...outC.map(q => q.ix)) + 1) * cell.x;
         const ob = new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(x1 - x0, H, W)), new T.LineBasicMaterial({ color: C.danger }));
@@ -426,7 +467,8 @@
         const d = sprite(B.flat ? 'задний борт' : 'двери', { bg: C.ink, fg: '#ffffff', size: 0.3 * k }); d.position.set(L + 0.15, H + 0.3 * k, 0); g.add(d);
       }
       if (o.title) { const s = sprite(o.title, { bg: C.ink, fg: '#ffffff', size: 0.5 }); s.position.set(L / 2 - cab / 2, Math.max(H, cH) + 0.75, 0); g.add(s); }
-      g.userData.meshes = meshes; g.userData.cargo = cargo; g.userData.labels = labels;
+      g.userData.parts = parts; g.userData.cargo = cargo; g.userData.labels = labels;
+      g.userData.bounds = { x0: xf - 0.3, x1: L + 0.35, y0: wy - r, y1: Math.max(H, Y(cH)) + 0.1, w: Math.max(W, CW) + 0.5 };
       return g;
     }
 
@@ -442,7 +484,7 @@
       }
       if (ground) { scene.remove(ground); ground.geometry.dispose(); ground = null; }
       if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); grid = null; }
-      root = null; pick = [];
+      root = null; pick = []; hits = [];
     }
 
     function build(spec, animate) {
@@ -454,12 +496,16 @@
         const lay = it.lay, W = lay.body.w;
         const g = truck(lay, spec.mode === 'all' ? { title: it.title } : { labels: true, step: spec.step, sel: spec.sel });
         if (i) z += prevW / 2 + 1.6 + W / 2;
-        g.position.z = z; prevW = W; g.userData.idx = it.idx;
+        g.position.z = z; prevW = W; g.userData.idx = it.idx; g.updateMatrix();
         root.add(g); pick.push(g);
         minY = Math.min(minY, wheelY(lay.body.wheel) - lay.body.wheel);
+        const b = g.userData.bounds, hb = new T.Mesh(new T.BoxGeometry(b.x1 - b.x0, b.y1 - b.y0, b.w), pickMat);
+        hb.position.set((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, z); hb.visible = false; hb.userData.idx = it.idx; root.add(hb); hits.push(hb);
       });
+      mergeParts(pick);
       root.position.z = -z / 2;
       root.updateMatrixWorld(true);
+      renderer.shadowMap.needsUpdate = true;
       if (items.length) {
         const bb = new T.Box3().setFromObject(root), sz = bb.getSize(new T.Vector3()), c = bb.getCenter(new T.Vector3());
         const size = Math.ceil(Math.max(sz.x, sz.z) + 8), rad = sz.length() / 2 + 1;
@@ -536,10 +582,8 @@
       ray.setFromCamera(ndc, camera);
       const visible = x => !(x.object.isInstancedMesh && x.object.userData.pres && x.object.userData.pres[x.instanceId] < 0.5);
       if (cur.mode === 'all') {
-        const hit = ray.intersectObjects(pick.flatMap(g => g.userData.meshes), false).filter(visible)[0];
-        if (!hit) return;
-        let o = hit.object; while (o && o.userData.idx == null) o = o.parent;
-        if (o && h.onPickTrip) h.onPickTrip(o.userData.idx);
+        const hit = ray.intersectObjects(hits, false)[0];   // невидимые коробки вокруг машин
+        if (hit && h.onPickTrip) h.onPickTrip(hit.object.userData.idx);
       } else if (h.onPickPoint) {
         // в рейсе выбираются только коробки: каркас кузова не мешает нажать на груз
         const hit = ray.intersectObjects(pick.flatMap(g => g.userData.cargo), false).filter(visible)[0];
