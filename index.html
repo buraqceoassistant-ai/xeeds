@@ -279,10 +279,10 @@
       <div class="grid-2" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px">
         <section class="blueprint" style="padding:18px 20px;display:flex;flex-direction:column;gap:8px">
           <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><h3 style="margin:0">Координаты склада отправки</h3><span class="tag tag-neutral">примерные</span></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><h3 style="margin:0">Координаты склада отправки</h3><span class="tag {{ depotTagClass }}">{{ depotTag }}</span></div>
           <div style="font-size:14px;font-variant-numeric:tabular-nums">{{ depotInfo }}</div>
-          <div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">В Excel помечено как примерное: координата на севере города, а Chuqursoy — на западе. От неё считаются все расстояния, время и стоимость.</div>
-          <div style="display:flex;gap:8px"><a class="btn btn-ghost" href="{{ depotHref }}" target="_blank" style="text-decoration:none">Открыть на карте</a><button class="btn btn-secondary" sc-camel-on-click="{{ goTariffs }}">Исправить</button></div>
+          <div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">{{ depotNote }}</div>
+          <div style="display:flex;gap:8px"><a class="btn btn-ghost" href="{{ depotHref }}" target="_blank" style="text-decoration:none">Открыть на карте</a><button class="btn btn-secondary" sc-camel-on-click="{{ goTariffs }}">{{ depotAct }}</button></div>
         </section>
         <sc-if value="{{ kamazMissing }}">
           <section class="blueprint" style="padding:18px 20px;display:flex;flex-direction:column;gap:8px">
@@ -1712,6 +1712,12 @@ class Component extends DCLogic {
       out.checkWarn = out.checks.filter(c => c.warn).length;
       out.depotInfo = S.depotName + ' → ' + S.depotLat + ', ' + S.depotLon;
       out.depotHref = E.yPoint(S.depotLat, S.depotLon);
+      // «примерные» — только старая точка из Excel; точка по ссылке владельца или заданная вручную — уточнена
+      const approx = S.depotLat === 41.380417 && S.depotLon === 69.235222;
+      Object.assign(out, approx ? { depotTag: 'примерные', depotTagClass: 'tag-neutral', depotAct: 'Исправить',
+        depotNote: 'В Excel помечено как примерное. От этой точки считаются все расстояния, время и стоимость — вставьте ссылку на склад во «Тарифах».' }
+        : { depotTag: 'уточнены', depotTagClass: 'tag-accent', depotAct: 'Изменить',
+        depotNote: 'Отсюда начинаются все рейсы: от этой точки считаются расстояния, время и стоимость. Если склад переедет — «Тарифы» → «Склад отправки» → «Ссылка на склад».' });
       out.kamazMissing = S.kamazBase == null || S.kamazPt == null;
       out.goTariffs = () => this.setState({ tab: 'tariffs' });
       out.fileNotes = data.notes || [];
