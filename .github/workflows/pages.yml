@@ -27,7 +27,10 @@ jobs:
       - name: Collect site files
         run: |
           mkdir _site
-          cp -r index.html manifest.webmanifest sw.js css js fonts img icons data _site/
+          cp -r index.html manifest.webmanifest sw.js css js fonts icons data _site/
+          # логотипы из бренд-бука — только те, что нужны сайту
+          mkdir -p _site/buraq-brand/logo
+          cp buraq-brand/logo/*.svg _site/buraq-brand/logo/
           touch _site/.nojekyll
           # новая версия кэша service worker для каждой сборки
           sed -i "s/__BUILD__/${GITHUB_SHA::12}/" _site/sw.js
