@@ -294,6 +294,8 @@
             <div>
               <div style="font-weight:500;font-size:15px">{{ c.title }}</div>
               <div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty;margin-top:2px">{{ c.desc }}</div>
+              <sc-if value="{{ c.hasAct }}"><button class="btn btn-secondary" style="margin-top:8px;font-size:12px;padding:4px 12px" sc-camel-on-click="{{ c.go }}">{{ c.act }}</button></sc-if>
+              <sc-if value="{{ c.hasFix }}"><div style="font-size:12px;color:var(--color-accent-800);margin-top:4px;text-wrap:pretty">{{ c.fix }}</div></sc-if>
             </div>
             <div style="font-family:var(--font-heading);font-weight:500;font-size:28px;line-height:1;text-align:right">
               <sc-if value="{{ c.warn }}"><span style="color:var(--color-accent-900)">{{ c.value }}</span></sc-if>
@@ -832,6 +834,7 @@
         <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
         <div class="dialog-title">{{ dialogTitle }}</div>
         <div class="form-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+          <div class="field" style="grid-column:1/-1"><label>Ссылка на локацию (Яндекс / Google / 2ГИС)</label><input class="input" name="link" value="{{ draft.link }}" sc-camel-on-change="{{ onDraft }}" placeholder="Вставьте ссылку из Яндекс или Google Карт — остальное заполнится само"><div style="font-size:12px;margin-top:4px;color:{{ linkInfoColor }};text-wrap:pretty">{{ linkInfo }}</div></div>
           <div class="field"><label>BL код</label><input class="input" name="bl" value="{{ draft.bl }}" sc-camel-on-change="{{ onDraft }}" placeholder="BL-000"></div>
           <div class="field"><label>Бренд</label><input class="input" name="brand" value="{{ draft.brand }}" sc-camel-on-change="{{ onDraft }}"></div>
           <div class="field"><label>Имя клиента</label><input class="input" name="name" value="{{ draft.name }}" sc-camel-on-change="{{ onDraft }}"></div>
@@ -841,7 +844,6 @@
           <div class="field"><label>Получатель</label><input class="input" name="receiver" value="{{ draft.receiver }}" sc-camel-on-change="{{ onDraft }}"></div>
           <div class="field"><label>Тел. получателя</label><input class="input" name="receiverTel" value="{{ draft.receiverTel }}" sc-camel-on-change="{{ onDraft }}"></div>
           <div class="field"><label>Зона вручную</label><sc-raw-select class="input" name="manualZone" value="{{ draft.manualZone }}" sc-camel-on-change="{{ onDraft }}"><option value="">Авто по координатам</option><option value="Ichida">Внутри кольца</option><option value="Tashqarida">Снаружи кольца</option></sc-raw-select></div>
-          <div class="field" style="grid-column:1/-1"><label>Ссылка на локацию (Яндекс / Google)</label><input class="input" name="link" value="{{ draft.link }}" sc-camel-on-change="{{ onDraft }}" placeholder="https://yandex.uz/maps/…"></div>
           <div class="field" style="grid-column:1/-1"><label>Адрес склада</label><textarea class="input" name="address" value="{{ draft.address }}" sc-camel-on-change="{{ onDraft }}" style="min-height:56px"></textarea></div>
           <div class="field"><label>Широта (lat)</label><input class="input" name="lat" value="{{ draft.lat }}" sc-camel-on-change="{{ onDraft }}" placeholder="41.311"></div>
           <div class="field"><label>Долгота (lon)</label><input class="input" name="lon" value="{{ draft.lon }}" sc-camel-on-change="{{ onDraft }}" placeholder="69.279"></div>
@@ -1091,7 +1093,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6 };
-    this.gsScriptOld = !(j.v >= 6); this.gsVersion = +j.v || 0;
+    this.gsScriptOld = !(j.v >= 7); this.gsVersion = +j.v || 0;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -1487,6 +1489,103 @@ class Component extends DCLogic {
   }
   costNote(c) { return c && c.notPaid ? 'платим ' + f0(c.ours) + ' · не платим ' + f0(c.notPaid) : ''; }
 
+  // ── Ссылка на карту → координаты, адрес, район ──
+  // Координаты берутся из самой ссылки сразу; короткую ссылку (maps.app.goo.gl, yandex…/maps/-/…) раскрывает скрипт
+  // Google Таблицы (версия 7+); адрес и район — геокодер Google через тот же скрипт, без него — OpenStreetMap.
+  async gsGet(params) {
+    const q = Object.entries(params).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
+    const r = await fetch(this.gsUrl + (this.gsUrl.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(this.gsToken || '') + '&' + q + '&t=' + Date.now());
+    const j = await r.json(); if (j.error) throw new Error(j.error); return j;
+  }
+  async locateLink(text) {
+    const E = window.LogiEngine, t = String(text || '').trim();
+    let r = E.coordsFromLink(t);
+    if (r && !r.short) return r;
+    if (!/^https?:\/\//i.test(t)) return r ? { error: 'Это не ссылка на карту.' } : null;
+    const tip = ' Или откройте ссылку в браузере и вставьте полную ссылку из адресной строки.';
+    if (!this.gsUrl) return { error: 'Короткую ссылку раскрывает скрипт Google Таблицы — подключите таблицу («Настройки связи»).' + tip };
+    if (!(this.gsVersion >= 7)) return { error: 'Короткую ссылку раскрывает скрипт Google Таблицы — обновите его код: «Настройки связи» → «Скопировать код».' + tip };
+    let j;
+    try { j = await this.gsGet({ resolve: t }); } catch (e) { return { error: 'Не удалось открыть ссылку: ' + (e.message || e) + '.' + tip }; }
+    for (const u of (j.hops || []).slice().reverse()) { const x = E.coordsFromLink(u); if (x && !x.short) return { ...x, how: x.how + ', по короткой ссылке', url: j.url }; }
+    if (j.ll) return { lat: j.ll[0], lon: j.ll[1], how: 'со страницы карты', url: j.url };
+    return { error: 'В ссылке нет координат.' + tip };
+  }
+  async addressOf(lat, lon) {
+    const drop = /^(\d{6}|O[ʻ'‘’`]?zbekiston|Uzbekistan|Узбекистан)$/i;
+    if (this.gsUrl && this.gsVersion >= 7) {
+      try { const j = await this.gsGet({ geo: lat + ',' + lon }); if (j.address) return { address: j.address.split(',').map(x => x.trim()).filter(x => x && !drop.test(x)).join(', '), parts: j.parts || [], src: 'Google' }; } catch (e) {}
+    }
+    try {
+      const j = await (await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=uz&lat=' + lat + '&lon=' + lon)).json(), a = j.address || {};
+      const street = [a.road, a.house_number].filter(Boolean).join(' ');
+      const address = [a.city || a.town || a.village, a.city_district || a.county, a.suburb || a.neighbourhood, street].filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i).join(', ');
+      return address ? { address, parts: Object.values(a), src: 'OpenStreetMap' } : null;
+    } catch (e) { return null; }
+  }
+  districtFrom(parts) {
+    const norm = x => String(x || '').toLowerCase().replace(/[ʻ'‘’`ʼ]/g, '').replace(/\(vil\.\)|tumani|district|район(а)?|туман[иа]?|ский|ский район/g, '').replace(/[^a-zа-яё]/g, '');
+    const ALIAS = { yunusabad: 'Yunusobod', юнусабад: 'Yunusobod', юнусобод: 'Yunusobod', сергели: 'Sergeli', учтепа: 'Uchtepa', учтепин: 'Uchtepa', chilanzar: 'Chilonzor', чиланзар: 'Chilonzor', чилонзор: 'Chilonzor',
+      yashnabad: 'Yashnobod', яшнабад: 'Yashnobod', яшнобод: 'Yashnobod', shaykhantakhur: 'Shayxontohur', шайхантахур: 'Shayxontohur', шайхонтохур: 'Shayxontohur', almazar: 'Olmazor', алмазар: 'Olmazor', олмазор: 'Olmazor',
+      mirabad: 'Mirobod', мирабад: 'Mirobod', миробод: 'Mirobod', янгихаёт: 'Yangihayot', бектемир: 'Bektemir', mirzoulugbek: "Mirzo Ulug'bek", мирзоулугбек: "Mirzo Ulug'bek", мирзоулугбекский: "Mirzo Ulug'bek",
+      yakkasaray: 'Yakkasaroy', яккасарай: 'Yakkasaroy', яккасарой: 'Yakkasaroy', zangiata: 'Zangiota (vil.)', зангиата: 'Zangiota (vil.)', зангиота: 'Zangiota (vil.)' };
+    const list = (this.state.data.lists.districts || []).filter(d => d !== 'Aniqlanmagan'), by = {};
+    list.forEach(d => { by[norm(d)] = d; });
+    for (const p of parts || []) { const k = norm(p); if (!k) continue; if (by[k]) return by[k]; const a = ALIAS[k] || Object.keys(ALIAS).find(x => k.startsWith(x)) && ALIAS[Object.keys(ALIAS).find(x => k.startsWith(x))]; if (a && list.includes(a)) return a; }
+    return null;
+  }
+  // ссылка в карточке клиента: координаты сразу, адрес (если пустой) и район (если «Авто») — следом
+  linkChanged(link) {
+    clearTimeout(this._linkT);
+    const seq = this._linkSeq = (this._linkSeq || 0) + 1, cur = () => this._linkSeq === seq && this.state.dialog && this.state.dialog.draft.link === link;
+    const info = (text, bad) => this.setState(s => cur() ? { dialog: { ...s.dialog, linkInfo: text, linkBad: !!bad } } : null);
+    if (!String(link).trim()) return info('');
+    this._linkT = setTimeout(async () => {
+      const E = window.LogiEngine, quick = E.coordsFromLink(link);
+      info(quick && quick.short ? 'Раскрываю короткую ссылку…' : 'Ищу координаты…');
+      const r = await this.locateLink(link);
+      if (!cur()) return;
+      if (!r) return info('Вставьте ссылку из Яндекс или Google Карт (или координаты «41.31, 69.27»).', true);
+      if (r.error) return info(r.error, true);
+      const lat = +r.lat.toFixed(6), lon = +r.lon.toFixed(6);
+      this.setState(s => cur() ? { dialog: { ...s.dialog, draft: { ...s.dialog.draft, lat: String(lat), lon: String(lon) } } } : null);
+      const dr0 = this.state.dialog.draft, needAddr = !String(dr0.address || '').trim(), needDist = dr0.district === '__auto' || !dr0._distTouched;
+      const base = '✓ Координаты из ссылки (' + r.how + '): ' + lat + ', ' + lon;
+      if (!needAddr && !needDist) return info(base + '.');
+      info(base + '. Ищу адрес и район…');
+      const a = await this.addressOf(lat, lon);
+      if (!cur()) return;
+      const dist = a && needDist ? this.districtFrom(a.parts) : null;
+      this.setState(s => {
+        if (!cur()) return null;
+        const d = { ...s.dialog.draft };
+        if (a && needAddr && !String(d.address || '').trim()) d.address = a.address;
+        if (dist) { d.district = dist; d._distTouched = true; }
+        const got = [a && needAddr ? 'адрес (' + a.src + ')' : '', dist ? 'район ' + dist : ''].filter(Boolean);
+        return { dialog: { ...s.dialog, draft: d, linkInfo: base + '. ' + (got.length ? 'Заполнено: ' + got.join(', ') + '.' : 'Адрес не нашёлся — впишите вручную.' + (needDist ? ' Район определится по соседним клиентам.' : '')), linkBad: false } };
+      });
+    }, 350);
+  }
+  // «Проверка»: клиентам без координат, но со ссылкой, — координаты и район по ссылкам
+  async fixCoordsFromLinks() {
+    const E = window.LogiEngine, todo = this.state.data.clients.filter(c => c.lat == null && String(c.link || '').trim());
+    if (!todo.length) return;
+    let found = 0, failed = [];
+    const upd = {};
+    for (let i = 0; i < todo.length; i++) {
+      this.setState({ linkFix: 'Ищу координаты по ссылкам: ' + (i + 1) + ' из ' + todo.length + '…' });
+      const c = todo[i], r = await this.locateLink(c.link);
+      if (!r || r.error) { failed.push(c.bl + (r && r.error ? ': ' + r.error.split('.')[0] : '')); continue; }
+      const lat = +r.lat.toFixed(6), lon = +r.lon.toFixed(6), a = await this.addressOf(lat, lon);
+      const g = E.guessDistrict(lat, lon, this.state.data.clients, c.bl), dist = (a && this.districtFrom(a.parts)) || (g && g.district);
+      upd[c.bl] = { lat, lon, ...(!String(c.address || '').trim() && a ? { address: a.address } : {}), ...(dist && (!c.district || c.district === 'Aniqlanmagan') ? { district: dist } : {}) };
+      found++;
+    }
+    const data = this.state.data;
+    if (found) this.commit({ ...data, clients: data.clients.map(c => upd[c.bl] ? { ...c, ...upd[c.bl] } : c) });
+    this.setState({ linkFix: 'Найдено по ссылкам: ' + found + ' из ' + todo.length + '.' + (failed.length ? ' Не получилось: ' + failed.join('; ') + '.' : '') });
+  }
+
   renderVals() {
     const st = this.state;
     const tabsDef = [['journal', 'Журнал'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['plans', 'Планы A/B/C'], ['viz', 'Визуализация'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
@@ -1578,7 +1677,8 @@ class Component extends DCLogic {
       const blDup = Object.entries(data.clients.reduce((a, c) => (a[c.bl] = (a[c.bl] || 0) + 1, a), {})).filter(([, n]) => n > 1);
       const mk = (title, list, desc, level, map) => ({ title, value: list.length, desc, items: lim(list).map(map || chip), more: list.length > 40 ? 'и ещё ' + (list.length - 40) : '', warn: level === 'warn' && list.length > 0, info: level !== 'warn' && list.length > 0, ok: list.length === 0 });
       out.checks = [
-        mk('Клиенты без координат', noC, 'Не попадают ни в один план и зона кольцевой для них не считается.', 'warn'),
+        { ...mk('Клиенты без координат', noC, 'Не попадают ни в один план и зона кольцевой для них не считается.', 'warn'),
+          ...((nL => ({ act: nL ? 'Найти по ссылкам (' + nL + ')' : '', go: () => this.fixCoordsFromLinks(), fix: st.linkFix || '' }))(noC.filter(c => String(c.link || '').trim()).length)) },
         mk('У границы кольцевой — проверьте', border, 'Ближе ' + f1(S.ringBuffer, 1) + ' км к ТКАД. Посмотрите на карте и задайте зону вручную в карточке клиента.', 'warn'),
         mk('Отгрузки с BL не из справочника', unknown, 'Нет клиента с таким BL — нет адреса, координат и зоны.', 'warn', schip),
         mk('Отгрузки без CBM', noCbm, 'Планы B и C строятся по объёму — без CBM они неточны.', 'warn', schip),
@@ -1591,6 +1691,7 @@ class Component extends DCLogic {
         mk('Строки без даты — не видны на сайте', data.skipped || [], 'В листе Yuborishlar дата не распознана. Впишите дату в столбец A как ДД.ММ.ГГГГ.', 'warn', x => ({ label: 'стр. ' + x.row, sub: x.bl + (x.value ? ' «' + x.value + '»' : ' без даты'), go: () => {} })),
         mk('Дата записана не датой', data.textDates || [], 'Ячейка с датой — текст или число (так бывает, если в таблице английская локаль). Сайт понял её как ДД.ММ; в Google Таблице: Файл → Настройки → Региональные настройки → Россия или Узбекистан.', 'info', x => ({ label: 'стр. ' + x.row + ' → ' + dLong(x.date), sub: x.bl + ' «' + x.value + '»', go: () => {} }))
       ];
+      out.checks = out.checks.map(c => ({ act: '', go: () => {}, fix: '', ...c, hasAct: !!c.act, hasFix: !!c.fix }));
       out.checkWarn = out.checks.filter(c => c.warn).length;
       out.depotInfo = S.depotName + ' → ' + S.depotLat + ', ' + S.depotLon;
       out.depotHref = E.yPoint(S.depotLat, S.depotLon);
@@ -1815,7 +1916,13 @@ class Component extends DCLogic {
       out.canDelete = dl.mode === 'edit';
       out.closeDialog = () => this.setState({ dialog: null });
       out.closeDialogBg = e => { if (e.target === e.currentTarget) this.setState({ dialog: null }); };
-      out.onDraft = e => { const { name, value } = e.target; this.setState(s => ({ dialog: { ...s.dialog, error: '', draft: { ...s.dialog.draft, [name]: value, ...(name === 'district' ? { _distTouched: true } : {}) } } })); };
+      out.onDraft = e => {
+        let { name, value } = e.target;
+        if (dl.type === 'client' && name === 'lat' && /^https?:\/\//i.test(String(value).trim())) { name = 'link'; value = String(value).trim(); }   // ссылку вставили в поле широты
+        this.setState(s => ({ dialog: { ...s.dialog, error: '', draft: { ...s.dialog.draft, [name]: value, ...(name === 'district' ? { _distTouched: true } : {}) } } }));
+        if (dl.type === 'client' && name === 'link') this.linkChanged(value);
+      };
+      out.linkInfo = dl.linkInfo || ''; out.linkInfoColor = dl.linkBad ? 'var(--color-danger-ink)' : 'var(--color-accent-800)';
       if (dl.type === 'ship') {
         out.isShipDialog = true;
         out.dialogTitle = dl.mode === 'new' ? 'Новая отгрузка' : 'Отгрузка ' + dr.bl;
@@ -1916,7 +2023,7 @@ class Component extends DCLogic {
         out.draftHasPoint = !isNaN(lat) && !isNaN(lon);
         out.draftPointHref = out.draftHasPoint ? E.yPoint(lat, lon) : '';
         const z = out.draftHasPoint ? E.zoneOf({ lat, lon }, data.ring, S.ringBuffer) : null;
-        out.draftZoneInfo = z ? 'По координатам: ' + (z.zone === 'in' ? 'внутри' : 'снаружи') + ' кольцевой, ' + f1(z.dist, 1) + ' км до границы' + (z.border ? ' — у границы, проверьте на карте' : '') : 'Без координат клиент не попадёт в планы маршрутов. Можно вставить «41.31, 69.27» в поле широты.';
+        out.draftZoneInfo = z ? 'По координатам: ' + (z.zone === 'in' ? 'внутри' : 'снаружи') + ' кольцевой, ' + f1(z.dist, 1) + ' км до границы' + (z.border ? ' — у границы, проверьте на карте' : '') : 'Без координат клиент не попадёт в планы маршрутов. Вставьте ссылку на карту выше — координаты найдутся сами, или впишите «41.31, 69.27» в поле широты.';
         { const g = out.draftHasPoint ? E.guessDistrict(lat, lon, data.clients, dl.id) : null;
           out.draftDistrictInfo = g ? '· по координатам: ' + distName(g.district) : '· определится по координатам'; }
         out.saveClient = () => {

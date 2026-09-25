@@ -112,6 +112,47 @@
     return r;
   }
 
+  // Координаты из ссылки на карту или из текста «41.31, 69.27». Понимает Google, Яндекс, 2ГИС, Apple, OSM и geo:.
+  // Возвращает { lat, lon, how }; { short: true }, если это короткая ссылка (maps.app.goo.gl, yandex…/maps/-/…),
+  // которую сначала надо раскрыть (это делает скрипт таблицы); иначе null. Если широта и долгота перепутаны,
+  // они встают на место по границам Узбекистана.
+  function coordsFromLink(text) {
+    let t = String(text || '').trim();
+    if (!t) return null;
+    for (let i = 0; i < 3; i++) { let d; try { d = decodeURIComponent(t); } catch (e) { break; } if (d === t) break; t = d; }
+    t = t.replace(/\+/g, ' ');
+    const NUM = '(-?\\d{1,3}(?:\\.\\d+)?)', SEP = '\\s*,\\s*';
+    const rx = src => new RegExp(src.split('N').join(NUM), 'i');
+    const uz = (a, b) => a >= 36 && a <= 46.5 && b >= 55 && b <= 74;
+    const pair = (a, b, latFirst) => {
+      a = +a; b = +b;
+      if (!isFinite(a) || !isFinite(b) || (!a && !b)) return null;
+      let lat = latFirst ? a : b, lon = latFirst ? b : a;
+      if (!uz(lat, lon) && uz(lon, lat)) { const z = lat; lat = lon; lon = z; }
+      return Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
+    };
+    // [регулярное выражение, широта первой?, откуда]
+    const first = rules => { for (const [r, latFirst, how] of rules) { const m = t.match(r); const p = m && pair(m[1], m[2], latFirst); if (p) return { ...p, how }; } return null; };
+    const plain = t.match(rx('^N(?:' + SEP + '|\\s+)N$'));
+    if (plain) { const p = pair(plain[1], plain[2], true); return p && { ...p, how: 'координаты' }; }
+    if (/^https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/kgs|go\.2gis\.com)\//i.test(t) || /yandex\.[a-z.]+\/maps\/-\//i.test(t)) return { short: true };
+    if (/yandex\.|ya\.ru\//i.test(t)) {
+      const route = (t.match(/rtext=([^&#]*)/i) || [])[1];
+      const end = route ? route.split('~').filter(Boolean).pop() : '';
+      const m = end && end.match(rx('^N' + SEP + 'N$'));
+      const r = first([[rx('[?&](?:pt|poi\\[point\\])=N' + SEP + 'N'), false, 'Яндекс: метка'], [rx('whatshere\\[point\\]=N' + SEP + 'N'), false, 'Яндекс: «Что здесь»'],
+        [rx('[?&]text=N' + SEP + 'N(?:&|#|$)'), true, 'Яндекс: поиск по координатам']]);
+      if (r) return r;
+      if (m) { const p = pair(m[1], m[2], true); if (p) return { ...p, how: 'Яндекс: маршрут' }; }
+      return first([[rx('[?&]sll=N' + SEP + 'N'), false, 'Яндекс: точка поиска'], [rx('[?&]ll=N' + SEP + 'N'), false, 'Яндекс: центр карты']]);
+    }
+    if (/2gis\./i.test(t)) return first([[rx('/geo/[^/?#]*/N' + SEP + 'N'), false, '2ГИС: объект'], [rx('[?&]m=N' + SEP + 'N'), false, '2ГИС: центр карты']]);
+    return first([[rx('!3dN!4dN'), true, 'Google: метка'],
+      [rx('[?&](?:q|query|destination|daddr|ll|sll|center)=(?:loc:)?N' + SEP + 'N'), true, 'Google: координаты'],
+      [rx('/maps/(?:search|place|dir)/(?:[^/]*/)?N' + SEP + 'N'), true, 'Google: координаты'], [rx('@N' + SEP + 'N'), true, 'Google: центр карты'],
+      [rx('mlat=N&mlon=N'), true, 'OSM'], [rx('#map=[\\d.]+/N/N'), true, 'OSM'], [rx('^geo:N' + SEP + 'N'), true, 'geo:']]);
+  }
+
   function nnOrder(depot, stops) {
     const left = stops.slice(), out = []; let cur = depot;
     while (left.length) {
@@ -561,5 +602,5 @@
     return best ? { district: best[0], km: pts[0][1] } : null;
   }
 
-  window.LogiEngine = { guessDistrict, km, bearing, inside, distToRing, zoneOf, priceTrip, costSplit, vehicleKind, buildPlans, yRoute, yPoint, xlsx, NO_PRICE, NO_PLAN, withKeles, ringLength, KELES, TKAD_V2 };
+  window.LogiEngine = { guessDistrict, km, bearing, inside, distToRing, zoneOf, priceTrip, costSplit, coordsFromLink, vehicleKind, buildPlans, yRoute, yPoint, xlsx, NO_PRICE, NO_PLAN, withKeles, ringLength, KELES, TKAD_V2 };
 })();
