@@ -95,18 +95,20 @@
     return { label, total, points: uniq.length, formula: formula + ' тыс.', perStop, dupFlags: pts.map(p => p.dup != null) };
   }
 
-  // Расходы рейса тремя частями: внутри кольца, снаружи от порога, снаружи меньше порога (S.freeOutM3, обычно 1 м³) —
-  // за такие точки компания не платит. Рейсы и груз не меняются, делится только цена: доля точки — как в журнале
-  // (perStop, пропорционально тарифу точки). Точка — BL в рейсе, её объём — отгрузки целиком (у разделённой — вся).
-  // Груз без объёма к мелкому не относится: объём неизвестен.
+  // Расходы рейса тремя частями: 1) платим — внутри кольца, груз точки от порога (S.freeOutM3, обычно 1 м³);
+  // 2) не платим — груз точки меньше порога (внутри кольца); 3) не платим — за кольцом, при любом объёме.
+  // Рейсы и груз не меняются, делится только цена: доля точки — как в журнале (perStop, пропорционально тарифу
+  // точки). Точка — BL в рейсе, её объём — отгрузки целиком (у разделённой — вся). Груз без объёма — «платим»:
+  // объём неизвестен. (freeOutM3 — имя настройки порога мелкого груза, строка 70 «Sozlamalar».)
   function costSplit(stops, price, S) {
     if (!price || price.total == null) return null;
     const lim = +S.freeOutM3 || 0, vol = {};
     stops.forEach(s => { vol[s.bl] = (vol[s.bl] || 0) + (+(s.whole != null ? s.whole : s.cbm) || 0); });
-    const free = stops.map(s => s.zone === 'out' && lim > 0 && vol[s.bl] > 0 && vol[s.bl] < lim - 1e-9);
-    const r = { inside: 0, outBig: 0, outSmall: 0, freePts: new Set(stops.filter((s, i) => free[i]).map(s => s.bl)).size, free };
-    stops.forEach((s, i) => { const v = price.perStop[i] || 0; if (free[i]) r.outSmall += v; else if (s.zone === 'out') r.outBig += v; else r.inside += v; });
-    r.ours = r.inside + r.outBig;
+    const why = stops.map(s => s.zone === 'out' ? 'out' : lim > 0 && vol[s.bl] > 0 && vol[s.bl] < lim - 1e-9 ? 'small' : null);
+    const r = { paid: 0, small: 0, outside: 0, why, free: why.map(Boolean) };
+    stops.forEach((s, i) => { const v = price.perStop[i] || 0; if (why[i] === 'out') r.outside += v; else if (why[i] === 'small') r.small += v; else r.paid += v; });
+    const pts = w => new Set(stops.filter((s, i) => why[i] === w).map(s => s.bl)).size;
+    r.smallPts = pts('small'); r.outPts = pts('out'); r.ours = r.paid; r.notPaid = r.small + r.outside;
     return r;
   }
 
