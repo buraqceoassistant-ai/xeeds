@@ -75,3 +75,51 @@ html.locked, html.locked body { overflow: hidden; }
   background: var(--color-bg); border: 1px solid var(--color-divider); box-shadow: var(--shadow-md);
   font-family: var(--font-body);
 }
+
+/* ── Плавность: переходы кнопок, появление вкладок и окон, полоски заполнения ──
+   Анимируются только прозрачность и сдвиг (их рисует видеокарта, без подтормаживаний).
+   Если в системе включено «Уменьшить движение» — всё без анимаций. */
+:root { --ease-out: cubic-bezier(.22, .8, .26, 1); --t-fast: .16s; --t-page: .28s; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button, .btn { touch-action: manipulation; }
+.btn, .input, .seg-opt, .tag, .app-account, .app-tabs > button,
+.plan-cards > button, .viz-trips > button, .viz-seg button, .viz-views button {
+  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease, color var(--t-fast) ease,
+    box-shadow var(--t-fast) ease, transform var(--t-fast) ease, opacity var(--t-fast) ease;
+}
+.btn:active, .viz-seg button:active, .viz-views button:active { transform: scale(.97); }
+.plan-cards > button:hover, .viz-trips > button:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.plan-cards > button:active, .viz-trips > button:active { transform: translateY(0) scale(.99); }
+
+/* вкладка появляется, а не «перещёлкивается» */
+main.page { animation: page-in var(--t-page) var(--ease-out) both; }
+main.map-layout { animation: fade-in var(--t-page) ease both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes fade-in { from { opacity: 0; } }
+
+/* окна: затемнение плавно, окно чуть «всплывает» */
+.dialog-backdrop { animation: fade-in .18s ease both; }
+.dialog-backdrop > .dialog, .auth-card { animation: pop-in .26s var(--ease-out) both; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+
+/* полоски заполнения растут при появлении и плавно меняют длину */
+.bar { transform-origin: left center; transition: width .45s var(--ease-out), background-color .3s ease; animation: bar-in .6s var(--ease-out) both; }
+@keyframes bar-in { from { transform: scaleX(0); } }
+
+/* строка вкладок на телефоне прокручивается сама по себе, не утаскивая страницу */
+.app-tabs { overscroll-behavior-x: contain; scroll-behavior: smooth; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* 3D: пока сцена готовится (шейдеры собираются в фоне), под прозрачным холстом видна подпись */
+.viz-stage:has(canvas[style*="opacity: 0;"])::before {
+  content: "Готовлю 3D…"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: var(--color-neutral-700); animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse { 50% { opacity: .45; } }
+/* 3D: кнопки видов — «таблетки», как остальные кнопки бренда */
+.viz-views button { border-radius: var(--radius-pill); }
+.viz-trips > button { border-radius: var(--radius-md); }
+.viz-seg { border-radius: var(--radius-pill); overflow: hidden; }
