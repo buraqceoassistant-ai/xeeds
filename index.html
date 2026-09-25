@@ -202,7 +202,12 @@
                 <sc-raw-td data-label="Телефоны" style="white-space:nowrap"><div><a href="{{ r.tel1Href }}">{{ r.tel1 }}</a></div><div style="font-size:12px"><a href="{{ r.tel2Href }}">{{ r.tel2 }}</a></div></sc-raw-td>
                 <sc-raw-td data-label="Получатель"><div>{{ r.receiver }}</div><a href="{{ r.rtelHref }}" style="font-size:12px;white-space:nowrap">{{ r.rtel }}</a></sc-raw-td>
                 <sc-raw-td data-label="Район" style="white-space:nowrap">{{ r.district }}</sc-raw-td>
-                <sc-raw-td class="cw o1" data-label="Адрес склада" style="max-width:320px;font-size:12px;color:var(--color-neutral-800);text-wrap:pretty"><div>{{ r.address }}</div><div style="color:var(--color-accent-700);margin-top:2px">{{ r.whNote }}</div></sc-raw-td>
+                <sc-raw-td class="cw o1" data-label="Адрес склада" style="min-width:220px;max-width:340px;font-size:12px;color:var(--color-neutral-800);text-wrap:pretty">
+                  <sc-if value="{{ r.addrShut }}"><div class="addr-clamp" title="{{ r.address }}">{{ r.address }}</div></sc-if>
+                  <sc-if value="{{ r.addrOpen }}"><div>{{ r.address }}</div></sc-if>
+                  <sc-if value="{{ r.addrLong }}"><button class="addr-more" sc-camel-on-click="{{ r.addrToggle }}">{{ r.addrMore }}</button></sc-if>
+                  <div style="color:var(--color-accent-700);margin-top:2px">{{ r.whNote }}</div>
+                </sc-raw-td>
                 <sc-raw-td class="o-1 c-end" style="white-space:nowrap">
                   <sc-if value="{{ r.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
                   <sc-if value="{{ r.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
@@ -1706,7 +1711,10 @@ class Component extends DCLogic {
         .sort((a, b) => a.bl.localeCompare(b.bl, 'ru', { numeric: true }));
       out.cCount = rows.length + ' из ' + data.clients.length;
       out.cRows = (this.cFull ? rows : rows.slice(0, 40)).map(c => { const z = D.zones[c.bl] || {}, a = agg[c.bl] || { n: 0, cbm: 0 };
-        return { bl: c.bl, brand: c.brand || '—', name: c.name, tel1: c.tel1, tel1Href: telHref(c.tel1), tel2: c.tel2, tel2Href: telHref(c.tel2), receiver: c.receiver, rtel: c.receiverTel, rtelHref: telHref(c.receiverTel), district: distName(c.district), address: c.address || '—', ...zf(c.bl),
+        const open = !!(st.cAddrOpen || {})[c.bl];   // длинный адрес — две строки, по кнопке целиком
+        return { addrOpen: open, addrShut: !open, addrLong: (c.address || '').length > 80, addrMore: open ? 'свернуть ▴' : 'ещё ▾',
+          addrToggle: () => this.setState(s => ({ cAddrOpen: { ...(s.cAddrOpen || {}), [c.bl]: !open } })),
+          bl: c.bl, brand: c.brand || '—', name: c.name, tel1: c.tel1, tel1Href: telHref(c.tel1), tel2: c.tel2, tel2Href: telHref(c.tel2), receiver: c.receiver, rtel: c.receiverTel, rtelHref: telHref(c.receiverTel), district: distName(c.district), address: c.address || '—', ...zf(c.bl),
           zoneNote: z.manual ? 'вручную' : z.border ? 'у границы — проверьте' : (z.dist != null ? f1(z.dist, 1) + ' км до кольца' : ''), count: a.n, cbm: f1(a.cbm, 1), last: a.last ? dLong(a.last) : '—',
           hasPoint: c.lat != null, pointHref: c.lat != null ? E.yPoint(c.lat, c.lon) : '', onEdit: () => this.openClient(c),
           hasLink: !!c.link, link: c.link, kg: f0(a.kg || 0), compl: Math.round(compl(c) * 100) + '%', complLow: compl(c) < 0.67, complOk: compl(c) >= 0.67,
