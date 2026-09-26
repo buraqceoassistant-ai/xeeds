@@ -1250,6 +1250,28 @@
               <button class="btn btn-ghost" sc-camel-on-click="{{ aiNewSecret }}">Новый секрет редактора</button>
             </div>
           </section>
+          <section class="ai-box tg-box" style="border:1px solid var(--color-divider);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-weight:500">Телеграм-бот для водителей</div>
+            <div style="font-size:13px;text-wrap:pretty">{{ tgInfo }}</div>
+            <sc-if value="{{ tgHasSteps }}"><ol class="tg-steps"><sc-for list="{{ tgSteps }}" as="x"><li>{{ x.t }}</li></sc-for></ol></sc-if>
+            <sc-if value="{{ tgHasCode }}"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">В группе отчётов отправьте:<code class="tg-code">{{ tgCode }}</code><button class="btn btn-ghost" sc-camel-on-click="{{ tgCopy }}">Скопировать</button></div></sc-if>
+            <sc-if value="{{ tgHasLink }}"><div style="font-size:13px">Ссылка для водителей: <a href="{{ tgLink }}" target="_blank" rel="noopener">{{ tgLink }}</a> — открыть и нажать «Старт».</div></sc-if>
+            <div style="font-size:13px;color:{{ tgResColor }};text-wrap:pretty">{{ tgRes }}</div>
+            <sc-if value="{{ tgHasDrivers }}">
+              <div class="tg-drivers"><sc-for list="{{ tgDrivers }}" as="d">
+                <div class="tg-driver">
+                  <div style="flex:1;min-width:0"><div><b style="font-weight:500">{{ d.name }}</b> · {{ d.truck }} · {{ d.plate }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></div>
+                  <span class="tag {{ d.tagCls }}">{{ d.label }}</span>
+                  <sc-if value="{{ d.canAllow }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.allow }}">Разрешить</button></sc-if>
+                  <sc-if value="{{ d.canOff }}"><button class="btn btn-ghost" sc-camel-on-click="{{ d.off }}">Отключить</button></sc-if>
+                </div>
+              </sc-for></div>
+            </sc-if>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <sc-if value="{{ tgCanConnect }}"><button class="btn {{ tgConnectCls }}" sc-camel-on-click="{{ tgConnect }}">{{ tgConnectLabel }}</button></sc-if>
+              <sc-if value="{{ tgHasBot }}"><button class="btn btn-ghost" sc-camel-on-click="{{ tgRefresh }}">Обновить список</button></sc-if>
+            </div>
+          </section>
         </sc-if>
         <div style="font-size:13px;color:var(--color-accent-700)">{{ dialogError }}</div>
         <div class="dialog-actions">
@@ -1562,7 +1584,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 8); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || [];
+    this.gsScriptOld = !(j.v >= 9); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -1627,7 +1649,7 @@ class Component extends DCLogic {
     const same = (a, b, K) => JSON.stringify(pick(a, K)) === JSON.stringify(pick(b, K));
     const byId = a => Object.fromEntries((a || []).map(x => [x.id, x]));
     const ps = byId(prev.shipments), ns = byId(next.shipments);
-    next.shipments.forEach(s => { const o = ps[s.id]; if (!o) ops.push({ t: 'ship.upsert', v: pick(s, SK) }); else if (!same(o, s, SK)) ops.push({ t: 'ship.upsert', row: rowOf(s.id, 's'), guard: { bl: o.bl, date: o.date }, v: pick(s, SK) }); });
+    next.shipments.forEach(s => { const o = ps[s.id]; if (!o) ops.push({ t: 'ship.upsert', v: pick(s, SK) }); else if (!same(o, s, SK)) ops.push({ t: 'ship.upsert', row: rowOf(s.id, 's'), guard: { bl: o.bl, date: o.date }, was: pick(o, SK), v: pick(s, SK) }); });
     prev.shipments.forEach(o => { if (!ns[o.id] && rowOf(o.id, 's')) dels.push({ t: 'ship.delete', row: rowOf(o.id, 's'), guard: { bl: o.bl, date: o.date } }); });
     const pc = Object.fromEntries(prev.clients.map(c => [c.bl, c])), nc = Object.fromEntries(next.clients.map(c => [c.bl, c]));
     const added = next.clients.filter(c => !pc[c.bl]), removed = prev.clients.filter(c => !nc[c.bl]);
@@ -2391,6 +2413,20 @@ class Component extends DCLogic {
     if (j.error && /external_request|UrlFetchApp\.fetch/.test(j.error)) Object.assign(j, { code: 'auth', error: 'Скрипту таблицы не разрешены внешние запросы. ' +
       'В Google Таблице: Расширения → Apps Script (тем же аккаунтом Google, от имени которого развёрнуто веб-приложение) → вверху выберите функцию authorize (в старом коде — doGet) → ▶ Выполнить → ' +
       'Проверить разрешения → ваш аккаунт → Дополнительные настройки → Перейти к проекту → отметьте все галочки («Выбрать все») → Продолжить. Затем снова «Проверить ИИ».' });
+    return j;
+  }
+  // Телеграм-бот: запрос к скрипту таблицы (подключить, водители); секрет редактора — как у ИИ
+  async tgPost(tg) {
+    if (!this.gsUrl) throw new Error('Сначала подключите Google Таблицу');
+    if (this.readOnly) throw new Error('Бот настраивает только руководитель');
+    const A = window.LogiAuth, own = A && A.owner ? A.owner() : { config: {} };
+    const r = await fetch(this.gsUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', tg }) });
+    const j = await r.json();
+    if (!(j.v >= 9)) throw new Error('Для бота нужен код скрипта таблицы версии 9: «Скопировать код» → вставить в Apps Script → новая версия развертывания');
+    if (j.error && /external_request|UrlFetchApp\.fetch/.test(j.error)) throw new Error('Скрипту таблицы не разрешены внешние запросы: в Apps Script выберите функцию authorize → ▶ Выполнить → отметьте все галочки → Продолжить.');
+    if (j.error) throw new Error(j.error);
+    if (j.tg !== undefined) { this.gsTg = j.tg; this.setState({}); }
     return j;
   }
   async aiPing() {
@@ -3240,6 +3276,44 @@ class Component extends DCLogic {
               try { await A.saveOwnerConfig({ editorToken: fresh }, (dl.draft || {}).gh, ai.pass || ''); setAi({ busy: false, pass: '', show: true, res: 'Новый секрет сохранён. Впишите его в свойство скрипта EDITOR_TOKEN — старый больше не подходит.', color: 'var(--color-accent-700)' }); }
               catch (e) { fail(e); }
             } }); }
+        // Телеграм-бот для водителей: подключение (скрипт v9 + TG_TOKEN), группа отчётов, водители
+        { const T = this.gsTg, tg = dl.tg || {}, v9 = this.gsVersion >= 9;
+          const setTg = patch => this.setState(s => s.dialog && s.dialog.type === 'gs' ? { dialog: { ...s.dialog, tg: { ...(s.dialog.tg || {}), ...patch } } } : null);
+          const run = async (label, body, done) => {
+            setTg({ busy: true, res: label, color: 'var(--color-neutral-700)' });
+            try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
+            catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
+          };
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 9.' :
+            !T ? 'В свойствах скрипта нет токена бота.' :
+            !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
+            !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :
+            'Бот @' + T.bot + ' работает ✅ Группа отчётов: «' + (T.group || 'без названия') + '». Заявки водителей подтверждают администраторы группы.';
+          out.tgSteps = (!v9 ? ['«Скопировать код» выше → в Apps Script заменить весь код → Сохранить → Развернуть → Управление развертываниями → ✎ → Версия: новая → Развернуть.',
+            'В Apps Script вверху выберите функцию authorize → ▶ Выполнить → разрешите всё, отметив все галочки: добавится доступ к Google Диску для фото доставок.',
+            'Нажмите «Обновить из таблицы» на полосе над журналом или обновите страницу.'] :
+            !T ? ['В Apps Script: ⚙ Настройки проекта → Свойства скрипта → «Изменить свойства скрипта» → «Добавить свойство»: имя TG_TOKEN, значение — токен от @BotFather → «Сохранить свойства скрипта».',
+              'Нажмите «Подключить бота».'] : []).map(t => ({ t }));
+          out.tgHasSteps = out.tgSteps.length > 0;
+          out.tgCode = T && T.code ? '/ulash ' + T.code : ''; out.tgHasCode = !!(T && T.hooked && !T.grouped && T.code);
+          out.tgLink = T && T.bot ? 'https://t.me/' + T.bot : ''; out.tgHasLink = !!(T && T.hooked && T.bot);
+          out.tgRes = tg.res || ''; out.tgResColor = tg.color || 'var(--color-neutral-700)';
+          out.tgHasBot = !!(v9 && T); out.tgCanConnect = v9;
+          out.tgConnectLabel = T && T.hooked ? 'Переподключить бота' : 'Подключить бота'; out.tgConnectCls = T && T.hooked ? 'btn-ghost' : 'btn-primary';
+          out.tgConnect = () => run('Подключаю бота…', { action: 'setup', url: this.gsUrl }, j => 'Бот @' + j.tg.bot + ' подключён: Telegram присылает сообщения в скрипт таблицы.');
+          out.tgRefresh = () => run('Обновляю…', { action: 'status' });
+          out.tgCopy = e => { const b = e.currentTarget; navigator.clipboard.writeText(out.tgCode).then(() => { b.textContent = 'Скопировано ✓'; setTimeout(() => { b.textContent = 'Скопировать'; }, 1800); }).catch(() => {}); };
+          const LBL = { kutilmoqda: ['ждёт подтверждения', 'tag-draft'], ruxsat: ['доступ открыт', 'tag-accent'], rad: ['отклонён', 'tag-outline'], 'o‘chirilgan': ['отключён', 'tag-outline'] };
+          out.tgDrivers = ((T && T.drivers) || []).map(d => {
+            const t = d.today, lb = LBL[d.status] || [d.status, ''];
+            return { name: d.name || '—', truck: d.truck || '—', plate: d.plate || '—', label: lb[0], tagCls: lb[1],
+              sub: t ? 'Сегодня: с ' + t.started + (t.ended ? ' до ' + t.ended : ', в работе') + ' · доставлено ' + t.ok + (t.fail ? ', не доставлено ' + t.fail : '') : [d.user, d.at ? 'заявка ' + d.at : '', d.lang === 'ru' ? 'русский' : 'узбекский'].filter(Boolean).join(' · '),
+              canAllow: d.status === 'kutilmoqda' || d.status === 'o‘chirilgan' || d.status === 'rad', canOff: d.status === 'ruxsat' || d.status === 'kutilmoqda',
+              allow: () => run('Открываю доступ…', { action: 'driver', id: d.id, status: 'ruxsat' }, () => d.name + ': доступ открыт, водителю пришло сообщение.'),
+              off: () => { if (confirm('Отключить водителя ' + d.name + ' (' + d.truck + ')? Бот перестанет показывать ему точки.')) run('Отключаю…', { action: 'driver', id: d.id, status: d.status === 'kutilmoqda' ? 'rad' : 'o‘chirilgan' }, () => d.name + ': доступ закрыт.'); } };
+          });
+          out.tgHasDrivers = out.tgDrivers.length > 0;
+        }
         out.gsWhere = !this.gsUrl ? '' : this.gsShared ? 'Сейчас подключена одна таблица для всех устройств.' : 'Сейчас таблица подключена только на этом устройстве.';
         const say = error => this.setState(s => ({ dialog: s.dialog && { ...s.dialog, error } }));
         // ссылка на таблицу — в общие настройки сайта (нужен GitHub-токен, как для смены пароля)

@@ -30,13 +30,22 @@ class Sheet {
   deleteRow(r) { this.rows.splice(r - 1, 1); }
 }
 
-export function loadScript({ props = {}, sheets = {}, fetch } = {}) {
+export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
+  // «сейчас» для скрипта: new Date() без аргументов — now.value (если задано)
+  class MockDate extends Date { constructor(...a) { if (!a.length && now && now.value) super(now.value.getTime()); else super(...a); } static [Symbol.hasInstance](x) { return x instanceof Date; } }
   const book = { name: 'Тест', sheets: Object.fromEntries(Object.entries(sheets).map(([n, s]) => [n, new Sheet(n, s.rows || [], s.maxCols || 26)])) };
-  const calls = [], logs = [];
+  const calls = [], logs = [], cache = new Map(); let uuid = 0;
+  // Google Диск: папки и файлы в памяти
+  const files = [], folders = {};
+  const folder = (name, parent) => { const id = 'f' + (Object.keys(folders).length + 1), f = { id, name, parent, getId: () => id,
+    createFolder: n => folder(n, id), getFoldersByName: n => { const l = Object.values(folders).filter(x => x.parent === id && x.name === n); return { hasNext: () => l.length > 0, next: () => l.shift() }; },
+    createFile: b => { const fid = 'file' + (files.length + 1); files.push({ id: fid, folder: id, name: b.name, bytes: b.bytes }); return { getUrl: () => 'https://drive.google.com/file/d/' + fid, getId: () => fid }; } }; folders[id] = f; return f; };
+  const drive = { createFolder: n => folder(n, null), getFolderById: id => { if (!folders[id]) throw new Error('нет папки'); return folders[id]; } };
   const ctx = {
-    PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] ?? null, getProperties: () => ({ ...props }) }) },
-    UrlFetchApp: { fetch: (url, opts) => { const req = opts.payload ? JSON.parse(opts.payload) : null; calls.push({ url, opts, req }); const r = fetch(req, opts, calls.length); if (r instanceof Error) throw r;
-      return { getResponseCode: () => r.status ?? 200, getContentText: () => typeof r.body === 'string' ? r.body : JSON.stringify(r.body), getAllHeaders: () => ({}) }; } },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] ?? null, getProperties: () => ({ ...props }), setProperty: (k, v) => { props[k] = String(v); } }) },
+    UrlFetchApp: { fetch: (url, opts = {}) => { const req = opts.payload ? JSON.parse(opts.payload) : null; calls.push({ url, opts, req }); const r = fetch(req, opts, calls.length, url); if (r instanceof Error) throw r;
+      return { getResponseCode: () => r.status ?? 200, getContentText: () => typeof r.body === 'string' ? r.body : JSON.stringify(r.body), getAllHeaders: () => ({}),
+        getBlob: () => { const b = { name: '', bytes: r.body, setName(n) { b.name = n; return b; } }; return b; } }; } },
     SpreadsheetApp: {
       getActiveSpreadsheet: () => ({ getName: () => book.name, getSpreadsheetTimeZone: () => 'Asia/Tashkent', getSheetByName: n => book.sheets[n] || null,
         insertSheet: n => (book.sheets[n] = new Sheet(n)) }),
@@ -45,14 +54,22 @@ export function loadScript({ props = {}, sheets = {}, fetch } = {}) {
     },
     ContentService: { createTextOutput: s => ({ text: s, setMimeType() { return this; } }), MimeType: { JSON: 'json' } },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
-    Utilities: { formatDate: (d, tz, f) => d.toISOString().slice(0, 10) },
+    // время «сейчас» в тестах можно задать: now.value = new Date(…); часовой пояс таблицы — Ташкент (UTC+5)
+    Utilities: { formatDate: (d, tz, f) => { const t = new Date(d.getTime() + 5 * 3600e3).toISOString(); return f.replace('yyyy', t.slice(0, 4)).replace('MM', t.slice(5, 7)).replace('dd', t.slice(8, 10)).replace('HH', t.slice(11, 13)).replace('mm', t.slice(14, 16)); },
+      getUuid: () => 'uuid-' + (++uuid) + '-0000-0000' },
+    CacheService: { getScriptCache: () => ({ get: k => cache.get(k) ?? null, put: (k, v) => cache.set(k, v), remove: k => cache.delete(k) }) },
+    HtmlService: { createHtmlOutput: s => ({ html: s }) },
+    DriveApp: drive,
+    console: { error: m => logs.push('error: ' + m), log: m => logs.push(m) },
     Logger: { log: m => logs.push(m) },
     ScriptApp: { AuthMode: { FULL: 'FULL' }, requireAllScopes: m => logs.push('requireAllScopes ' + m) },
-    Maps: {}, Date, JSON, Math, String, Number, Object, Array, isNaN, RegExp, Error
+    Maps: {}, Date: MockDate, JSON, Math, String, Number, Object, Array, isNaN, RegExp, Error
   };
   vm.createContext(ctx);
-  vm.runInContext(readFileSync(new URL('../tools/gs/Code.gs', import.meta.url), 'utf8'), ctx);
+  vm.runInContext(readFileSync(new URL('../tools/gs/Code.gs', import.meta.url), 'utf8') + '\n' + readFileSync(new URL('../tools/gs/Bot.gs', import.meta.url), 'utf8'), ctx);
   const post = body => JSON.parse(ctx.doPost({ postData: { contents: typeof body === 'string' ? body : JSON.stringify(body) } }).text);
   const get = (params = {}) => JSON.parse(ctx.doGet({ parameter: params }).text);
-  return { ctx, book, calls, logs, post, get };
+  // обновление от Telegram: doPost с ?tg=<секрет>
+  const tgPost = (update, secret = props.TG_SECRET) => ctx.doPost({ parameter: { tg: secret }, postData: { contents: JSON.stringify(update) } });
+  return { ctx, book, calls, logs, post, get, tgPost, files, props, cache };
 }

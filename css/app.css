@@ -241,3 +241,8 @@ button.imp-check:hover { background: var(--color-surface); }
 @media screen and (max-width: 560px) { .ai-props { grid-template-columns: minmax(0, 1fr); gap: 2px; } .ai-props > div { margin-bottom: 6px; } }
 /* «Импорт»: способ разбора — без ИИ или через ИИ */
 .imp-mode { display: flex; gap: 12px 16px; align-items: center; flex-wrap: wrap; }
+/* «Настройки связи» → телеграм-бот: шаги, код группы, водители */
+.tg-steps { margin: 0; padding-left: 20px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; text-wrap: pretty; }
+.tg-code { font-size: 13px; padding: 4px 10px; background: var(--color-surface); border: 1px solid var(--color-divider); }
+.tg-drivers { display: flex; flex-direction: column; border-top: 1px solid var(--color-divider); }
+.tg-driver { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--color-divider); font-size: 13px; }

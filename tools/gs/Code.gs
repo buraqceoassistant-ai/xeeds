@@ -16,9 +16,13 @@
  *   AI_MODEL          — модель, например claude-sonnet-5 (пусто — claude-sonnet-5);
  *   EDITOR_TOKEN      — секрет редактора: без него ИИ не вызвать (сайт хранит его только у руководителя).
  * Каждый вызов записывается в лист «ИИ-журнал».
+ *
+ * Телеграм-бот для водителей (версия 9) — свойство TG_TOKEN (токен от @BotFather), затем на сайте
+ * «Настройки связи» → «Телеграм-бот для водителей» → «Подключить бота». Листы «Haydovchilar», «Yetkazish», «Ish kuni»
+ * бот создаёт сам, фото доставок — в папку «BURAQ yetkazish» на Google Диске.
  */
 var TOKEN = '';
-var VERSION = 8; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 9; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 var COLS = { ship: 16, cli: 25, wh: 8, set: 3, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта
@@ -91,16 +95,19 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  if (e && e.parameter && e.parameter.tg) return tgWebhook_(e);   // обновление от Telegram (ссылка с секретом бота)
   var raw = (e && e.postData && e.postData.contents) || '{}', body = {}, tk = token_();
   try { body = JSON.parse(raw); } catch (err) { return json_({ error: 'Плохой запрос' }); }
   if (tk && body.token !== tk) return json_({ error: 'Неверный пароль' });
   if (body.ai) return json_(ai_(body, raw.length));   // ИИ — без блокировки таблицы и без выгрузки данных
+  if (body.tg) return json_(tgSite_(body));   // бот: подключить, водители
   var lock = LockService.getScriptLock();
   lock.waitLock(25000);
   var results = [];
   try {
     (body.ops || []).forEach(function (op) { results.push(apply_(op)); });
     SpreadsheetApp.flush();
+    try { tgAfterOps_(body.ops); } catch (err) { console.error('Бот после правок: ' + ((err && err.message) || err)); }   // водителям — если их точки изменились
   } finally { lock.releaseLock(); }
   return json_({ ok: true, v: VERSION, results: results, data: dump_() });
 }
@@ -167,6 +174,7 @@ function dump_() {
     }
   });
   out.imports = imports_(ss);
+  try { out.tg = tgInfo_(); } catch (err) { out.tg = null; }
   return out;
 }
 
@@ -248,8 +256,11 @@ function apply_(op) {
     sh = ss.getSheetByName(SH.ship);
     row = op.row || op.guard ? findShip_(sh, op.row, op.guard) : 0;
     if (op.t === 'ship.delete') { if (row) shiftUp_(sh, row, [[1, 1], [3, 1], [10, 7]], 3, 5); return { row: row }; }
+    var ch = function (k) { return !row || !op.was || String(op.was[k]) !== String(v[k]); };   // поля, которые сайт правда поменял
     if (!row) row = lastRow_(sh, 3, 5) + 1;
-    setRow_(sh, row, { 1: date_(v.date), 3: v.bl, 10: num_(v.cbm), 11: num_(v.kg), 12: num_(v.places), 13: v.truck, 14: num_(v.route), 15: v.status, 16: v.note });
+    // только изменённые на сайте поля: статус, который поставил водитель в боте, не перезапишется старым значением сайта
+    setRow_(sh, row, { 1: ch('date') ? date_(v.date) : undefined, 3: ch('bl') ? v.bl : undefined, 10: ch('cbm') ? num_(v.cbm) : undefined, 11: ch('kg') ? num_(v.kg) : undefined,
+      12: ch('places') ? num_(v.places) : undefined, 13: ch('truck') ? v.truck : undefined, 14: ch('route') ? num_(v.route) : undefined, 15: ch('status') ? v.status : undefined, 16: ch('note') ? v.note : undefined });
     ensureF_(sh, row, 6, [2, 4, 5, 6, 7, 8, 9, 17, 18, 19, 20, 21]);
     return { row: row };
   }
