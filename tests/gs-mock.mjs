@@ -47,6 +47,7 @@ export function loadScript({ props = {}, sheets = {}, fetch } = {}) {
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     Utilities: { formatDate: (d, tz, f) => d.toISOString().slice(0, 10) },
     Logger: { log: m => logs.push(m) },
+    ScriptApp: { AuthMode: { FULL: 'FULL' }, requireAllScopes: m => logs.push('requireAllScopes ' + m) },
     Maps: {}, Date, JSON, Math, String, Number, Object, Array, isNaN, RegExp, Error
   };
   vm.createContext(ctx);

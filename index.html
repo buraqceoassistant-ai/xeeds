@@ -2374,6 +2374,10 @@ class Component extends DCLogic {
       body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', ai }) });
     const j = await r.json();
     if (!(j.v >= 8)) throw new Error('Для ИИ нужен код скрипта таблицы версии 8: «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания');
+    // владелец таблицы не разрешил скрипту внешние запросы (в том числе старый код, где это «Нет связи с Claude API»)
+    if (j.error && /external_request|UrlFetchApp\.fetch/.test(j.error)) Object.assign(j, { code: 'auth', error: 'Скрипту таблицы не разрешены внешние запросы. ' +
+      'В Google Таблице: Расширения → Apps Script (тем же аккаунтом Google, от имени которого развёрнуто веб-приложение) → вверху выберите функцию authorize (в старом коде — doGet) → ▶ Выполнить → ' +
+      'Проверить разрешения → ваш аккаунт → Дополнительные настройки → Перейти к проекту → отметьте все галочки («Выбрать все») → Продолжить. Затем снова «Проверить ИИ».' });
     return j;
   }
   async aiPing() {
