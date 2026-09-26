@@ -42,7 +42,7 @@ export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
     createFile: b => { const fid = 'file' + (files.length + 1); files.push({ id: fid, folder: id, name: b.name, bytes: b.bytes }); return { getUrl: () => 'https://drive.google.com/file/d/' + fid, getId: () => fid }; } }; folders[id] = f; return f; };
   const drive = { createFolder: n => folder(n, null), getFolderById: id => { if (!folders[id]) throw new Error('нет папки'); return folders[id]; } };
   const ctx = {
-    PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] ?? null, getProperties: () => ({ ...props }), setProperty: (k, v) => { props[k] = String(v); } }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] ?? null, getProperties: () => ({ ...props }), setProperty: (k, v) => { props[k] = String(v); }, deleteProperty: k => { delete props[k]; } }) },
     UrlFetchApp: { fetch: (url, opts = {}) => { const req = opts.payload ? JSON.parse(opts.payload) : null; calls.push({ url, opts, req }); const r = fetch(req, opts, calls.length, url); if (r instanceof Error) throw r;
       return { getResponseCode: () => r.status ?? 200, getContentText: () => typeof r.body === 'string' ? r.body : JSON.stringify(r.body), getAllHeaders: () => ({}),
         getBlob: () => { const b = { name: '', bytes: r.body, setName(n) { b.name = n; return b; } }; return b; } }; } },

@@ -55,7 +55,11 @@ var TX = {
     unknown: 'Tugmalardan foydalaning 👇',
     assign: '📋 Topshiriq: {date} partiyasi\n🚚 {truck} · {n} ta manzil\n\n{list}\n\nBoshlash uchun «🚚 Ishni boshlash» tugmasini bosing.',
     assignNow: '📋 Yangi topshiriq: {date} partiyasi — {n} ta manzil. Birinchi manzil pastda 👇',
-    assignChanged: '⚠️ Topshiriq o‘zgardi.', round: '{round}-reys', msg: '📩 Rahbardan xabar:\n{text}'
+    assignChanged: '⚠️ Topshiriq o‘zgardi.', round: '{round}-reys', msg: '📩 Rahbardan xabar:\n{text}',
+    bCall: '📞 Dispetcher', dispatcher: '📞 Dispetcher: {name}\n{phone}\nQo‘ng‘iroq qilish uchun raqamni bosing.', noDispatcher: 'Dispetcher raqami hali kiritilmagan. Rahbarga murojaat qiling.',
+    noAnswer: '📵 Mijoz telefonga javob bermayapti. Nima qilamiz?', bCallDisp: '📞 Dispetcherga qo‘ng‘iroq', bClientTel: '☎️ Mijoz raqamlari',
+    bAnswered: '✅ Mijoz javob berdi — yetkazaman', bStillFail: '❌ Baribir yetkazilmadi', dispAlerted: 'Dispetcherga xabar berildi — u ham mijozga qo‘ng‘iroq qiladi.',
+    clientTels: '☎️ {bl} raqamlari:\n{list}', noClientTel: 'Mijozning telefon raqami yo‘q.'
   },
   ru: {
     hello: 'Здравствуйте! Это бот для водителей BURAQ logistics.\nВыберите язык:',
@@ -91,7 +95,11 @@ var TX = {
     unknown: 'Пользуйтесь кнопками 👇',
     assign: '📋 Задание: партия {date}\n🚚 {truck} · точек: {n}\n\n{list}\n\nЧтобы начать, нажмите «🚚 Начать работу».',
     assignNow: '📋 Новое задание: партия {date} — точек: {n}. Первая точка ниже 👇',
-    assignChanged: '⚠️ Задание изменилось.', round: 'рейс {round}', msg: '📩 Сообщение от руководителя:\n{text}'
+    assignChanged: '⚠️ Задание изменилось.', round: 'рейс {round}', msg: '📩 Сообщение от руководителя:\n{text}',
+    bCall: '📞 Диспетчер', dispatcher: '📞 Диспетчер: {name}\n{phone}\nНажмите на номер, чтобы позвонить.', noDispatcher: 'Номер диспетчера ещё не указан. Обратитесь к руководителю.',
+    noAnswer: '📵 Клиент не отвечает на телефон. Что делаем?', bCallDisp: '📞 Позвонить диспетчеру', bClientTel: '☎️ Номера клиента',
+    bAnswered: '✅ Клиент ответил — доставляю', bStillFail: '❌ Всё равно не доставлено', dispAlerted: 'Диспетчеру отправлено сообщение — он тоже позвонит клиенту.',
+    clientTels: '☎️ Номера {bl}:\n{list}', noClientTel: 'У клиента нет номера телефона.'
   }
 };
 // нажатая кнопка меню — на любом из двух языков (после смены языка у водителя может остаться старая клавиатура)
@@ -117,7 +125,26 @@ function tg_(method, payload) {
   return j;
 }
 function tgSend_(chat, text, markup) { return tg_('sendMessage', { chat_id: chat, text: text, reply_markup: markup, disable_web_page_preview: true }); }
-function tgMenu_(lang) { return { keyboard: [[tx_(lang, 'bStart'), tx_(lang, 'bCur')], [tx_(lang, 'bEnd'), tx_(lang, 'bLang')]], resize_keyboard: true, is_persistent: true }; }
+function tgMenu_(lang) {
+  var kb = [[tx_(lang, 'bStart'), tx_(lang, 'bCur')], [tx_(lang, 'bEnd'), tx_(lang, 'bLang')]];
+  if (tgDispatcher_().phone) kb.push([tx_(lang, 'bCall')]);
+  return { keyboard: kb, resize_keyboard: true, is_persistent: true };
+}
+// диспетчер: имя и телефон — свойства скрипта TG_DISP_NAME / TG_DISP_PHONE, задаются на сайте («Водители»)
+function tgDispatcher_() { return { name: prop_('TG_DISP_NAME') || 'BURAQ', phone: prop_('TG_DISP_PHONE') }; }
+// номер диспетчера — текстом (Telegram делает его ссылкой для звонка) и карточкой контакта с кнопкой «Позвонить»
+function tgSendDispatcher_(d) {
+  var p = tgDispatcher_();
+  if (!p.phone) return tgSend_(d.id, tx_(d.lang, 'noDispatcher'));
+  tgSend_(d.id, tx_(d.lang, 'dispatcher', { name: p.name, phone: p.phone }));
+  return tg_('sendContact', { chat_id: d.id, phone_number: p.phone, first_name: p.name.slice(0, 64), last_name: d.lang === 'ru' ? 'диспетчер' : 'dispetcher' });
+}
+// номера клиента точки: телефон клиента, второй, получателя — без повторов
+function tgClientTels_(c) {
+  var out = [];
+  [[c.recvTel, c.receiver], [c.tel1, c.name || c.brand], [c.tel2, '']].forEach(function (x) { var t = String(x[0] || '').trim(); if (t && !out.some(function (o) { return o.t === t; })) out.push({ t: t, who: String(x[1] || '').trim() }); });
+  return out;
+}
 function tgLocKb_(lang) { return { keyboard: [[{ text: tx_(lang, 'bLoc'), request_location: true }], [tx_(lang, 'bCancel')]], resize_keyboard: true }; }
 function tgInline_(rows) { return { inline_keyboard: rows }; }
 function tgNow_(f) { return Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), f || 'yyyy-MM-dd HH:mm'); }
@@ -240,6 +267,7 @@ function tgHandle_(u) {
   var w = tgWork_(d);
   if (m.location) return tgLocation_(d, w, [m.location.latitude, m.location.longitude]);
   if (m.photo && m.photo.length) return tgPhoto_(d, w, m.photo[m.photo.length - 1].file_id);
+  if (tgIs_(text, 'bCall') || /^\/dispetcher\b/.test(text)) return tgSendDispatcher_(d);
   if (tgIs_(text, 'bLang') || /^\/til\b|^\/lang\b/.test(text)) { d.lang = L === 'uz' ? 'ru' : 'uz'; tgSave_(d); return tgSend_(id, tx_(d.lang, 'langSet'), tgMenu_(d.lang)); }
   if (tgIs_(text, 'bStart') || /^\/ish\b/.test(text)) {
     if (w && w.started) return tgSend_(id, tx_(L, 'already'), tgMenu_(L)) && tgCurrent_(d, w);
@@ -314,13 +342,44 @@ function tgCallback_(q) {
   if (/^why:\d$/.test(data) && w.stage === 'reason') {
     var i = Number(data.slice(4));
     if (i === 3) { w.stage = 'reasonText'; tgSave_(d); return tgSend_(d.id, tx_(L, 'askReasonText')); }
-    w.reason = TG_REASONS.ru[i]; w.stage = 'failPhoto'; tgSave_(d);
+    w.reason = TG_REASONS.ru[i];
+    if (i === 1) return tgNoAnswer_(d, w);
+    w.stage = 'failPhoto'; tgSave_(d);
+    return tgSend_(d.id, tx_(L, 'askPhotoFail'), { keyboard: [[tx_(L, 'bSkip')], [tx_(L, 'bCancel')]], resize_keyboard: true });
+  }
+  // меню «клиент не отвечает»: позвонить диспетчеру, номера клиента, клиент ответил, всё равно не доставлено
+  if (/^na:(call|tel|ok|fail)$/.test(data)) {
+    if (w.stage !== 'noAnswer' || !w.cur) return tgSend_(d.id, tx_(L, 'stale')) && tgCurrent_(d, w);
+    var act = data.slice(3);
+    if (act === 'call') return tgSendDispatcher_(d);
+    if (act === 'tel') {
+      var st = tgStops_(d.truck, w.date).filter(function (x) { return x.key === w.cur.key; })[0], tels = st ? tgClientTels_(st.c) : [];
+      return tgSend_(d.id, tels.length ? tx_(L, 'clientTels', { bl: w.cur.bl, list: tels.map(function (x) { return x.t + (x.who ? ' — ' + x.who : ''); }).join('\n') }) : tx_(L, 'noClientTel'));
+    }
+    if (act === 'ok') {
+      w.result = 'ok'; w.reason = ''; w.photos = []; w.stage = 'photo'; tgSave_(d);
+      tgReport_('✅ ' + d.truck + ' · ' + d.name + ': клиент ' + w.cur.bl + ' ответил — водитель доставляет.');
+      return tgSend_(d.id, tx_(L, 'askPhoto'), { keyboard: [[tx_(L, 'bDone')], [tx_(L, 'bCancel')]], resize_keyboard: true });
+    }
+    w.stage = 'failPhoto'; tgSave_(d);
     return tgSend_(d.id, tx_(L, 'askPhotoFail'), { keyboard: [[tx_(L, 'bSkip')], [tx_(L, 'bCancel')]], resize_keyboard: true });
   }
   if (/^round:\d+$/.test(data) && w.stage === 'roundWait') {
     w.round = Number(data.slice(6)); w.stage = null; w.pos = tgDepot_(); tgSave_(d);
     return tgNext_(d, w);
   }
+}
+
+// клиент не отвечает: водителю — меню, в группу — тревога с номерами клиента, чтобы диспетчер позвонил сам
+function tgNoAnswer_(d, w) {
+  var L = d.lang, s = tgStops_(d.truck, w.date).filter(function (x) { return x.key === w.cur.key; })[0], c = (s && s.c) || {};
+  w.stage = 'noAnswer'; tgSave_(d);
+  var tels = tgClientTels_(c), who = [c.brand, c.name].filter(Boolean).join(' — '), g = tgGroup_();
+  if (g) tgReport_('📵 ' + d.truck + ' · ' + d.name + ': клиент ' + w.cur.bl + (who ? ' ' + who : '') + ' не отвечает на телефон.\n' +
+    (tels.length ? '☎️ ' + tels.map(function (x) { return x.t + (x.who ? ' (' + x.who + ')' : ''); }).join(', ') + '\n' : 'Номера клиента нет в справочнике.\n') +
+    (c.district || c.address ? '📍 ' + [c.district, c.address].filter(Boolean).join(', ') + '\n' : '') + 'Позвоните клиенту — водитель ждёт на точке.' + (w.pos ? '\n🚚 Последняя отметка водителя: ' + tgMap_(w.pos) : ''));
+  var rows = [[{ text: tx_(L, 'bCallDisp'), callback_data: 'na:call' }], [{ text: tx_(L, 'bClientTel'), callback_data: 'na:tel' }], [{ text: tx_(L, 'bAnswered'), callback_data: 'na:ok' }], [{ text: tx_(L, 'bStillFail'), callback_data: 'na:fail' }]];
+  return tgSend_(d.id, tx_(L, 'noAnswer') + (g ? '\n' + tx_(L, 'dispAlerted') : ''), tgInline_(rows));
 }
 
 // ── группа офиса: привязка, подтверждение водителей ──
@@ -376,7 +435,7 @@ function tgData_() {
   if (last >= 5) rows = sh.getRange(5, 1, last - 4, 16).getValues();
   var cl_last = cs ? lastRow_(cs, 1, 5) : 0;
   if (cl_last >= 5) cs.getRange(5, 1, cl_last - 4, 15).getValues().forEach(function (r) {
-    cl[String(r[0]).trim()] = { brand: String(r[1] || ''), name: String(r[2] || ''), tel1: String(r[3] || ''), receiver: String(r[5] || ''), recvTel: String(r[6] || ''), district: String(r[7] || ''), address: String(r[8] || ''), lat: Number(r[10]) || null, lon: Number(r[11]) || null, note: String(r[14] || '') };
+    cl[String(r[0]).trim()] = { brand: String(r[1] || ''), name: String(r[2] || ''), tel1: String(r[3] || ''), tel2: String(r[4] || ''), receiver: String(r[5] || ''), recvTel: String(r[6] || ''), district: String(r[7] || ''), address: String(r[8] || ''), lat: Number(r[10]) || null, lon: Number(r[11]) || null, note: String(r[14] || '') };
   });
   TG_MEMO = { rows: rows, cl: cl, tz: ss.getSpreadsheetTimeZone() };
   return TG_MEMO;
@@ -675,7 +734,7 @@ function tgSite_(body) {
     if (!prop_('TG_GROUP_CODE')) p.setProperty('TG_GROUP_CODE', String(100000 + Math.floor(Math.random() * 900000)));
     var hook = tg_('setWebhook', { url: a.url + '?tg=' + secret, allowed_updates: ['message', 'callback_query'], max_connections: 10 });
     if (!hook.ok) return { error: 'Telegram не принял ссылку бота: ' + (hook.description || 'нет ответа'), code: 'hook', v: VERSION };
-    var cmd = function (l) { return [{ command: 'start', description: l === 'ru' ? 'Регистрация' : 'Ro‘yxatdan o‘tish' }, { command: 'ish', description: tx_(l, 'bStart').slice(2) }, { command: 'hozir', description: tx_(l, 'bCur').slice(2) }, { command: 'tugatish', description: tx_(l, 'bEnd').slice(2) }, { command: 'til', description: tx_(l, 'bLang').slice(2) }]; };
+    var cmd = function (l) { return [{ command: 'start', description: l === 'ru' ? 'Регистрация' : 'Ro‘yxatdan o‘tish' }, { command: 'ish', description: tx_(l, 'bStart').slice(2) }, { command: 'hozir', description: tx_(l, 'bCur').slice(2) }, { command: 'tugatish', description: tx_(l, 'bEnd').slice(2) }, { command: 'til', description: tx_(l, 'bLang').slice(2) }, { command: 'dispetcher', description: tx_(l, 'bCall').slice(2) }]; };
     tg_('setMyCommands', { commands: cmd('uz') });
     tg_('setMyCommands', { commands: cmd('ru'), language_code: 'ru' });
     var warn = tgEnsureTrigger_();
@@ -685,6 +744,15 @@ function tgSite_(body) {
     if (!/^20\d\d-\d\d-\d\d$/.test(String(a.date || ''))) return { error: 'Выберите партию', v: VERSION };
     var r = tgDispatch_(a.date, a.ids);
     return { ok: true, v: VERSION, sent: r.sent, skipped: r.skipped, tg: tgInfo_(body.tgdays) };
+  }
+  if (a.action === 'dispatcher') {
+    var ph = String(a.phone || '').replace(/[^\d+]/g, ''), nm = String(a.name || '').trim().slice(0, 40);
+    if (ph && !/^\+?\d{9,15}$/.test(ph)) return { error: 'Телефон диспетчера — 9–15 цифр, например +998 77 017 66 11', v: VERSION };
+    if (ph && ph.charAt(0) !== '+' && ph.length === 12 && ph.slice(0, 3) === '998') ph = '+' + ph;   // 998… → +998…
+    if (ph && ph.charAt(0) !== '+' && ph.length === 9) ph = '+998' + ph;                              // 9 цифр — узбекский номер
+    if (ph) p.setProperty('TG_DISP_PHONE', ph); else p.deleteProperty('TG_DISP_PHONE');
+    if (nm) p.setProperty('TG_DISP_NAME', nm); else p.deleteProperty('TG_DISP_NAME');
+    return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
   }
   if (a.action === 'message') { var mr = tgMessage_(a.ids, a.text); return mr.error ? { error: mr.error, v: VERSION } : { ok: true, v: VERSION, sent: mr.sent }; }
   if (a.action === 'summary') {
@@ -710,6 +778,7 @@ function tgInfo_(days) {
   var span = Math.min(45, Math.max(1, Math.round(Number(days)) || 2));
   var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), rec = tgRecent_(span);
   return { bot: prop_('TG_BOT'), hooked: !!prop_('TG_SECRET'), group: prop_('TG_GROUP_TITLE') || '', grouped: !!prop_('TG_GROUP'), code: prop_('TG_GROUP_CODE'), summaryHour: TG_SUMMARY_HOUR, span: span,
+    dispatcher: { name: prop_('TG_DISP_NAME'), phone: prop_('TG_DISP_PHONE') },
     drivers: tgDrivers_().filter(function (d) { return d.status !== 'yangi'; }).map(function (d) {
       var w = d.st && d.st.work, today = tgNow_('yyyy-MM-dd'), a = tgAssigned_(d), day = w && (w.day || w.date);
       return { id: d.id, name: d.name, truck: d.truck, plate: d.plate, lang: d.lang, status: d.status, at: d.at instanceof Date ? Utilities.formatDate(d.at, tz, 'yyyy-MM-dd HH:mm') : String(d.at || ''), user: d.user,

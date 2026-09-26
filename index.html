@@ -935,6 +935,18 @@
               <sc-if value="{{ dvCanDrv }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.allow }}" disabled="{{ dvBusy }}">Разрешить</button><button class="btn btn-ghost" sc-camel-on-click="{{ d.deny }}" disabled="{{ dvBusy }}">Отклонить</button></sc-if></div></sc-for>
           </section>
         </sc-if>
+        <sc-if value="{{ dvHasDisp }}">
+          <section class="dv-card">
+            <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
+              <div style="flex:1 1 280px;min-width:0"><h3 style="margin:0">Диспетчер для водителей</h3><div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty;margin-top:2px">{{ dvDispNote }}</div></div>
+              <sc-if value="{{ dvDispEdit }}">
+                <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Имя</span><input class="input" value="{{ dvDispName }}" sc-camel-on-change="{{ onDvDispName }}" placeholder="Имя диспетчера" maxlength="40" style="width:170px"></label>
+                <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Телефон</span><input class="input" type="tel" value="{{ dvDispPhone }}" sc-camel-on-change="{{ onDvDispPhone }}" placeholder="+998 __ ___ __ __" style="width:190px"></label>
+                <button class="btn btn-secondary" sc-camel-on-click="{{ dvDispSave }}" disabled="{{ dvBusy }}">Сохранить</button>
+              </sc-if>
+            </div>
+          </section>
+        </sc-if>
         <div class="kpi-strip dv-kpis" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--color-divider)">
           <sc-for list="{{ dvKpis }}" as="k"><div style="padding:14px 16px;border-right:1px solid var(--color-divider)"><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div><div style="font-size:28px;font-family:var(--font-heading);margin-top:4px">{{ k.value }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ k.sub }}</div></div></sc-for>
         </div>
@@ -1525,7 +1537,7 @@ class Component extends DCLogic {
     mapDate: 'all', mapPlan: 'none', mapBase: (() => { try { return localStorage.getItem('logi-map-base') || 'yandex'; } catch (e) { return 'yandex'; } })(), planDate: '', planKey: 'A', planC: (() => { try { return localStorage.getItem('logi-plan-c') === '1'; } catch (e) { return false; } })(), dialog: null,
     vizTrip: 'all', vizStep: 0, vizSel: null, vizView: '3d', vizErr: '',
     calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 },
-    dvTab: 'day', dvDate: '', dvPeriod: '7', dvTruck: 'all', dvRes: 'all', dvMsg: null, dvBusy: false };
+    dvTab: 'day', dvDate: '', dvPeriod: '7', dvTruck: 'all', dvRes: 'all', dvMsg: null, dvBusy: false, dvDisp: null };
   mapRef = React.createRef();
   dvMapRef = React.createRef();
   impPdfRef = React.createRef();
@@ -1748,7 +1760,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 10); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 11); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -2272,9 +2284,9 @@ class Component extends DCLogic {
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
     out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу в «Настройки связи».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 10. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 11. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
       !T ? 'Телеграм-бот не подключён: «Настройки связи» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до версии 10: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (11): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота» в «Настройки связи».' :
       !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — в «Настройки связи».' :
       ro ? 'Только просмотр: отправлять задания, писать водителям и менять автопарк может руководитель.' : '';
@@ -2347,6 +2359,16 @@ class Component extends DCLogic {
       dvMapNote: 'Точки партии: синие — доставлено, красные — не доставлено, тёмные — ещё везут; 🚚 — где водитель отметился последний раз.'
     });
     out.dvHasPending = out.dvPending.length > 0;
+    // диспетчер: водитель звонит ему кнопкой «📞 Диспетчер» и когда клиент не отвечает на телефон (скрипт версии 11)
+    { const disp = (T && T.dispatcher) || {}, dd = st.dvDisp || { name: disp.name || '', phone: disp.phone || '' }, v11 = this.gsVersion >= 11;
+      Object.assign(out, { dvHasDisp: !!T, dvDispEdit: !ro && v11, dvDispName: dd.name, dvDispPhone: dd.phone,
+        onDvDispName: e => set({ dvDisp: { ...dd, name: e.target.value } }), onDvDispPhone: e => set({ dvDisp: { ...dd, phone: e.target.value } }),
+        dvDispSave: () => this.dvRun('Сохраняю номер диспетчера…', { action: 'dispatcher', name: dd.name, phone: dd.phone }, j => {
+          const p = (j.tg && j.tg.dispatcher) || {}; this.setState({ dvDisp: null });
+          return p.phone ? 'Номер диспетчера сохранён: ' + (p.name ? p.name + ' · ' : '') + p.phone + '. Кнопка «📞 Диспетчер» появится у водителей в меню бота со следующего сообщения бота.' : 'Номер диспетчера удалён: кнопки «📞 Диспетчер» в боте больше нет.'; }),
+        dvDispNote: !v11 ? 'Нужен код скрипта таблицы версии 11: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+          (disp.phone ? 'Сейчас: ' + (disp.name ? disp.name + ' · ' : '') + disp.phone + '. ' : 'Номер не указан. ') +
+          'Водитель звонит диспетчеру кнопкой «📞 Диспетчер» в меню бота. Если клиент не отвечает на телефон, бот предлагает позвонить диспетчеру и сразу пишет в группу номера клиента.' }); }
     this._dvMap = { date, cards, drivers: online.concat(ended) };
 
     // ── автопарк ──
@@ -2878,7 +2900,7 @@ class Component extends DCLogic {
     const r = await fetch(this.gsUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', tg, tgdays: this.tgDays() }) });
     const j = await r.json();
-    const need = ['dispatch', 'message', 'summary'].includes(tg.action) ? 10 : 9;   // отправка партии, сообщения и итог дня — с версии 10
+    const need = tg.action === 'dispatcher' ? 11 : ['dispatch', 'message', 'summary'].includes(tg.action) ? 10 : 9;   // отправка партии, сообщения, итог дня — с 10; номер диспетчера — с 11
     if (!(j.v >= need)) throw new Error('Для этого нужен код скрипта таблицы версии ' + need + ' (сейчас ' + (j.v || 'старее 8') + '): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия развертывания');
     if (j.error && /external_request|UrlFetchApp\.fetch/.test(j.error)) throw new Error('Скрипту таблицы не разрешены внешние запросы: в Apps Script выберите функцию authorize → ▶ Выполнить → отметьте все галочки → Продолжить.');
     if (j.error) throw new Error(j.error);
@@ -3753,7 +3775,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 10 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 11 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :

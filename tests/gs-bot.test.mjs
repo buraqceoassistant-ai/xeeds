@@ -63,12 +63,12 @@ const connect = t => t.s.post({ token: '', editor: '', tg: { action: 'setup', ur
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 10); assert.equal(t.s.triggers.length, 1); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 11); assert.equal(t.s.triggers.length, 1); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
   const cmds = t.tg.sent.filter(x => x.method === 'setMyCommands');
-  assert.equal(cmds.length, 2); assert.equal(cmds[1].language_code, 'ru'); assert.deepEqual(cmds[0].commands.map(c => c.command), ['start', 'ish', 'hozir', 'tugatish', 'til']);
+  assert.equal(cmds.length, 2); assert.equal(cmds[1].language_code, 'ru'); assert.deepEqual(cmds[0].commands.map(c => c.command), ['start', 'ish', 'hozir', 'tugatish', 'til', 'dispetcher']);
   assert.equal(connect(t).tg.code, r.tg.code, 'повторное подключение — тот же код группы');
   const n = setup({ TG_TOKEN: '' }), e = connect(n);
   assert.equal(e.code, 'notoken'); assert.match(e.error, /TG_TOKEN/);
@@ -212,12 +212,12 @@ test('«Не доставлено»: причина, без фото, геоло
   t.cb(501, 'ok:BL-901|1'); t.photo(501, 'P'); t.msg(501, '✅ Готово'); t.loc(501, [41.31, 69.21]);
   t.cb(501, 'fail:BL-902|1');
   assert.deepEqual(t.last('sendMessage', 501).reply_markup.inline_keyboard.map(r => r[0].text), ['Клиента нет на месте', 'Не отвечает на телефон', 'Отказался от груза', 'Другая причина']);
-  t.cb(501, 'why:1');
+  t.cb(501, 'why:0');
   assert.match(t.last('sendMessage', 501).text, /Без фото/);
   t.msg(501, '➡️ Без фото');
   t.loc(501, [41.36, 69.28]);
   assert.deepEqual(t.status('BL-902'), ['Qolib ketgan']);
-  assert.match(t.last('sendMessage', g).text, /❌ Gazel-2 · Akmal Karimov — не доставлено: BL-902 Botir\nПричина: Не отвечает на телефон/);
+  assert.match(t.last('sendMessage', g).text, /❌ Gazel-2 · Akmal Karimov — не доставлено: BL-902 Botir\nПричина: Клиента нет на месте/);
   const round = t.last('sendMessage', 501);
   assert.match(round.text, /Рейс 1 закончен/); assert.equal(round.reply_markup.inline_keyboard[0][0].callback_data, 'round:2');
   t.cb(501, 'round:2');
@@ -388,3 +388,49 @@ test('итог дня в группу: по машинам — доставле�
   assert.equal(t.last('sendMessage', g).text, r.text);
   const n = t.tg.sent.length; t.s.ctx.tgDailySummary(); assert.equal(t.tg.sent.length, n + 1);
 });
+
+test('«Не отвечает на телефон»: водителю меню (диспетчер, номера клиента, клиент ответил, всё равно не доставлено), в группу — тревога с номерами', () => {
+  const t = approved(), g = t.group.id;
+  // номер диспетчера — с сайта; неверный номер не принимается
+  assert.match(t.s.post({ token: '', tg: { action: 'dispatcher', phone: '12-34', name: 'Jasur' } }).error, /9–15 цифр/);
+  const r = t.s.post({ token: '', tg: { action: 'dispatcher', phone: '998 77 017 66 11', name: 'Jasur' } });
+  assert.equal(r.ok, true); assert.deepEqual(r.tg.dispatcher, { name: 'Jasur', phone: '+998770176611' });
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  const kb = [...t.tg.sent].reverse().find(x => String(x.chat_id) === '501' && x.reply_markup && x.reply_markup.keyboard && JSON.stringify(x.reply_markup.keyboard).includes('Начать работу'));
+  assert.deepEqual(kb.reply_markup.keyboard.slice(-1)[0], ['📞 Диспетчер'], 'кнопка «Диспетчер» в меню');
+  t.cb(501, 'fail:BL-901|1'); t.cb(501, 'why:1');
+  const menu = t.last('sendMessage', 501);
+  assert.match(menu.text, /Клиент не отвечает на телефон[\s\S]*Диспетчеру отправлено сообщение/);
+  assert.deepEqual(menu.reply_markup.inline_keyboard.map(x => x[0].callback_data), ['na:call', 'na:tel', 'na:ok', 'na:fail']);
+  assert.match(t.last('sendMessage', g).text, /📵 Gazel-2 · Akmal Karimov: клиент BL-901 NOVA — Aziz не отвечает на телефон\.\n☎️ \+998900000001 \(Aziz\)\n📍 Chilonzor, Bunyodkor 1\nПозвоните клиенту/);
+  t.cb(501, 'na:call');
+  const c = t.last('sendContact', 501);
+  assert.deepEqual([c.phone_number, c.first_name], ['+998770176611', 'Jasur']);
+  assert.match(t.last('sendMessage', 501).text, /Диспетчер: Jasur\n\+998770176611/);
+  t.cb(501, 'na:tel');
+  assert.match(t.last('sendMessage', 501).text, /Номера BL-901:\n\+998900000001 — Aziz/);
+  // клиент ответил — обычная доставка с фото
+  t.cb(501, 'na:ok');
+  assert.match(t.last('sendMessage', 501).text, /Отправьте фото/);
+  assert.match(t.last('sendMessage', g).text, /клиент BL-901 ответил/);
+  t.photo(501, 'P'); t.msg(501, '✅ Готово'); t.loc(501, [41.31, 69.21]);
+  assert.deepEqual(t.status('BL-901'), ['Yetkazildi', 'Yetkazildi']);
+  // следующая точка: не ответил — «всё равно не доставлено», причина в журнале доставок
+  t.cb(501, 'fail:BL-902|1'); t.cb(501, 'why:1'); t.cb(501, 'na:fail');
+  assert.match(t.last('sendMessage', 501).text, /Без фото/);
+  t.msg(501, '➡️ Без фото'); t.loc(501, [41.36, 69.28]);
+  assert.deepEqual(t.status('BL-902'), ['Qolib ketgan']);
+  const log = t.s.book.sheets.Yetkazish.rows.slice(1).map(x => [x[4], x[6], x[7]]);
+  assert.deepEqual(log, [['BL-901', 'Yetkazildi', ''], ['BL-902', 'Yetkazilmadi', 'Не отвечает на телефон']]);
+  // старая кнопка меню после выбора — «устарела»
+  t.cb(501, 'na:call');
+  assert.match(t.texts(501).slice(-2).join(' '), /устарела/);
+  // кнопка «Диспетчер» в любой момент; без номера — подсказка
+  t.msg(501, '📞 Диспетчер');
+  assert.equal(t.last('sendContact', 501).phone_number, '+998770176611');
+  t.s.post({ token: '', tg: { action: 'dispatcher', phone: '', name: '' } });
+  t.msg(501, '/dispetcher');
+  assert.match(t.last('sendMessage', 501).text, /Номер диспетчера ещё не указан/);
+  assert.equal(t.s.get({}).data.tg.dispatcher.phone, '');
+});
+
