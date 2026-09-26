@@ -34,7 +34,7 @@ export function loadScript({ props = {}, sheets = {}, fetch } = {}) {
   const book = { name: 'Тест', sheets: Object.fromEntries(Object.entries(sheets).map(([n, s]) => [n, new Sheet(n, s.rows || [], s.maxCols || 26)])) };
   const calls = [];
   const ctx = {
-    PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] ?? null }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] ?? null, getProperties: () => ({ ...props }) }) },
     UrlFetchApp: { fetch: (url, opts) => { const req = JSON.parse(opts.payload); calls.push({ url, opts, req }); const r = fetch(req, opts, calls.length); if (r instanceof Error) throw r;
       return { getResponseCode: () => r.status ?? 200, getContentText: () => typeof r.body === 'string' ? r.body : JSON.stringify(r.body), getAllHeaders: () => ({}) }; } },
     SpreadsheetApp: {

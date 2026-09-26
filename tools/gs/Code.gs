@@ -47,6 +47,26 @@ var SET_LABELS = {
 var TRUCKS_ROW = 24, TRUCKS_N = 16;
 
 function props_() { return PropertiesService.getScriptProperties(); }
+// свойство скрипта: точное имя, иначе то же имя в другом регистре или с пробелами («anthropic_api_key », «ANTHROPIC API KEY»)
+function prop_(name) {
+  var p = props_(), v = String(p.getProperty(name) || '').trim();
+  if (v) return v;
+  var all = p.getProperties(), norm = function (s) { return String(s).trim().toUpperCase().replace(/[\s-]+/g, '_'); };
+  for (var k in all) if (norm(k) === name && String(all[k]).trim()) return String(all[k]).trim();
+  return '';
+}
+// ключ Claude API: ANTHROPIC_API_KEY, иначе любое свойство со значением «sk-ant-…» (ключ вписан под другим именем)
+function apiKey_() {
+  var k = prop_('ANTHROPIC_API_KEY'); if (k) return k;
+  var all = props_().getProperties();
+  for (var n in all) if (/^\s*sk-ant-/.test(String(all[n]))) return String(all[n]).trim();
+  return '';
+}
+// для ошибки «нет ключа»: какие свойства скрипт видит — только имена, без значений
+function propNames_() {
+  var n = Object.keys(props_().getProperties());
+  return n.length ? 'Скрипт видит свойства: ' + n.join(', ') + '.' : 'Скрипт не видит ни одного свойства: проверьте, что они сохранены в проекте этой таблицы (Расширения → Apps Script).';
+}
 function token_() { return String(props_().getProperty('TOKEN') || TOKEN || ''); }
 
 function doGet(e) {
@@ -292,14 +312,14 @@ var AI_LOG = 'ИИ-журнал';
 var AI_HEAD = ['Время', 'Пользователь', 'Файл', 'Черновик', 'Действие', 'Модель', 'Часть', 'Токены: вход', 'Токены: кэш', 'Токены: выход', 'Ответ, мс', 'Итог', 'Данные'];
 
 function ai_(body, size) {
-  var p = props_(), editor = String(p.getProperty('EDITOR_TOKEN') || ''), a = body.ai || {};
+  var editor = prop_('EDITOR_TOKEN'), a = body.ai || {};
   // без EDITOR_TOKEN ИИ доступен по обычному паролю скрипта; сайт предупредит, что его может вызвать и вход «только просмотр»
   if (editor && body.editor !== editor) return { error: 'ИИ-импорт доступен только руководителю: секрет редактора не подходит', code: 'editor', v: VERSION };
-  var key = String(p.getProperty('ANTHROPIC_API_KEY') || '').trim(), model = String(p.getProperty('AI_MODEL') || '').trim() || AI_DEFAULT_MODEL;
+  var key = apiKey_(), model = prop_('AI_MODEL') || AI_DEFAULT_MODEL;
   var info = { v: VERSION, model: model, editorSet: !!editor, keySet: !!key };
   if (a.action === 'log') { aiLog_(body, a, model, null, 0); return merge_(info, { ok: true }); }
   if (a.action !== 'ping' && a.action !== 'call') return merge_(info, { error: 'Неизвестное действие ИИ', code: 'action' });
-  if (!key) return merge_(info, { error: 'В свойствах скрипта нет ANTHROPIC_API_KEY — впишите ключ Claude API', code: 'nokey' });
+  if (!key) return merge_(info, { error: 'В свойствах скрипта нет ANTHROPIC_API_KEY — впишите ключ Claude API и нажмите «Сохранить свойства скрипта». ' + propNames_(), code: 'nokey' });
   if (size > AI_MAX_BODY) return merge_(info, { error: 'Файл слишком большой для ИИ: не больше 10 МБ', code: 'size' });
   var req = a.action === 'ping' ? { system: 'Ты проверка связи. Ответь через инструмент.', content: [{ type: 'text', text: 'Верни reply = "готов".' }], max_tokens: 400,
     schema: { name: 'ping', description: 'Ответ на проверку связи.', input_schema: { type: 'object', properties: { reply: { type: 'string' } }, required: ['reply'], additionalProperties: false } } } : a;

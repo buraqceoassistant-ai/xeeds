@@ -35,6 +35,26 @@ test('нет ключа — понятная ошибка, в API ничего �
   assert.equal(r.code, 'nokey'); assert.match(r.error, /ANTHROPIC_API_KEY/); assert.equal(s.calls.length, 0);
 });
 
+test('нет ключа — в ошибке имена свойств, которые видит скрипт (без значений)', () => {
+  const s = loadScript({ props: { EDITOR_TOKEN: 'ed-secret', AI_MODEL: 'claude-sonnet-5' }, sheets: book(), fetch: () => { throw new Error('не должно вызываться'); } });
+  const r = s.post(ping({ editor: 'ed-secret' }));
+  assert.equal(r.code, 'nokey'); assert.match(r.error, /Сохранить свойства скрипта/); assert.match(r.error, /видит свойства: EDITOR_TOKEN, AI_MODEL/);
+  assert.doesNotMatch(r.error, /ed-secret/);
+  assert.match(loadScript({ sheets: book() }).post(ping()).error, /не видит ни одного свойства/);
+});
+
+test('имя свойства в другом регистре или с пробелами и ключ под другим именем — находятся', () => {
+  for (const props of [{ 'anthropic_api_key ': ' sk-ant-1\n' }, { 'ANTHROPIC API KEY': 'sk-ant-1' }, { CLAUDE_KEY: 'sk-ant-1' }]) {
+    const s = loadScript({ props, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
+    const r = s.post(ping());
+    assert.equal(r.ok, true, JSON.stringify(props)); assert.equal(s.calls[0].opts.headers['x-api-key'], 'sk-ant-1');
+  }
+  const s = loadScript({ props: { ANTHROPIC_API_KEY: 'k', ' editor_token': 'ed-secret\n', ai_model: ' claude-opus-5-5 ' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
+  assert.equal(s.post(ping()).code, 'editor');
+  const r = s.post(ping({ editor: 'ed-secret' }));
+  assert.equal(r.editorSet, true); assert.equal(r.model, 'claude-opus-5-5');
+});
+
 test('секрет редактора: без него и с неверным — отказ; с верным — вызов', () => {
   const s = loadScript({ props: { ANTHROPIC_API_KEY: 'k', EDITOR_TOKEN: 'ed-secret' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
   assert.equal(s.post(ping()).code, 'editor');

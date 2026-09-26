@@ -3185,7 +3185,7 @@ class Component extends DCLogic {
           const setAi = patch => this.setState(s => s.dialog && s.dialog.type === 'gs' ? { dialog: { ...s.dialog, ai: { ...(s.dialog.ai || {}), ...patch } } } : null);
           const fail = e => setAi({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' });
           out.aiInfo = this.gsVersion && this.gsVersion < 8 ? 'Скрипт таблицы версии ' + this.gsVersion + ': для ИИ нужна версия 8 — обновите код (шаги выше).' :
-            own.state === 'open' && sec ? 'В свойства скрипта (Apps Script → ⚙ Настройки проекта → Свойства скрипта) впишите: ANTHROPIC_API_KEY — ключ Claude API, EDITOR_TOKEN — секрет редактора ниже, при желании AI_MODEL (по умолчанию claude-sonnet-5).' :
+            own.state === 'open' && sec ? 'В свойства скрипта (в этой Google Таблице: Расширения → Apps Script → ⚙ Настройки проекта → Свойства скрипта) впишите: ANTHROPIC_API_KEY — ключ Claude API, EDITOR_TOKEN — секрет редактора ниже, при желании AI_MODEL (по умолчанию claude-sonnet-5). Затем нажмите «Сохранить свойства скрипта».' :
             own.state === 'locked' ? 'Секрет редактора есть, но на этом устройстве закрыт: введите пароль входа.' :
             'Секрет редактора не задан. Нажмите «Новый секрет редактора» (нужны пароль входа и GitHub-токен) и впишите его в свойство скрипта EDITOR_TOKEN.';
           Object.assign(out, { aiRes: ai.res || '', aiResColor: ai.color || 'var(--color-neutral-700)', aiBusy: !!ai.busy, aiNeedPass: own.state !== 'open', aiPass: ai.pass || '',
