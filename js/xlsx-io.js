@@ -141,7 +141,9 @@
     const defaults = Object.keys(DEF).filter(k => settings[k] == null);
     defaults.forEach(k => { settings[k] = DEF[k]; });
     const col = (c, a, b) => { const o = []; for (let r = a; r <= b; r++) if (Ss[r] && str(Ss[r][c])) o.push(str(Ss[r][c])); return o; };
-    const lists = { districts: col('A', 24, 39), statuses: col('B', 24, 29), trucks: col('C', 24, 39) };
+    // госномера машин — D24:D39 напротив названия машины в C
+    const plates = {}; for (let r = 24; r <= 39; r++) if (Ss[r] && str(Ss[r].C) && str(Ss[r].D)) plates[str(Ss[r].C)] = str(Ss[r].D);
+    const lists = { districts: col('A', 24, 39), statuses: col('B', 24, 29), trucks: col('C', 24, 39), plates };
     const notes = []; let sec = null;
     Object.keys(Ns).map(Number).sort((a, b) => a - b).forEach(r => {
       const c = Ns[r];
@@ -255,7 +257,13 @@
         formulas: { F: w => coord(w.lat, w.lon), G: w => w.lat != null ? zt(E.zoneOf({ lat: w.lat, lon: w.lon }, ring, S.ringBuffer).zone) : '', H: w => w.lat != null ? E.distToRing([w.lat, w.lon], ring) : '' } });
       put(z, P[SH.wh], wh.xml);
     }
-    if (P[SH.set]) { const cells = {}; for (const [k, r] of Object.entries(SET_ROWS)) cells['B' + r] = S[k] ?? null; put(z, P[SH.set], setCells(txt(z, P[SH.set]), cells)); }
+    if (P[SH.set]) {
+      const cells = {}; for (const [k, r] of Object.entries(SET_ROWS)) cells['B' + r] = S[k] ?? null;
+      // машины и их госномера: C24:C39, D24:D39
+      const L = data.lists || {}, tr = L.trucks || [], pl = L.plates || {};
+      if (tr.length) { cells.D23 = 'Davlat raqami'; for (let i = 0; i < 16; i++) { cells['C' + (24 + i)] = tr[i] ?? null; cells['D' + (24 + i)] = (tr[i] && pl[tr[i]]) || null; } }
+      put(z, P[SH.set], setCells(txt(z, P[SH.set]), cells));
+    }
     if (P[SH.ring]) {
       const rc = { B4: S.ringBuffer ?? 1 };
       for (let i = 0; i < 210; i++) { const p = ring[i]; rc['B' + (11 + i)] = p ? p[0] : null; rc['C' + (11 + i)] = p ? p[1] : null; }

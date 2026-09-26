@@ -13,13 +13,17 @@
 .app-tabs::-webkit-scrollbar { display: none; }
 
 /* ─────────────── Планшет ─────────────── */
-/* Ноутбук: 9 вкладок, метка «Только просмотр» и «Аккаунт» помещаются в одну строку. */
+/* Ноутбук: вкладки, метка «Только просмотр» и «Аккаунт» помещаются в одну строку. */
 @media screen and (max-width: 1440px) {
   .app-bar { gap: 14px !important; }
   .app-tabs { margin-left: 4px !important; gap: 0 !important; }
   .app-tabs > button { padding: 0 9px !important; letter-spacing: .04em !important; }
 }
 @media screen and (max-width: 1300px) { .ro-badge { display: none; } }
+/* 11 вкладок (с «Водители») на ноутбуке 1280–1366 px */
+@media screen and (min-width: 1101px) and (max-width: 1380px) {
+  .app-tabs > button { padding: 0 7px !important; letter-spacing: .02em !important; }
+}
 
 @media screen and (max-width: 1100px) {
   .kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; overflow: hidden; }
@@ -198,4 +202,30 @@
   .imp-num { width: 64px; }
   .imp-foot { position: static; justify-content: stretch; }
   .imp-foot > * { flex: 1 1 100%; }
+}
+
+/* «Водители» на телефоне и планшете */
+@media screen and (max-width: 1100px) {
+  .dv-kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dv-page .kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+@media screen and (max-width: 760px) {
+  .dv-page { padding: 16px !important; gap: 14px !important; }
+  .dv-page h1 { font-size: 28px !important; }
+  .dv-seg { margin-left: 0 !important; width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; border-radius: 12px; }
+  .dv-seg > button { padding: 8px 10px !important; }
+  .dv-page .tg-driver > div:first-child { flex: 1 1 100% !important; }
+  .dv-page .kpi-strip > div > div:nth-child(2) { font-size: 22px !important; }
+  .dv-page .kpi-strip > div > div:last-child { font-size: 12px !important; }
+  .dv-trucks { grid-template-columns: minmax(0, 1fr); }
+  .dv-page .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .dv-toolbar > * { flex: 1 1 100%; }
+  .dv-toolbar .field select { width: 100%; }
+  .dv-stop { flex-wrap: wrap; }
+  .dv-move { max-width: none; flex: 1 1 100%; }
+  .dv-map { height: 340px; }
+  .dv-kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .dv-kind { padding: 10px; }
+  .dv-card:has(> .dv-table) { overflow-x: auto; }
+  .dv-table { min-width: 640px; }
 }

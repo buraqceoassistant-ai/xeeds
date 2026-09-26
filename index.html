@@ -903,6 +903,148 @@
     </main>
   </sc-if>
 
+  <sc-if value="{{ isDrivers }}" hint-placeholder-val="{{ false }}">
+    <main class="page dv-page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:20px">
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div>
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Haydovchilar</div>
+          <h1 style="margin:2px 0 0;font-size:38px">Водители и автопарк</h1>
+          <div style="font-size:13px;color:var(--color-neutral-700);margin-top:4px;max-width:760px;text-wrap:pretty">{{ dvSub }}</div>
+        </div>
+        <div class="viz-seg dv-seg" style="margin-left:auto;display:flex;border:1px solid var(--color-divider)">
+          <sc-for list="{{ dvTabs }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:500;cursor:pointer;white-space:nowrap;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for>
+        </div>
+      </div>
+      <sc-if value="{{ dvHasBanner }}"><div class="imp-alert"><div style="flex:1;text-wrap:pretty">{{ dvBanner }}</div><sc-if value="{{ dvCanSetup }}"><button class="btn btn-secondary" sc-camel-on-click="{{ dvOpenGs }}">Настройки связи</button></sc-if></div></sc-if>
+      <sc-if value="{{ dvHasMsg }}"><div class="dv-msg" style="border-left-color:{{ dvMsgColor }}"><div style="flex:1;white-space:pre-line;text-wrap:pretty">{{ dvMsg }}</div><button class="btn btn-ghost" sc-camel-on-click="{{ dvMsgClose }}">Закрыть</button></div></sc-if>
+
+      <sc-if value="{{ dvIsDay }}">
+        <div class="dv-toolbar">
+          <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Партия</span>
+            <select class="input" value="{{ dvDate }}" sc-camel-on-change="{{ onDvDate }}" style="min-width:170px"><sc-for list="{{ dvDateOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></label>
+          <sc-if value="{{ dvCan }}">
+            <button class="btn btn-primary" sc-camel-on-click="{{ dvSendAll }}" disabled="{{ dvBusy }}">Отправить всем</button>
+            <button class="btn btn-secondary" sc-camel-on-click="{{ dvWriteOnline }}" disabled="{{ dvBusy }}">Написать всем на линии</button>
+            <button class="btn btn-ghost" sc-camel-on-click="{{ dvSummary }}" disabled="{{ dvBusy }}">Итог дня в группу</button>
+          </sc-if>
+        </div>
+        <sc-if value="{{ dvHasPending }}">
+          <section class="dv-card" style="border-color:var(--color-accent-2)">
+            <h3 style="margin:0 0 8px">Новые водители — ждут подтверждения</h3>
+            <sc-for list="{{ dvPending }}" as="d"><div class="tg-driver"><div style="flex:1;min-width:0"><b style="font-weight:500">{{ d.name }}</b> · {{ d.truck }} · {{ d.plate }}<div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></div>
+              <sc-if value="{{ dvCanDrv }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.allow }}" disabled="{{ dvBusy }}">Разрешить</button><button class="btn btn-ghost" sc-camel-on-click="{{ d.deny }}" disabled="{{ dvBusy }}">Отклонить</button></sc-if></div></sc-for>
+          </section>
+        </sc-if>
+        <div class="kpi-strip dv-kpis" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--color-divider)">
+          <sc-for list="{{ dvKpis }}" as="k"><div style="padding:14px 16px;border-right:1px solid var(--color-divider)"><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div><div style="font-size:28px;font-family:var(--font-heading);margin-top:4px">{{ k.value }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ k.sub }}</div></div></sc-for>
+        </div>
+        <sc-if value="{{ dvHasNoTruck }}"><div class="imp-alert"><div style="flex:1">{{ dvNoTruck }}</div><button class="btn btn-secondary" sc-camel-on-click="{{ dvGoPlans }}">Открыть «Планы»</button></div></sc-if>
+        <div class="dv-trucks">
+          <sc-for list="{{ dvTrucks }}" as="t">
+            <section class="dv-card">
+              <div class="dv-truck-head">
+                <div style="min-width:0"><div class="dv-truck-name">{{ t.name }} <span class="dv-plate">{{ t.plate }}</span></div><div style="font-size:12px;color:var(--color-neutral-700)">{{ t.kindLine }}</div></div>
+                <sc-if value="{{ t.canSend }}"><div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-secondary" sc-camel-on-click="{{ t.send }}" disabled="{{ dvBusy }}">Отправить</button><sc-if value="{{ t.canWrite }}"><button class="btn btn-ghost" sc-camel-on-click="{{ t.write }}" disabled="{{ dvBusy }}">Написать</button></sc-if></div></sc-if>
+              </div>
+              <sc-for list="{{ t.drivers }}" as="d"><div class="dv-driver"><span class="dv-dot" style="background:{{ d.dot }}"></span><b style="font-weight:500">{{ d.name }}</b><span style="color:var(--color-neutral-700)">{{ d.state }}</span></div></sc-for>
+              <div class="dv-progress" title="{{ t.progTitle }}"><span style="width:{{ t.pOk }}%;background:var(--color-accent-2)"></span><span style="width:{{ t.pFail }}%;background:var(--color-red)"></span></div>
+              <div style="font-size:12px;color:var(--color-neutral-700)">{{ t.progTitle }}</div>
+              <sc-for list="{{ t.rounds }}" as="r">
+                <div class="dv-round">
+                  <div class="dv-round-head"><b style="font-weight:500">{{ r.title }}</b><span>{{ r.load }}</span></div>
+                  <sc-for list="{{ r.stops }}" as="s">
+                    <div class="dv-stop">
+                      <span class="tag {{ s.tagCls }}">{{ s.tag }}</span>
+                      <div style="flex:1;min-width:0"><div><b style="font-weight:500">{{ s.bl }}</b> {{ s.client }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ s.sub }}</div>
+                        <sc-if value="{{ s.hasPhotos }}"><div class="dv-photos"><sc-for list="{{ s.photos }}" as="ph"><a href="{{ ph.u }}" target="_blank" rel="noopener">📷 {{ ph.n }}</a></sc-for><sc-if value="{{ s.hasLL }}"><a href="{{ s.ll }}" target="_blank" rel="noopener">📍 место отметки</a></sc-if></div></sc-if></div>
+                      <sc-if value="{{ s.canMove }}"><select class="input dv-move" value="" sc-camel-on-change="{{ s.move }}" aria-label="Передать другой машине"><option value="">Передать →</option><sc-for list="{{ s.moveOpts }}" as="o"><option value="{{ o }}">{{ o }}</option></sc-for></select></sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+              <sc-if value="{{ t.noStops }}"><div style="font-size:13px;color:var(--color-neutral-700)">В этой партии у машины нет точек.</div></sc-if>
+            </section>
+          </sc-for>
+        </div>
+        <section class="dv-card">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h3 style="margin:0">Карта партии</h3><span style="font-size:12px;color:var(--color-neutral-700)">{{ dvMapNote }}</span></div>
+          <div class="dv-map" ref="{{ dvMapRef }}"></div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ dvIsFleet }}">
+        <section class="dv-card">
+          <h3 style="margin:0 0 4px">Машины по видам</h3>
+          <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:8px">Число машин и вместимость — те же настройки, что во «Тарифах»: по ним строятся планы.</div>
+          <div class="dv-kinds">
+            <sc-for list="{{ dvKinds }}" as="k">
+              <div class="dv-kind">
+                <div style="font-weight:500">{{ k.label }}</div>
+                <div class="dv-count"><sc-if value="{{ dvCanFleet }}"><button class="btn btn-ghost" sc-camel-on-click="{{ k.dec }}" aria-label="Меньше">−</button></sc-if><span>{{ k.count }}</span><sc-if value="{{ dvCanFleet }}"><button class="btn btn-ghost" sc-camel-on-click="{{ k.inc }}" aria-label="Больше">+</button></sc-if></div>
+                <label class="field" style="margin:0"><span style="font-size:12px">м³</span><input class="input" type="number" step="0.1" min="0" value="{{ k.m3 }}" sc-camel-on-change="{{ k.onM3 }}" disabled="{{ dvRo }}"></label>
+                <label class="field" style="margin:0"><span style="font-size:12px">кг</span><input class="input" type="number" step="10" min="0" value="{{ k.kg }}" sc-camel-on-change="{{ k.onKg }}" disabled="{{ dvRo }}"></label>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+        <section class="dv-card">
+          <h3 style="margin:0 0 4px">Машины</h3>
+          <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:8px;text-wrap:pretty">{{ dvPlateNote }}</div>
+          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Госномер</sc-raw-th><sc-raw-th>Вместимость</sc-raw-th><sc-raw-th>Водители</sc-raw-th><sc-raw-th>{{ dvVehHead }}</sc-raw-th><sc-raw-th>{{ dvStatHead }}</sc-raw-th></sc-raw-tr></sc-raw-thead>
+            <sc-raw-tbody><sc-for list="{{ dvVehicles }}" as="v"><sc-raw-tr>
+              <sc-raw-td><b style="font-weight:500">{{ v.name }}</b></sc-raw-td>
+              <sc-raw-td><input class="input dv-plate-in" value="{{ v.plate }}" placeholder="{{ v.platePh }}" sc-camel-on-change="{{ v.onPlate }}" disabled="{{ dvPlateRo }}" aria-label="Госномер {{ v.name }}"></sc-raw-td>
+              <sc-raw-td>{{ v.cap }}</sc-raw-td><sc-raw-td>{{ v.drivers }}</sc-raw-td><sc-raw-td><span class="tag {{ v.todayCls }}">{{ v.today }}</span></sc-raw-td><sc-raw-td>{{ v.stat }}</sc-raw-td>
+            </sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
+        </section>
+        <section class="dv-card">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px"><h3 style="margin:0">Статистика автопарка</h3>
+            <select class="input" value="{{ dvPeriod }}" sc-camel-on-change="{{ onDvPeriod }}" style="width:auto"><sc-for list="{{ dvPeriodOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+            <button class="btn btn-ghost" style="margin-left:auto" sc-camel-on-click="{{ dvFleetXlsx }}">Скачать Excel</button></div>
+          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Дней с рейсами</sc-raw-th><sc-raw-th>Рейсов</sc-raw-th><sc-raw-th>Точек</sc-raw-th><sc-raw-th>CBM</sc-raw-th><sc-raw-th>KG</sc-raw-th><sc-raw-th>Загрузка м³</sc-raw-th><sc-raw-th>Доставлено / не доставлено</sc-raw-th></sc-raw-tr></sc-raw-thead>
+            <sc-raw-tbody><sc-for list="{{ dvFleetStats }}" as="f"><sc-raw-tr><sc-raw-td><b style="font-weight:500">{{ f.name }}</b></sc-raw-td><sc-raw-td>{{ f.days }}</sc-raw-td><sc-raw-td>{{ f.trips }}</sc-raw-td><sc-raw-td>{{ f.stops }}</sc-raw-td><sc-raw-td>{{ f.cbm }}</sc-raw-td><sc-raw-td>{{ f.kg }}</sc-raw-td><sc-raw-td>{{ f.load }}</sc-raw-td><sc-raw-td>{{ f.okFail }}</sc-raw-td></sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
+          <div style="font-size:12px;color:var(--color-neutral-700);margin-top:6px">По журналу (машина и рейс у отгрузки) и отметкам водителей в боте. Подробно о стоимости и экономии — «Отчёты» → «Автопарк и экономия».</div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ dvIsDeliv }}">
+        <div class="dv-toolbar">
+          <select class="input" value="{{ dvPeriod }}" sc-camel-on-change="{{ onDvPeriod }}" style="width:auto"><sc-for list="{{ dvPeriodOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+          <select class="input" value="{{ dvTruck }}" sc-camel-on-change="{{ onDvTruck }}" style="width:auto"><sc-for list="{{ dvTruckOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+          <select class="input" value="{{ dvRes }}" sc-camel-on-change="{{ onDvRes }}" style="width:auto"><option value="all">Все отметки</option><option value="ok">Доставлено</option><option value="fail">Не доставлено</option></select>
+          <span style="font-size:13px;color:var(--color-neutral-700)">{{ dvDelivSum }}</span>
+          <button class="btn btn-ghost" style="margin-left:auto" sc-camel-on-click="{{ dvDelivXlsx }}">Скачать Excel</button>
+        </div>
+        <section class="dv-card" style="padding:0">
+          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Время</sc-raw-th><sc-raw-th>Партия</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Водитель</sc-raw-th><sc-raw-th>BL · клиент</sc-raw-th><sc-raw-th>Итог</sc-raw-th><sc-raw-th>Фото и место</sc-raw-th></sc-raw-tr></sc-raw-thead>
+            <sc-raw-tbody><sc-for list="{{ dvDeliv }}" as="x"><sc-raw-tr>
+              <sc-raw-td>{{ x.time }}</sc-raw-td><sc-raw-td>{{ x.date }}</sc-raw-td><sc-raw-td>{{ x.truck }}</sc-raw-td><sc-raw-td>{{ x.name }}</sc-raw-td><sc-raw-td><b style="font-weight:500">{{ x.bl }}</b> {{ x.client }}</sc-raw-td>
+              <sc-raw-td><span class="tag {{ x.tagCls }}">{{ x.tag }}</span><div style="font-size:12px;color:var(--color-neutral-700)">{{ x.reason }}</div></sc-raw-td>
+              <sc-raw-td><div class="dv-photos"><sc-for list="{{ x.photos }}" as="ph"><a href="{{ ph.u }}" target="_blank" rel="noopener">📷 {{ ph.n }}</a></sc-for><sc-if value="{{ x.hasLL }}"><a href="{{ x.ll }}" target="_blank" rel="noopener">📍 карта</a></sc-if></div></sc-raw-td>
+            </sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
+          <sc-if value="{{ dvNoDeliv }}"><div style="padding:16px;font-size:13px;color:var(--color-neutral-700)">{{ dvNoDelivText }}</div></sc-if>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{ dvIsReport }}">
+        <div class="dv-toolbar">
+          <select class="input" value="{{ dvPeriod }}" sc-camel-on-change="{{ onDvPeriod }}" style="width:auto"><sc-for list="{{ dvPeriodOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+          <span style="font-size:13px;color:var(--color-neutral-700)">{{ dvRepSum }}</span>
+          <button class="btn btn-ghost" style="margin-left:auto" sc-camel-on-click="{{ dvRepXlsx }}">Скачать Excel</button>
+        </div>
+        <section class="dv-card" style="padding:0">
+          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Водитель</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Дней</sc-raw-th><sc-raw-th>Начало (в среднем)</sc-raw-th><sc-raw-th>Конец (в среднем)</sc-raw-th><sc-raw-th>Доставлено</sc-raw-th><sc-raw-th>Не доставлено</sc-raw-th><sc-raw-th>Точек в день</sc-raw-th><sc-raw-th>Причины недоставки</sc-raw-th></sc-raw-tr></sc-raw-thead>
+            <sc-raw-tbody><sc-for list="{{ dvRep }}" as="r"><sc-raw-tr><sc-raw-td><b style="font-weight:500">{{ r.name }}</b></sc-raw-td><sc-raw-td>{{ r.trucks }}</sc-raw-td><sc-raw-td>{{ r.days }}</sc-raw-td><sc-raw-td>{{ r.start }}</sc-raw-td><sc-raw-td>{{ r.end }}</sc-raw-td><sc-raw-td>{{ r.ok }}</sc-raw-td><sc-raw-td>{{ r.fail }}</sc-raw-td><sc-raw-td>{{ r.perDay }}</sc-raw-td><sc-raw-td>{{ r.reasons }}</sc-raw-td></sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
+          <sc-if value="{{ dvNoRep }}"><div style="padding:16px;font-size:13px;color:var(--color-neutral-700)">За период водители в боте не работали.</div></sc-if>
+        </section>
+        <section class="dv-card" style="padding:0">
+          <h3 style="margin:14px 16px 6px">Рабочие дни</h3>
+          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>День</sc-raw-th><sc-raw-th>Водитель</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Партия</sc-raw-th><sc-raw-th>Начал</sc-raw-th><sc-raw-th>Закончил</sc-raw-th><sc-raw-th>Доставлено</sc-raw-th><sc-raw-th>Не доставлено</sc-raw-th></sc-raw-tr></sc-raw-thead>
+            <sc-raw-tbody><sc-for list="{{ dvDays }}" as="x"><sc-raw-tr><sc-raw-td>{{ x.day }}</sc-raw-td><sc-raw-td>{{ x.name }}</sc-raw-td><sc-raw-td>{{ x.truck }}</sc-raw-td><sc-raw-td>{{ x.date }}</sc-raw-td><sc-raw-td>{{ x.start }}</sc-raw-td><sc-raw-td>{{ x.end }}</sc-raw-td><sc-raw-td>{{ x.ok }}</sc-raw-td><sc-raw-td>{{ x.fail }}</sc-raw-td></sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
+        </section>
+      </sc-if>
+    </main>
+  </sc-if>
   <sc-if value="{{ isPlans }}" hint-placeholder-val="{{ false }}">
     <main class="page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:24px">
       <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
@@ -1367,6 +1509,10 @@ const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', '�
 // маркировки клиента: «CBETKO,  svetko ; CBETKO» → «CBETKO, SVETKO» (без повторов, как пишут в манифестах — капсом)
 const normMarks = s => [...new Set(String(s || '').split(/[,;\n]+/).map(x => x.trim().replace(/\s+/g, ' ').toUpperCase()).filter(Boolean))].join(', ');
 const hhmm = m => { m = Math.round(m); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+// дата по часам устройства (Ташкент), а не UTC: toISOString до 05:00 дал бы вчерашний день
+const isoDay = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+// телеграм-бот: точка с таким статусом водителю больше не нужна; «машины», которые не ездят
+const TG_DONE = ['Yetkazildi', 'Qolib ketgan', 'Mijoz ozi oldi', 'Bekor qilindi'], TG_NOT_TRUCKS = ['Belgilanmagan', 'Mijoz ozi oladi'];
 const telHref = t => t ? 'tel:' + String(t).replace(/[^\d+]/g, '').replace(/^998/, '+998') : '';
 
 class Component extends DCLogic {
@@ -1374,8 +1520,10 @@ class Component extends DCLogic {
     jDate: 'all', jLimit: 60, editRow: null, jStatus: 'all', jSearch: '', cSearch: '', cDistrict: 'all', cZone: 'all',
     mapDate: 'all', mapPlan: 'none', mapBase: (() => { try { return localStorage.getItem('logi-map-base') || 'yandex'; } catch (e) { return 'yandex'; } })(), planDate: '', planKey: 'A', planC: (() => { try { return localStorage.getItem('logi-plan-c') === '1'; } catch (e) { return false; } })(), dialog: null,
     vizTrip: 'all', vizStep: 0, vizSel: null, vizView: '3d', vizErr: '',
-    calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 } };
+    calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 },
+    dvTab: 'day', dvDate: '', dvPeriod: '7', dvTruck: 'all', dvRes: 'all', dvMsg: null, dvBusy: false };
   mapRef = React.createRef();
+  dvMapRef = React.createRef();
   impPdfRef = React.createRef();
   impFileRef = React.createRef();
   vizRef = React.createRef();
@@ -1484,7 +1632,13 @@ class Component extends DCLogic {
     const dates = [...new Set(data.shipments.map(s => s.date))].sort();
     this.setState(s => ({ ready: true, data, ver: s.ver + 1, planDate: dates[dates.length - 1] || '', jDate: dates[dates.length - 1] || 'all' }));
   }
-  componentDidUpdate() { this.syncMap(); this.syncViz(); this.syncSmooth(); this.syncImport(); }
+  componentDidUpdate() {
+    this.syncMap(); this.syncDvMap(); this.syncViz(); this.syncSmooth(); this.syncImport();
+    // «Водители» за период: отметки водителей за нужные дни (без этой вкладки таблица отдаёт 2 дня — опрос каждые 30 с)
+    const want = this.tgDays();
+    if (this.gsUrl && this.gsVersion >= 10 && this.gsTg && (this.gsTg.span || 0) < want && this._tgAsked !== want && !this._gsBusy) { this._tgAsked = want; this.gsPull(); }
+  }
+  tgDays() { return this.state.tab === 'drivers' ? Math.max(2, +this.state.dvPeriod || 7) : 2; }
   // Плавность: новая вкладка открывается сверху; длинный список клиентов — сначала первые строки, остальные
   // следующим кадром (вкладка появляется сразу); 3D-библиотека загружается заранее, пока сайт простаивает.
   syncSmooth() {
@@ -1586,7 +1740,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 9); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 10); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -1597,7 +1751,7 @@ class Component extends DCLogic {
     let pend = null; if (!this.readOnly) try { pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); } catch (e) {}
     if (this.gsOldScript && cur && cur.ring && !pend) { pend = cur.ring; try { localStorage.setItem('logi-ring-pending', JSON.stringify(pend)); } catch (e) {} }
     if (pend) { if (JSON.stringify(pend) === JSON.stringify(data.ring)) { try { localStorage.removeItem('logi-ring-pending'); } catch (e) {} this.gsOldScript = false; } else data.ring = pend; }
-    const same = cur && JSON.stringify([cur.clients, cur.shipments, cur.warehouses, cur.settings, cur.ring, cur.skipped, cur.textDates]) === JSON.stringify([data.clients, data.shipments, data.warehouses, data.settings, data.ring, data.skipped, data.textDates]);
+    const same = cur && JSON.stringify([cur.clients, cur.shipments, cur.warehouses, cur.settings, cur.ring, cur.skipped, cur.textDates, cur.lists]) === JSON.stringify([data.clients, data.shipments, data.warehouses, data.settings, data.ring, data.skipped, data.textDates, data.lists]);
     if (!same) {
       try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
       if (first) this.setReady(data);
@@ -1613,7 +1767,7 @@ class Component extends DCLogic {
     this._gsBusy = true;
     const url = this.gsUrl;
     try {
-      const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(this.gsToken) + '&t=' + Date.now());
+      const r = await fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(this.gsToken) + '&tgdays=' + this.tgDays() + '&t=' + Date.now());
       const j = await r.json();
       if (this.gsUrl !== url) { this._gsBusy = false; return this.gsUrl && this.gsPull(true); }   // таблицу сменили, пока шёл запрос
       if (!this.gsQueue.length) this.gsApply(j, first);
@@ -1628,7 +1782,7 @@ class Component extends DCLogic {
     const ops = this.gsQueue.slice(0, 40), url = this.gsUrl;   // частями: большая первая выгрузка не упирается в лимиты Apps Script
     this.setState({ gsStatus: 'saving' });
     try {
-      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: this.gsToken, ops }) });
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: this.gsToken, ops, tgdays: this.tgDays() }) });
       const j = await r.json();
       if (this.gsUrl !== url) { this._gsBusy = false; return this.gsUrl && this.gsPull(true); }   // таблицу сменили, пока шёл запрос
       if (j.error) throw new Error(j.error);
@@ -1996,6 +2150,297 @@ class Component extends DCLogic {
   }
 
   // Вкладка «Отчёты»: партия на день, расходы за период, автопарк и экономия
+  // ---------- Водители и автопарк ----------
+  // Партия — дата отгрузок: водитель везёт партию, выбранную при отправке, даже если её дата не сегодня.
+  // Точка — BL и рейс у машины, как в боте. Итог точки — статус в журнале (его ставит бот), фото и причина — из отметок бота.
+  dvKindDefs(S) {
+    return [['gazel', 'gazelCount', 'gazelM3', 'gazelKg'], ['changan', 'changanCount', 'changanM3', 'changanKg'], ['labo', 'laboCount', 'laboM3', 'laboKg'], ['kamaz', 'cTrucks', 'cM3', 'cKg']]
+      .map(([k, count, m3, kg]) => ({ k, label: VEH[k], count, m3, kg, n: +S[count] || 0, capM3: +S[m3] || 0, capKg: +S[kg] || 0 }));
+  }
+  // партия по умолчанию: та, что сейчас везут водители, иначе сегодняшняя, иначе последняя с недоставленными точками
+  dvDefaultDate(D) {
+    const data = this.state.data, E = window.LogiEngine, T = this.gsTg, today = isoDay();
+    const busy = ((T && T.drivers) || []).map(d => (d.today && !d.today.ended && d.today.date) || (d.assign && d.assign.date)).filter(d => D.dates.includes(d)).sort();
+    if (busy.length) return busy[busy.length - 1];
+    if (D.dates.includes(today)) return today;
+    const open = [...new Set(data.shipments.filter(s => s.date <= today && E.vehicleKind(s.truck) && !TG_DONE.includes(s.status)).map(s => s.date))].sort();
+    return open.length ? open[open.length - 1] : D.dates[D.dates.length - 1] || today;
+  }
+  async dvRun(label, body, done) {
+    if (this.state.dvBusy) return;
+    this.setState({ dvBusy: true, dvMsg: { text: label, color: 'var(--color-divider)' } });
+    try {
+      // водитель получает точки из таблицы: сначала дописываем туда правки журнала
+      for (let i = 0; i < 40 && body.action === 'dispatch' && this.gsQueue.length; i++) {
+        if (this._gsBusy) await new Promise(r => setTimeout(r, 250)); else { await this.gsFlush(); if (this.state.gsStatus === 'error') break; }
+      }
+      if (body.action === 'dispatch' && this.gsQueue.length) throw new Error('Последние правки журнала ещё не записались в Google Таблицу — проверьте связь и нажмите снова.');
+      const j = await this.tgPost(body);
+      this.setState({ dvBusy: false, dvMsg: { text: done(j), color: 'var(--color-accent)' } });
+    } catch (e) { this.setState({ dvBusy: false, dvMsg: { text: e.message || String(e), color: 'var(--color-red)' } }); }
+  }
+  dvDispatch(date, drivers, trucks) {
+    const who = drivers.map(d => d.name + ' (' + d.truck + ')').join(', ');
+    if (!confirm('Отправить партию ' + dLong(date) + (who ? ' водителям: ' + who : ' всем водителям с точками в ней') + '?\n\nНе начавшие день получат список точек и нажмут «Начать работу»; кто уже на линии — сразу первую точку этой партии.')) return;
+    this.dvRun('Отправляю задание…', { action: 'dispatch', date, ids: drivers.map(d => d.id) }, j => {
+      const sent = (j.sent || []).map(x => x.name + ' — ' + x.truck + ', точек ' + x.n), sk = (j.skipped || []).map(x => (x.name ? x.name + ' — ' : '') + x.truck + ': ' + x.why);
+      return (sent.length ? 'Партия ' + dLong(date) + ' отправлена:\n' + sent.join('\n') : 'Никому не отправлено.') + (sk.length ? '\n\nНе отправлено:\n' + sk.join('\n') : '');
+    });
+  }
+  dvWrite(ids, who) {
+    const text = prompt('Сообщение ' + who + ' (придёт в Telegram от бота):', '');
+    if (!text || !text.trim()) return;
+    this.dvRun('Отправляю сообщение…', { action: 'message', ids, text: text.trim() }, j => j.sent ? 'Сообщение получили: ' + j.sent + ' ' + (j.sent === 1 ? 'водитель' : 'водителя') + '.' : 'Никто не получил: нет водителей на линии.');
+  }
+  // передать точку (все строки BL этого рейса) другой машине: в журнале меняются машина и рейс
+  dvMove(date, from, bl, round, to) {
+    if (this.readOnly || !to) return;
+    const data = this.state.data, rounds = data.shipments.filter(s => s.date === date && s.truck === to).map(s => +s.route || 1);
+    const route = rounds.length ? Math.max(...rounds) : 1;
+    if (!confirm('Передать ' + bl + ' (' + from + ', рейс ' + round + ') машине ' + to + ', рейс ' + route + '?\n\nВодителям, которым уже отправлена партия ' + dLong(date) + ', бот пришлёт изменения.')) return;
+    this.commit({ ...data, shipments: data.shipments.map(s => s.date === date && s.truck === from && s.bl === bl && (+s.route || 1) === round && !TG_DONE.includes(s.status) ? { ...s, truck: to, route } : s) });
+    this.setState({ dvMsg: { text: bl + ' передана: ' + from + ' → ' + to + ', рейс ' + route + '.', color: 'var(--color-accent)' } });
+  }
+  // «+ / −» по виду машин: названия в списке машин (Sozlamalar C24:C39) и число машин для планов
+  dvFleet(kind, delta) {
+    if (this.readOnly) return;
+    const data = this.state.data, S = data.settings, E = window.LogiEngine, K = this.dvKindDefs(S).find(x => x.k === kind), label = VEH[kind];
+    const list = data.lists.trucks.slice(), num = t => +(String(t).match(/-(\d+)$/) || [0, 1])[1], mine = list.filter(t => E.vehicleKind(t) === kind);
+    const warn = text => this.setState({ dvMsg: { text, color: 'var(--color-red)' } });
+    let next = list, gone = null, n;
+    if (delta > 0) {
+      if (list.length >= 16) return warn('В таблице место для 16 названий машин (Sozlamalar C24:C39) — сначала уберите лишнюю.');
+      let i = 1; while (list.includes(label + '-' + i) || (i === 1 && list.includes(label))) i++;
+      const name = label + '-' + i, last = mine.length ? list.indexOf(mine[mine.length - 1]) + 1 : list.findIndex(t => !E.vehicleKind(t));
+      next = list.slice(); next.splice(last < 0 ? next.length : last, 0, name);
+      n = mine.length + 1;
+    } else {
+      if (!mine.length) { if (!K.n) return; n = K.n - 1; }
+      else {
+        gone = mine.slice().sort((a, b) => num(a) - num(b)).pop();
+        const used = data.shipments.filter(s => s.truck === gone && s.date >= isoDay() && !TG_DONE.includes(s.status));
+        if (used.length) return warn(gone + ' стоит в журнале: ' + [...new Set(used.map(s => dLong(s.date)))].join(', ') + ' (' + used.length + ' отгр.) — сначала передайте эти точки другой машине.');
+        if (!confirm('Убрать ' + gone + ' из автопарка? В планах станет на одну машину меньше.')) return;
+        next = list.filter(t => t !== gone); n = mine.length - 1;
+      }
+    }
+    const plates = { ...(data.lists.plates || {}) }; if (gone) delete plates[gone];
+    this.commit({ ...data, settings: { ...S, [K.count]: n }, lists: { ...data.lists, trucks: next, plates } });
+    if (next !== list && this.gsUrl && this.gsVersion >= 5) this.gsEnqueue([{ t: 'trucks', v: next }]);
+    this.setState({ dvMsg: { text: (delta > 0 ? 'Добавлена машина ' + next.find(t => !list.includes(t)) : gone ? gone + ' убрана из автопарка' : 'Машин ' + label + ': ' + n) + '. Планы пересчитаны.', color: 'var(--color-accent)' } });
+  }
+  dvPlate(name, value) {
+    if (this.readOnly) return;
+    const v = String(value || '').toUpperCase().replace(/\s+/g, ' ').trim().slice(0, 16), data = this.state.data, plates = { ...(data.lists.plates || {}) };
+    if ((plates[name] || '') === v) return;
+    if (v) plates[name] = v; else delete plates[name];
+    this.commit({ ...data, lists: { ...data.lists, plates } });
+    if (this.gsUrl && this.gsVersion >= 10) this.gsEnqueue([{ t: 'plates', v: plates }]);
+  }
+  dvXlsx(name, sheets) {
+    const blob = window.LogiEngine.xlsx(sheets), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'BURAQ_' + name + '.xlsx';
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  driversView(st, S, D) {
+    const E = window.LogiEngine, data = st.data, T = this.gsTg, today = isoDay(), out = {};
+    const v9 = this.gsVersion >= 9, v10 = this.gsVersion >= 10, ro = this.readOnly;
+    const date = st.dvDate && D.dates.includes(st.dvDate) ? st.dvDate : this.dvDefaultDate(D);
+    const drivers = (T && T.drivers) || [], ok = drivers.filter(d => d.status === 'ruxsat');
+    const can = !ro && !!this.gsUrl && v10 && !!T && !!T.hooked;
+    const set = patch => this.setState(patch), per = +st.dvPeriod || 7, from = isoDay(new Date(Date.now() - (per - 1) * 864e5));
+    const kinds = this.dvKindDefs(S), capOf = k => kinds.find(x => x.k === k) || { capM3: 0, capKg: 0 };
+    const log = ((T && T.log) || []).slice(), days = ((T && T.days) || []).slice();
+    const plates = data.lists.plates || {}, plateOf = t => plates[t] || (ok.find(d => d.truck === t && d.plate) || {}).plate || '';
+    const TABS = [['day', 'Партия и водители'], ['fleet', 'Автопарк'], ['deliv', 'Лента доставок'], ['report', 'Отчёты']];
+    Object.assign(out, {
+      dvTabs: TABS.map(([k, l]) => ({ l, go: () => set({ dvTab: k }), bg: st.dvTab === k ? 'var(--color-accent-2)' : 'transparent', fg: st.dvTab === k ? 'var(--color-on-brand)' : 'var(--color-text)' })),
+      dvIsDay: st.dvTab === 'day', dvIsFleet: st.dvTab === 'fleet', dvIsDeliv: st.dvTab === 'deliv', dvIsReport: st.dvTab === 'report',
+      dvCan: can, dvCanDrv: !ro && v9 && !!T, dvCanFleet: !ro, dvRo: ro, dvPlateRo: ro || (!!this.gsUrl && !v10), dvBusy: !!st.dvBusy,
+      dvSub: 'Отправка партии водителям в Telegram, кто на линии, доставки с фото, машины и отчёты.' + (ro ? ' Только просмотр.' : ''),
+      dvHasMsg: !!st.dvMsg, dvMsg: st.dvMsg ? st.dvMsg.text : '', dvMsgColor: st.dvMsg ? st.dvMsg.color : 'var(--color-divider)', dvMsgClose: () => set({ dvMsg: null }),
+      dvPeriod: String(per), onDvPeriod: e => set({ dvPeriod: e.target.value }),
+      dvPeriodOpts: [['1', 'Сегодня'], ['7', '7 дней'], ['30', '30 дней'], ['45', '45 дней']].map(([v, l]) => ({ v, l })),
+      dvOpenGs: this.openGs, dvCanSetup: !ro
+    });
+    out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу в «Настройки связи».' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 10. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !T ? 'Телеграм-бот не подключён: «Настройки связи» → «Телеграм-бот для водителей».' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до версии 10: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота» в «Настройки связи».' :
+      !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — в «Настройки связи».' :
+      ro ? 'Только просмотр: отправлять задания, писать водителям и менять автопарк может руководитель.' : '';
+    out.dvHasBanner = !!out.dvBanner;
+    if (ro) out.dvCanSetup = false;
+
+    // ── партия и водители ──
+    const rows = data.shipments.filter(s => s.date === date);
+    const truckNames = [...new Set(rows.filter(s => s.truck && !TG_NOT_TRUCKS.includes(s.truck)).map(s => s.truck).concat(ok.map(d => d.truck).filter(Boolean)))];
+    const order = t => { const i = data.lists.trucks.indexOf(t); return i < 0 ? 99 : i; };
+    const fleetTrucks = data.lists.trucks.filter(t => !TG_NOT_TRUCKS.includes(t));
+    const lastLog = {}; log.forEach(x => { if (x.date === date) lastLog[x.truck + '|' + x.bl] = x; });
+    const tot = { stops: 0, ok: 0, fail: 0, open: 0, cbm: 0 };
+    const cards = truckNames.map(t => {
+      const my = rows.filter(s => s.truck === t), kind = E.vehicleKind(t), cap = capOf(kind), drv = drivers.filter(d => d.truck === t && d.status === 'ruxsat');
+      const stops = {}, keys = [];
+      my.forEach(s => { const r = +s.route || 1, k = s.bl + '|' + r; if (!stops[k]) { stops[k] = { bl: s.bl, round: r, cbm: 0, kg: 0, places: 0, st: [], rows: [] }; keys.push(k); } const x = stops[k]; x.cbm += +s.cbm || 0; x.kg += +s.kg || 0; x.places += +s.places || 0; x.st.push(s.status); });
+      const list = keys.map(k => { const x = stops[k]; x.open = x.st.some(v => !TG_DONE.includes(v)); x.ok = !x.open && x.st.includes('Yetkazildi'); x.fail = !x.open && !x.ok && x.st.includes('Qolib ketgan'); return x; });
+      const cur = drv.map(d => d.today && !d.today.ended && d.today.date === date && d.today.cur).filter(Boolean)[0];
+      const n = { stops: list.length, ok: list.filter(x => x.ok).length, fail: list.filter(x => x.fail).length, open: list.filter(x => x.open).length };
+      ['stops', 'ok', 'fail', 'open'].forEach(k => { tot[k] += n[k]; }); tot.cbm += list.reduce((a, x) => a + x.cbm, 0);
+      const rounds = [...new Set(list.map(x => x.round))].sort((a, b) => a - b).map(r => {
+        const rs = list.filter(x => x.round === r), cbm = rs.reduce((a, x) => a + x.cbm, 0), kg = rs.reduce((a, x) => a + x.kg, 0);
+        return { title: 'Рейс ' + r, load: f1(cbm, 1) + (cap.capM3 ? ' / ' + f1(cap.capM3, 1) : '') + ' м³ · ' + f0(kg) + (cap.capKg ? ' / ' + f0(cap.capKg) : '') + ' кг' + (cap.capM3 && cbm > cap.capM3 + 0.01 ? ' · перегруз' : ''),
+          stops: rs.map(x => {
+            const c = D.cmap[x.bl] || {}, lg = lastLog[t + '|' + x.bl], isCur = cur && cur.bl === x.bl && x.open;
+            const [tag, tagCls] = isCur ? ['Едет сейчас', 'tag-outline'] : x.ok ? ['Доставлено', 'tag-accent'] : x.fail ? ['Не доставлено', 'tag-red'] : x.open ? [ST[x.st.find(v => !TG_DONE.includes(v))] || 'В плане', 'tag-neutral'] : [ST[x.st[0]] || x.st[0], 'tag-draft'];
+            const ll = lg && lg.ll ? lg.ll.split(',').map(Number) : null;
+            return { tag, tagCls, bl: x.bl, client: [c.brand, c.name].filter(Boolean).join(' — ') || (D.cmap[x.bl] ? '' : 'нет в справочнике'),
+              sub: [c.district, f1(x.cbm, 2) + ' м³', f0(x.kg) + ' кг', x.places ? x.places + ' мест' : '', c.receiverTel || c.tel1 || '', lg ? (lg.ok ? 'отметка ' : 'не доставлено ') + String(lg.t).slice(11, 16) + (lg.reason ? ' · ' + lg.reason : '') : ''].filter(Boolean).join(' · '),
+              hasPhotos: !!(lg && (lg.photos.length || ll)), photos: lg ? lg.photos.map((u, i) => ({ u, n: 'фото ' + (i + 1) })) : [], hasLL: !!(ll && ll.length === 2 && !isNaN(ll[0])), ll: ll ? E.yPoint(ll[0], ll[1]) : '',
+              canMove: !ro && x.open, moveOpts: fleetTrucks.filter(o => o !== t), move: e => { const to = e.target.value; e.target.value = ''; this.dvMove(date, t, x.bl, x.round, to); } };
+          }) };
+      });
+      const dStates = drv.length ? drv.map(d => {
+        const w = d.today, a = d.assign;
+        const on = w && !w.ended, stTxt = w && w.ended ? 'закончил в ' + w.ended + ' · доставлено ' + w.ok + (w.fail ? ', не доставлено ' + w.fail : '') :
+          on ? 'на линии с ' + w.started + (w.date && w.date !== date ? ' · везёт партию ' + dLong(w.date) : w.cur ? ' · сейчас ' + w.cur.bl : '') + (w.posAt ? ' · 📍 ' + w.posAt : '') :
+          a && a.date === date ? 'задание отправлено ' + String(a.at || '').slice(11, 16) + ', ещё не начал' : a ? 'отправлена партия ' + dLong(a.date) : 'задание не отправлено';
+        return { dot: on ? 'var(--color-red)' : w ? 'var(--color-accent)' : 'var(--color-neutral-400)', name: d.name, state: stTxt };
+      }) : [{ dot: 'var(--color-neutral-300)', name: 'Нет водителя в боте', state: '' }];
+      return { name: t, plate: plateOf(t), kindLine: (kind ? VEH[kind] + (cap.capM3 ? ' · ' + f1(cap.capM3, 1) + ' м³ / ' + f0(cap.capKg) + ' кг' : '') : 'не из автопарка') + ' · ' + (list.length ? list.length + ' точ. · ' + rounds.length + ' ' + reys(rounds.length) : 'нет точек'),
+        canSend: can && !!drv.length && n.open > 0, send: () => this.dvDispatch(date, drv, [t]), canWrite: can && !!drv.length, write: () => this.dvWrite(drv.map(d => d.id), drv.map(d => d.name).join(', ')),
+        drivers: dStates, pOk: n.stops ? Math.round(n.ok / n.stops * 100) : 0, pFail: n.stops ? Math.round(n.fail / n.stops * 100) : 0,
+        progTitle: n.stops ? 'Доставлено ' + n.ok + ' из ' + n.stops + (n.fail ? ', не доставлено ' + n.fail : '') + (n.open ? ', осталось ' + n.open : '') : '', rounds, noStops: !list.length, _k: list.length ? 0 : 1, _o: order(t) };
+    }).sort((a, b) => a._k - b._k || a._o - b._o || a.name.localeCompare(b.name));
+    const noTruck = rows.filter(s => !E.vehicleKind(s.truck) && s.truck !== 'Mijoz ozi oladi' && !TG_DONE.includes(s.status));
+    const online = drivers.filter(d => d.today && !d.today.ended), ended = drivers.filter(d => d.today && d.today.ended);
+    Object.assign(out, {
+      dvDate: date, onDvDate: e => set({ dvDate: e.target.value }),
+      dvDateOpts: D.dates.slice().reverse().map(v => ({ v, l: dLong(v) + (v === today ? ' · сегодня' : '') })),
+      dvSendAll: () => this.dvDispatch(date, [], null),
+      dvWriteOnline: () => online.length ? this.dvWrite('online', 'всем на линии (' + online.map(d => d.name).join(', ') + ')') : set({ dvMsg: { text: 'Сейчас на линии никого нет.', color: 'var(--color-red)' } }),
+      dvSummary: () => this.dvRun('Отправляю итог дня…', { action: 'summary' }, j => 'Итог дня отправлен в группу:\n\n' + (j.text || '')),
+      dvTrucks: cards,
+      dvKpis: [
+        { label: 'Машин в партии', value: f0(cards.filter(c => !c.noStops).length), sub: 'водителей в боте: ' + ok.length },
+        { label: 'На линии', value: f0(online.length), sub: ended.length ? 'закончили: ' + ended.length : 'сейчас' },
+        { label: 'Точек', value: f0(tot.stops), sub: f1(tot.cbm, 1) + ' м³' },
+        { label: 'Доставлено', value: f0(tot.ok), sub: tot.stops ? Math.round(tot.ok / tot.stops * 100) + '%' : '' },
+        { label: 'Не доставлено', value: f0(tot.fail), sub: 'в журнале — «Осталось»' },
+        { label: 'В работе', value: f0(tot.open), sub: noTruck.length ? 'ещё без машины: ' + noTruck.length : 'ещё не отмечены' }
+      ],
+      dvHasNoTruck: noTruck.length > 0, dvNoTruck: 'В партии ' + dLong(date) + ' без машины ' + noTruck.length + ' отгр. (' + [...new Set(noTruck.map(s => s.bl))].slice(0, 8).join(', ') + (noTruck.length > 8 ? '…' : '') + ') — водитель их не получит. Назначьте машины: «Планы» → «Принять план» или в журнале.',
+      dvGoPlans: () => set({ tab: 'plans', planDate: date }),
+      dvPending: drivers.filter(d => d.status === 'kutilmoqda').map(d => ({ name: d.name, truck: d.truck, plate: d.plate || '—', sub: [d.user, d.at ? 'заявка ' + d.at : '', d.lang === 'ru' ? 'русский' : 'узбекский'].filter(Boolean).join(' · '),
+        allow: () => this.dvRun('Открываю доступ…', { action: 'driver', id: d.id, status: 'ruxsat' }, () => d.name + ': доступ открыт, водителю пришло сообщение.'),
+        deny: () => { if (confirm('Отклонить заявку ' + d.name + '?')) this.dvRun('Отклоняю…', { action: 'driver', id: d.id, status: 'rad' }, () => d.name + ': заявка отклонена.'); } })),
+      dvMapRef: this.dvMapRef,
+      dvMapNote: 'Точки партии: синие — доставлено, красные — не доставлено, тёмные — ещё везут; 🚚 — где водитель отметился последний раз.'
+    });
+    out.dvHasPending = out.dvPending.length > 0;
+    this._dvMap = { date, cards, drivers: online.concat(ended) };
+
+    // ── автопарк ──
+    const pShip = data.shipments.filter(s => s.date >= from && s.date <= today);
+    out.dvKinds = kinds.map(k => ({ label: k.label, count: k.n, dec: () => this.dvFleet(k.k, -1), inc: () => this.dvFleet(k.k, 1), m3: S[k.m3] ?? '', kg: S[k.kg] ?? '',
+      onM3: e => this.commit({ ...data, settings: { ...S, [k.m3]: e.target.value === '' ? null : +e.target.value } }), onKg: e => this.commit({ ...data, settings: { ...S, [k.kg]: e.target.value === '' ? null : +e.target.value } }) }));
+    const dayRows = data.shipments.filter(s => s.date === date);
+    const stat = t => { const my = pShip.filter(s => s.truck === t); return { days: new Set(my.map(s => s.date)).size, trips: new Set(my.filter(s => s.route != null && s.route !== '').map(s => s.date + '|' + s.route)).size || new Set(my.map(s => s.date)).size, my }; };
+    out.dvVehicles = fleetTrucks.map(t => {
+      const kind = E.vehicleKind(t), cap = capOf(kind), dr = drivers.filter(d => d.truck === t && d.status !== 'rad'), mine = dayRows.filter(s => s.truck === t), cbm = mine.reduce((a, s) => a + (+s.cbm || 0), 0), s = stat(t);
+      const botPlate = (dr.find(d => d.plate) || {}).plate || '';
+      return { name: t, plate: plates[t] || '', platePh: botPlate ? 'из бота: ' + botPlate : 'не указан', onPlate: e => this.dvPlate(t, e.target.value),
+        cap: kind ? f1(cap.capM3, 1) + ' м³ · ' + f0(cap.capKg) + ' кг' : '—', drivers: dr.map(d => d.name + (d.status === 'ruxsat' ? '' : ' (' + (d.status === 'kutilmoqda' ? 'ждёт' : 'отключён') + ')')).join(', ') || '—',
+        today: mine.length ? new Set(mine.map(x => x.bl)).size + ' точ. · ' + f1(cbm, 1) + ' м³' + (cap.capM3 ? ' · ' + Math.round(cbm / cap.capM3 * 100) + '%' : '') : 'свободна', todayCls: mine.length ? 'tag-accent' : 'tag-neutral',
+        stat: s.days ? s.trips + ' ' + reys(s.trips) + ' · ' + s.days + ' дн.' : '—' };
+    });
+    out.dvPlateNote = !ro && this.gsUrl && !v10 ? 'Госномера хранятся в Google Таблице начиная с версии скрипта 10 — обновите код, тогда поле откроется.' :
+      'Госномер — у машины: водитель при регистрации в боте выбирает машину, номер подставляется сам. Пустое поле — номер, который водитель ввёл в боте.';
+    out.dvStatHead = 'За ' + (per === 1 ? 'сегодня' : per + ' дней');
+    out.dvVehHead = 'Партия ' + dShort(date);
+    const fStats = fleetTrucks.map(t => {
+      const s = stat(t), cap = capOf(E.vehicleKind(t)), my = s.my, pts = new Set(my.map(x => x.date + '|' + x.bl)).size, cbm = my.reduce((a, x) => a + (+x.cbm || 0), 0), kg = my.reduce((a, x) => a + (+x.kg || 0), 0);
+      const okN = new Set(my.filter(x => x.status === 'Yetkazildi').map(x => x.date + '|' + x.bl)).size, failN = new Set(my.filter(x => x.status === 'Qolib ketgan').map(x => x.date + '|' + x.bl)).size;
+      return { name: t, days: s.days, trips: s.trips, stops: pts, cbm, kg, load: s.trips && cap.capM3 ? Math.round(cbm / s.trips / cap.capM3 * 100) : null, ok: okN, fail: failN };
+    });
+    out.dvFleetStats = fStats.map(f => ({ name: f.name, days: f.days || '—', trips: f.trips || '—', stops: f.stops || '—', cbm: f.cbm ? f1(f.cbm, 1) : '—', kg: f.kg ? f0(f.kg) : '—', load: f.load != null ? f.load + '%' : '—', okFail: f.stops ? f.ok + ' / ' + f.fail : '—' }));
+    out.dvFleetXlsx = () => this.dvXlsx('Avtopark_' + from + '_' + today, [
+      { name: 'Статистика', rows: [['Машина', 'Госномер', 'Дней с рейсами', 'Рейсов', 'Точек', 'CBM', 'KG', 'Загрузка м³, %', 'Доставлено', 'Не доставлено']].concat(fStats.map(f => [f.name, plateOf(f.name), f.days, f.trips, f.stops, Math.round(f.cbm * 100) / 100, Math.round(f.kg), f.load ?? '', f.ok, f.fail])) },
+      { name: 'Машины', rows: [['Машина', 'Госномер', 'Вид', 'Объём, м³', 'Грузоподъёмность, кг', 'Водители']].concat(fleetTrucks.map(t => { const k = E.vehicleKind(t), c = capOf(k); return [t, plateOf(t), k ? VEH[k] : '', c.capM3 || '', c.capKg || '', drivers.filter(d => d.truck === t && d.status === 'ruxsat').map(d => d.name).join(', ')]; })) }]);
+
+    // ── лента доставок ──
+    const inP = x => String(x.t).slice(0, 10) >= from;
+    const feed = log.filter(x => inP(x) && (st.dvTruck === 'all' || x.truck === st.dvTruck) && (st.dvRes === 'all' || (st.dvRes === 'ok') === x.ok)).sort((a, b) => String(b.t).localeCompare(String(a.t)));
+    const llOf = x => { const p = String(x.ll || '').split(',').map(Number); return p.length === 2 && !isNaN(p[0]) && !isNaN(p[1]) ? p : null; };
+    Object.assign(out, {
+      dvTruck: st.dvTruck, onDvTruck: e => set({ dvTruck: e.target.value }), dvRes: st.dvRes, onDvRes: e => set({ dvRes: e.target.value }),
+      dvTruckOpts: [{ v: 'all', l: 'Все машины' }].concat([...new Set(fleetTrucks.concat(log.map(x => x.truck)))].map(v => ({ v, l: v }))),
+      dvDeliv: feed.slice(0, 300).map(x => { const c = D.cmap[x.bl] || {}, p = llOf(x); return { time: dShort(String(x.t).slice(0, 10)) + ' ' + String(x.t).slice(11, 16), date: dShort(x.date), truck: x.truck, name: x.name, bl: x.bl, client: x.client || [c.brand, c.name].filter(Boolean).join(' — '),
+        tag: x.ok ? 'Доставлено' : 'Не доставлено', tagCls: x.ok ? 'tag-accent' : 'tag-red', reason: x.reason, photos: x.photos.map((u, i) => ({ u, n: String(i + 1) })), hasLL: !!p, ll: p ? E.yPoint(p[0], p[1]) : '' }; }),
+      dvDelivSum: feed.length ? 'Отметок ' + feed.length + ': доставлено ' + feed.filter(x => x.ok).length + ', не доставлено ' + feed.filter(x => !x.ok).length + (feed.length > 300 ? ' · показаны последние 300' : '') : '',
+      dvNoDeliv: !feed.length, dvNoDelivText: !T ? 'Отметки появятся, когда водители начнут работать в телеграм-боте.' : 'За выбранный период отметок нет.',
+      dvDelivXlsx: () => this.dvXlsx('Dostavki_' + from + '_' + today, [{ name: 'Доставки', rows: [['Время', 'Партия', 'Машина', 'Госномер', 'Водитель', 'BL', 'Клиент', 'Итог', 'Причина', 'Рейс', 'Место (широта, долгота)', 'Фото']].concat(feed.map(x => [x.t, x.date, x.truck, plateOf(x.truck), x.name, x.bl, x.client, x.ok ? 'Доставлено' : 'Не доставлено', x.reason, x.round, x.ll, x.photos.join(' ')])) }])
+    });
+
+    // ── отчёты по водителям ──
+    const pDays = days.filter(x => x.day >= from), pLog = log.filter(inP), mins = v => { const m = String(v || '').match(/^(\d\d):(\d\d)/); return m ? +m[1] * 60 + +m[2] : null; };
+    const avg = a => { const v = a.filter(x => x != null); return v.length ? hhmm(v.reduce((s, x) => s + x, 0) / v.length) : '—'; };
+    const byDrv = {};
+    const put = (id, name) => (byDrv[id || name] = byDrv[id || name] || { name, trucks: new Set(), days: new Set(), starts: [], ends: [], ok: 0, fail: 0, reasons: {} });
+    pDays.forEach(x => { const o = put(x.id, x.name); o.trucks.add(x.truck); if (!o.days.has(x.day)) { o.days.add(x.day); o.starts.push(mins(x.start)); o.ends.push(mins(x.end)); } });
+    pLog.forEach(x => { const o = put(x.id, x.name); o.trucks.add(x.truck); o.days.add(String(x.t).slice(0, 10)); o[x.ok ? 'ok' : 'fail']++; if (!x.ok && x.reason) o.reasons[x.reason] = (o.reasons[x.reason] || 0) + 1; });
+    const rep = Object.values(byDrv).map(o => ({ name: o.name, trucks: [...o.trucks].join(', '), days: o.days.size, start: avg(o.starts), end: avg(o.ends), ok: o.ok, fail: o.fail, perDay: o.days.size ? f1((o.ok + o.fail) / o.days.size, 1) : '—',
+      reasons: Object.entries(o.reasons).sort((a, b) => b[1] - a[1]).map(([r, n]) => r + (n > 1 ? ' ×' + n : '')).join(', ') || '—' })).sort((a, b) => b.ok + b.fail - (a.ok + a.fail) || a.name.localeCompare(b.name));
+    const dayRowsR = pDays.slice().sort((a, b) => b.day.localeCompare(a.day) || String(a.start).localeCompare(String(b.start)));
+    Object.assign(out, {
+      dvRep: rep, dvNoRep: !rep.length,
+      dvRepSum: rep.length ? 'Водителей ' + rep.length + ' · доставлено ' + rep.reduce((a, r) => a + r.ok, 0) + ', не доставлено ' + rep.reduce((a, r) => a + r.fail, 0) + ' · рабочих дней ' + pDays.length : '',
+      dvDays: dayRowsR.map(x => ({ day: dLong(x.day), name: x.name, truck: x.truck, date: x.date && x.date !== x.day ? dShort(x.date) : 'та же', start: x.start || '—', end: x.end || 'не закончил', ok: x.end ? x.ok : '—', fail: x.end ? x.fail : '—' })),
+      dvRepXlsx: () => this.dvXlsx('Voditeli_' + from + '_' + today, [
+        { name: 'Водители', rows: [['Водитель', 'Машины', 'Рабочих дней', 'Начало (в среднем)', 'Конец (в среднем)', 'Доставлено', 'Не доставлено', 'Точек в день', 'Причины недоставки']].concat(rep.map(r => [r.name, r.trucks, r.days, r.start, r.end, r.ok, r.fail, r.perDay, r.reasons])) },
+        { name: 'Рабочие дни', rows: [['День', 'Водитель', 'Машина', 'Партия', 'Начал', 'Место начала', 'Закончил', 'Место конца', 'Доставлено', 'Не доставлено']].concat(dayRowsR.map(x => [x.day, x.name, x.truck, x.date, x.start, x.startLL, x.end, x.endLL, x.ok, x.fail])) },
+        { name: 'Доставки', rows: [['Время', 'Партия', 'Машина', 'Водитель', 'BL', 'Клиент', 'Итог', 'Причина', 'Место', 'Фото']].concat(pLog.map(x => [x.t, x.date, x.truck, x.name, x.bl, x.client, x.ok ? 'Доставлено' : 'Не доставлено', x.reason, x.ll, x.photos.join(' ')])) }])
+    });
+    return out;
+  }
+  // карта партии на вкладке «Водители»: точки по итогу, последние места водителей
+  syncDvMap() {
+    const on = this.state.tab === 'drivers' && this.state.ready && (this.state.dvTab || 'day') === 'day';
+    if (!on) { if (this.dvMap) { this.dvMap.remove(); this.dvMap = null; this.dvMapEl = null; } return; }
+    const el = this.dvMapRef.current, L = window.L, M = this._dvMap;
+    if (!el || !L || !M) return;
+    const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim(), S = this.state.data.settings, E = window.LogiEngine, D = this.derived();
+    if (!this.dvMap || this.dvMapEl !== el) {
+      if (this.dvMap) this.dvMap.remove();
+      this.dvMap = L.map(el, { crs: L.CRS.EPSG3395, zoomControl: true }).setView([S.depotLat, S.depotLon], 11);
+      L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU', { maxZoom: 19, attribution: '© Яндекс' }).addTo(this.dvMap);
+      this.dvMapEl = el; this.dvLayer = L.layerGroup().addTo(this.dvMap); this.dvMapKey = null; this.dvFitDate = null;
+      setTimeout(() => this.dvMap && this.dvMap.invalidateSize(), 50);
+    }
+    const key = this.state.ver + '|' + M.date + '|' + JSON.stringify(M.drivers.map(d => [d.id, d.today && d.today.pos, d.today && d.today.posAt])) + '|' + JSON.stringify(M.cards.map(c => c.rounds.map(r => r.stops.map(s => s.tag))));
+    if (key === this.dvMapKey) return;
+    const fit = this.dvFitDate !== M.date;
+    this.dvMapKey = key; this.dvFitDate = M.date;
+    const lay = this.dvLayer, pts = [], depot = [S.depotLat, S.depotLon], esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    lay.clearLayers();
+    L.marker(depot, { icon: L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border:2px solid ' + v('--color-text') + ';background:' + v('--color-bg') + ';transform:rotate(45deg)"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) }).bindTooltip('Склад: ' + esc(S.depotName)).addTo(lay);
+    M.cards.forEach(c => c.rounds.forEach(r => r.stops.forEach(s => {
+      const cl = D.cmap[s.bl]; if (!cl || cl.lat == null) return;
+      const col = s.tagCls === 'tag-accent' ? v('--color-accent') : s.tagCls === 'tag-red' ? v('--color-red') : v('--color-accent-2');
+      L.circleMarker([cl.lat, cl.lon], { radius: s.tagCls === 'tag-outline' ? 9 : 7, weight: 2, color: col, fillColor: s.tagCls === 'tag-neutral' || s.tagCls === 'tag-outline' ? v('--color-bg') : col, fillOpacity: 1 })
+        .bindPopup('<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.4"><b>' + esc(s.bl) + '</b> ' + esc(s.client) + '<br>' + esc(c.name) + ' · ' + esc(r.title) + ' · ' + esc(s.tag) + '<br><a target="_blank" href="' + E.yPoint(cl.lat, cl.lon) + '">Открыть в Яндекс Картах</a></div>').addTo(lay);
+      pts.push([cl.lat, cl.lon]);
+    })));
+    M.drivers.forEach(d => {
+      const p = d.today && d.today.pos; if (!p || p.length !== 2) return;
+      L.marker(p, { zIndexOffset: 1000, icon: L.divIcon({ className: '', html: '<div style="font:500 12px Inter,sans-serif;white-space:nowrap;background:' + v('--color-brand') + ';color:' + v('--color-on-brand') + ';padding:2px 6px;border-radius:999px;transform:translate(-50%,-50%);display:inline-block">🚚 ' + esc(d.truck) + '</div>', iconSize: [0, 0] }) })
+        .bindTooltip(esc(d.name) + ' · ' + esc(d.truck) + (d.today.posAt ? ' · ' + esc(d.today.posAt) : '')).addTo(lay);
+      pts.push(p);
+    });
+    pts.push(depot);
+    if (fit) this.dvMap.fitBounds(L.latLngBounds(pts).pad(0.15), { maxZoom: 14 });
+  }
   reportView(st, S, D) {
     const E = window.LogiEngine, kind = st.repKind || 'batch', lim = +S.freeOutM3 || 0, KINDS = ['labo', 'changan', 'gazel', 'kamaz'];
     const pct = x => x == null || isNaN(x) ? '—' : Math.round(x * 100) + ' %', r3 = x => Math.round(x * 1000) / 1000;
@@ -2423,9 +2868,10 @@ class Component extends DCLogic {
     if (this.readOnly) throw new Error('Бот настраивает только руководитель');
     const A = window.LogiAuth, own = A && A.owner ? A.owner() : { config: {} };
     const r = await fetch(this.gsUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', tg }) });
+      body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', tg, tgdays: this.tgDays() }) });
     const j = await r.json();
-    if (!(j.v >= 9)) throw new Error('Для бота нужен код скрипта таблицы версии 9: «Скопировать код» → вставить в Apps Script → новая версия развертывания');
+    const need = ['dispatch', 'message', 'summary'].includes(tg.action) ? 10 : 9;   // отправка партии, сообщения и итог дня — с версии 10
+    if (!(j.v >= need)) throw new Error('Для этого нужен код скрипта таблицы версии ' + need + ' (сейчас ' + (j.v || 'старее 8') + '): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия развертывания');
     if (j.error && /external_request|UrlFetchApp\.fetch/.test(j.error)) throw new Error('Скрипту таблицы не разрешены внешние запросы: в Apps Script выберите функцию authorize → ▶ Выполнить → отметьте все галочки → Продолжить.');
     if (j.error) throw new Error(j.error);
     if (j.tg !== undefined) { this.gsTg = j.tg; this.setState({}); }
@@ -2864,9 +3310,9 @@ class Component extends DCLogic {
 
   renderVals() {
     const st = this.state;
-    const tabsDef = [['journal', 'Журнал'], ['import', 'Импорт'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['reports', 'Отчёты'], ['plans', 'Планы A/B/C'], ['viz', 'Визуализация'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
+    const tabsDef = [['journal', 'Журнал'], ['import', 'Импорт'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['reports', 'Отчёты'], ['plans', 'Планы A/B/C'], ['drivers', 'Водители'], ['viz', 'Визуализация'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
     const tabs = tabsDef.filter(([k]) => k !== 'import' || !this.readOnly).map(([k, l]) => ({ label: l, go: () => this.setState({ tab: k }), color: st.tab === k ? 'var(--color-on-brand)' : 'color-mix(in srgb, var(--color-on-brand) 72%, transparent)', border: st.tab === k ? 'var(--color-red)' : 'transparent' }));
-    const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
+    const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isDrivers: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
       fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
       account: () => window.LogiAuth && window.LogiAuth.openAccount(), readOnly: this.readOnly };
     const fs = st.fileStatus, fat = st.fileAt ? hhmm(st.fileAt.getHours() * 60 + st.fileAt.getMinutes()) : '';
@@ -2900,7 +3346,7 @@ class Component extends DCLogic {
     const distName = d => d === 'Aniqlanmagan' ? 'Не определён' : (d || '—');
     const out = { ...base, depotName: S.depotName, statusOpts, truckOpts, districtOpts, dateOpts,
       savedNote: st.savedAt ? 'Сохранено ' + hhmm(st.savedAt.getHours() * 60 + st.savedAt.getMinutes()) : '',
-      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isViz: st.tab === 'viz', isTariffs: st.tab === 'tariffs', isReports: st.tab === 'reports', isImport: st.tab === 'import' && !this.readOnly, isCheck: st.tab === 'check' };
+      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isDrivers: st.tab === 'drivers', isViz: st.tab === 'viz', isTariffs: st.tab === 'tariffs', isReports: st.tab === 'reports', isImport: st.tab === 'import' && !this.readOnly, isCheck: st.tab === 'check' };
 
     if (st.tab === 'journal') {
       const q = st.jSearch.trim().toLowerCase();
@@ -3068,6 +3514,7 @@ class Component extends DCLogic {
     }
 
     if (st.tab === 'reports') Object.assign(out, this.reportView(st, S, D));
+    if (st.tab === 'drivers') Object.assign(out, this.driversView(st, S, D));
     if (st.tab === 'import' && !this.readOnly) Object.assign(out, this.importView(st, S, D));
 
     if (st.tab === 'plans' && st.planDate) {
@@ -3298,7 +3745,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 9.' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 10 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :

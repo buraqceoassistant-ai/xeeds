@@ -20,12 +20,13 @@
  * Телеграм-бот для водителей (версия 9) — свойство TG_TOKEN (токен от @BotFather), затем на сайте
  * «Настройки связи» → «Телеграм-бот для водителей» → «Подключить бота». Листы «Haydovchilar», «Yetkazish», «Ish kuni»
  * бот создаёт сам, фото доставок — в папку «BURAQ yetkazish» на Google Диске.
+ * Версия 10: госномера машин (Sozlamalar D24:D39), «Отправить» партию водителям с сайта, итог дня в группу в 20:00.
  */
 var TOKEN = '';
-var VERSION = 9; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 10; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
-var COLS = { ship: 16, cli: 25, wh: 8, set: 3, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта
+var COLS = { ship: 16, cli: 25, wh: 8, set: 4, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера машин
 var SET_ROWS = { isuzuM3: 5, isuzuKg: 6, depotName: 7, depotLat: 8, depotLon: 9, unloadMin: 10, dayStart: 11, speed: 12, aMaxStops: 13, maxPlaces: 14, bSmallM3: 15, bcMaxStops: 16, cM3: 17, cKg: 18, cTrucks: 19, roadK: 20, gazelBase: 43, gazelHeavy: 44, gazelHeavyKg: 45, gazelPtIn: 46, gazelPtOut: 47, laboBase: 48, laboPt: 49, laboM3: 50, laboKg: 51, baseIncludesPts: 52, kamazBase: 53, kamazPt: 54, laboBaseIncludesPts: 55, kamazBaseIncludesPts: 56, gazelM3: 57, gazelKg: 58, bTolM3: 59, bTolKg: 60,
   changanM3: 61, changanKg: 62, changanBase: 63, changanPt: 64, changanBaseIncludesPts: 65, gazelCount: 66, laboCount: 67, changanCount: 68, tripsPerVehicle: 69, freeOutM3: 70, densityMin: 71, densityMax: 72 };
 // подписи новых строк «Sozlamalar»: пишутся, только если в столбце A пусто
@@ -91,7 +92,7 @@ function doGet(e) {
   var p = (e && e.parameter) || {}, tk = token_();
   if (tk && p.token !== tk) return json_({ error: 'Неверный пароль' });
   if (p.resolve || p.geo) return json_(locate_(p));
-  return json_({ ok: true, v: VERSION, data: dump_() });
+  return json_({ ok: true, v: VERSION, data: dump_(p.tgdays) });
 }
 
 function doPost(e) {
@@ -109,7 +110,7 @@ function doPost(e) {
     SpreadsheetApp.flush();
     try { tgAfterOps_(body.ops); } catch (err) { console.error('Бот после правок: ' + ((err && err.message) || err)); }   // водителям — если их точки изменились
   } finally { lock.releaseLock(); }
-  return json_({ ok: true, v: VERSION, results: results, data: dump_() });
+  return json_({ ok: true, v: VERSION, results: results, data: dump_(body.tgdays) });
 }
 
 // Ссылка на карту → куда она ведёт; координаты → адрес. Короткие ссылки (maps.app.goo.gl, yandex…/maps/-/…)
@@ -154,7 +155,8 @@ function serial_(d, tz) {
   return Date.UTC(s[0], s[1] - 1, s[2], s[3], s[4], s[5]) / 864e5 + 25569;
 }
 
-function dump_() {
+// tgDays — за сколько дней отдать отметки водителей (сайт просит 45 только на вкладке «Водители»)
+function dump_(tgDays) {
   var ss = SpreadsheetApp.getActiveSpreadsheet(), tz = ss.getSpreadsheetTimeZone(), out = { name: ss.getName(), sheets: {}, links: {} };
   Object.keys(SH).forEach(function (k) {
     var sh = ss.getSheetByName(SH[k]);
@@ -174,7 +176,7 @@ function dump_() {
     }
   });
   out.imports = imports_(ss);
-  try { out.tg = tgInfo_(); } catch (err) { out.tg = null; }
+  try { out.tg = tgInfo_(tgDays); } catch (err) { out.tg = null; }
   return out;
 }
 
@@ -305,11 +307,24 @@ function apply_(op) {
     sh = ss.getSheetByName(SH.set);
     var list = (op.v || []).slice(0, TRUCKS_N).map(function (x) { return [String(x)]; });
     if (!sh || !list.length) return { error: 'no trucks' };
+    // госномера (D) держатся за название машины: список поменялся — номера переезжают вместе с названиями
+    var old = sh.getMaxColumns() >= 4 ? sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 2).getValues() : [], pm = {};
+    old.forEach(function (r) { var t = String(r[0]).trim(), n = String(r[1]).trim(); if (t && n) pm[t] = n; });
     sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).clearContent();
     sh.getRange(TRUCKS_ROW, 3, list.length, 1).setValues(list);
+    if (Object.keys(pm).length) sh.getRange(TRUCKS_ROW, 4, TRUCKS_N, 1).setNumberFormat('@').setValues(sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).getValues().map(function (r) { var t = String(r[0]).trim(); return [t && pm[t] ? pm[t] : '']; }));
     var ys = ss.getSheetByName(SH.ship);
     if (ys) ys.getRange('M5:M500').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInRange(sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1), true).setAllowInvalid(true).build());
     return { ok: true, n: list.length };
+  }
+  if (op.t === 'plates') {   // госномера машин: Sozlamalar D24:D39 напротив названия машины в C
+    sh = ss.getSheetByName(SH.set);
+    if (!sh) return { error: 'no settings' };
+    if (sh.getMaxColumns() < 4) sh.insertColumnsAfter(sh.getMaxColumns(), 4 - sh.getMaxColumns());
+    var hd = sh.getRange(TRUCKS_ROW - 1, 4); if (String(hd.getValue()).trim() === '') hd.setValue('Davlat raqami');
+    var names = sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).getValues(), pv = op.v || {};
+    sh.getRange(TRUCKS_ROW, 4, TRUCKS_N, 1).setNumberFormat('@').setValues(names.map(function (r) { var t = String(r[0]).trim(); return [t && pv[t] ? String(pv[t]) : '']; }));
+    return { ok: true };
   }
   if (op.t === 'set') {
     sh = ss.getSheetByName(SH.set);

@@ -246,3 +246,39 @@ button.imp-check:hover { background: var(--color-surface); }
 .tg-code { font-size: 13px; padding: 4px 10px; background: var(--color-surface); border: 1px solid var(--color-divider); }
 .tg-drivers { display: flex; flex-direction: column; border-top: 1px solid var(--color-divider); }
 .tg-driver { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--color-divider); font-size: 13px; }
+
+/* «Водители»: партия по машинам, автопарк, лента доставок, отчёты */
+.dv-toolbar { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.dv-card { border: 1px solid var(--color-divider); background: var(--color-bg); padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.dv-card h3 { font-size: 18px; }
+.dv-msg { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--color-divider); border-left-width: 2px; background: var(--color-surface); padding: 10px 14px; font-size: 13px; }
+.dv-trucks { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; align-items: start; }
+.dv-truck-head { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.dv-truck-name { font-family: var(--font-heading); font-size: 22px; text-transform: uppercase; line-height: 1.1; }
+.dv-plate { display: inline-block; vertical-align: middle; font-family: var(--font-body, inherit); font-size: 12px; letter-spacing: .04em; text-transform: none; border: 1px solid var(--color-text); padding: 1px 6px; margin-left: 4px; }
+.dv-plate:empty { display: none; }
+.dv-driver { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 13px; }
+.dv-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
+.dv-progress { display: flex; height: 4px; background: var(--color-neutral-200); overflow: hidden; }
+.dv-progress > span { display: block; height: 100%; }
+.dv-round { border-top: 1px solid var(--color-divider); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.dv-round-head { display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap; font-size: 13px; }
+.dv-round-head > span { color: var(--color-neutral-700); }
+.dv-stop { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+.dv-stop > .tag { flex: none; margin-top: 1px; }
+.dv-move { width: auto; max-width: 150px; font-size: 12px; padding: 4px 8px; flex: none; }
+.dv-photos { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; margin-top: 2px; }
+.dv-photos a { color: var(--color-accent); white-space: nowrap; }
+.dv-map { height: 460px; border: 1px solid var(--color-divider); }
+.dv-kinds { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.dv-kind { border: 1px solid var(--color-divider); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.dv-count { display: flex; align-items: center; gap: 6px; }
+.dv-count > span { font-family: var(--font-heading); font-size: 28px; min-width: 36px; text-align: center; }
+.dv-count .btn { min-width: 36px; padding: 4px 10px; }
+.dv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dv-table th { text-align: left; font-weight: 500; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-neutral-700); padding: 8px 10px; border-bottom: 1px solid var(--color-divider); }
+.dv-table td { padding: 8px 10px; border-bottom: 1px solid var(--color-divider); vertical-align: top; }
+.dv-plate-in { width: 180px; text-transform: uppercase; }
+.dv-plate-in::placeholder { text-transform: none; }
+.dv-truck-head > div:first-child { flex: 1 1 200px; }
+.tag-red { background: color-mix(in srgb, var(--color-red) 12%, transparent); color: var(--color-danger-ink); }

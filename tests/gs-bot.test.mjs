@@ -63,7 +63,7 @@ const connect = t => t.s.post({ token: '', editor: '', tg: { action: 'setup', ur
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 9); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 10); assert.equal(t.s.triggers.length, 1); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
@@ -171,7 +171,7 @@ test('рабочий день: геолокация → ближайшая то�
   assert.match(t.last('sendMessage', 501).text, /отправьте геолокацию/);
   assert.equal(t.last('sendMessage', 501).reply_markup.keyboard[0][0].request_location, true);
   t.loc(501, DEPOT);
-  assert.match(t.last('sendMessage', g).text, /Akmal Karimov \(Gazel-2\) начал работу в 09:00 · точек на сегодня: 3/);
+  assert.match(t.last('sendMessage', g).text, /Akmal Karimov \(Gazel-2\) начал работу в 09:00 · точек: 3/);
   const day = t.s.book.sheets['Ish kuni'].rows[1];
   assert.deepEqual([day[0], day[2], day[3], day[4]], [TODAY, 'Gazel-2', '09:00', DEPOT.join(',')]);
   // первая точка — ближайшая к складу: BL-901 (две строки журнала — одна точка, груз сложен)
@@ -273,8 +273,16 @@ test('конец дня: геолокация → «Ish kuni» (конец, ит
   assert.match(t.last('sendMessage', g).text, /Akmal Karimov \(Gazel-2\) закончил работу в 18:30: доставлено 1, не доставлено 0, осталось 2/);
   const info = t.s.get({}).data.tg;
   assert.equal(info.bot, 'buraq_test_bot'); assert.equal(info.grouped, true); assert.equal(info.group, 'BURAQ — доставки');
-  assert.equal(info.drivers.length, 1); assert.deepEqual(info.drivers[0].today, { started: '09:00', ended: '18:30', ok: 1, fail: 0, pos: [41.31, 69.21] });
+  assert.equal(info.drivers.length, 1); assert.deepEqual(info.drivers[0].today, { started: '09:00', ended: '18:30', ok: 1, fail: 0, pos: DEPOT, posAt: '18:30', date: TODAY, cur: { bl: 'BL-902', round: 1 } });
+  assert.equal(info.log.length, 1); assert.equal(info.log[0].bl, 'BL-901'); assert.equal(info.log[0].ok, true); assert.equal(info.log[0].photos.length, 1);
+  assert.deepEqual([info.days[0].day, info.days[0].start, info.days[0].end, info.days[0].ok, info.days[0].date], [TODAY, '09:00', '18:30', 1, TODAY]);
   assert.equal(info.drivers[0].st, undefined);
+  // отметки: по умолчанию за 2 дня (опрос каждые 30 с), вкладка «Водители» просит до 45
+  t.s.book.sheets.Yetkazish.rows.push(['2026-09-16 10:00', '2026-09-16', 'Akmal Karimov', 'Gazel-2', 'BL-800', 'Old', 'Yetkazildi', '', '', '', '501', 1]);
+  assert.deepEqual([info.span, info.log.length], [2, 1]);
+  const all = t.s.get({ tgdays: '45' }).data.tg;
+  assert.deepEqual([all.span, all.log.map(x => x.bl).sort().join(',')], [45, 'BL-800,BL-901']);
+  assert.equal(t.s.get({ tgdays: '999' }).data.tg.span, 45, 'не больше 45');
 });
 
 test('сайт отключает водителя: бот ему больше ничего не показывает; язык переключается кнопкой', () => {
@@ -287,4 +295,96 @@ test('сайт отключает водителя: бот ему больше �
   assert.match(t.last('sendMessage', 501).text, /ruxsati yo‘q/);
   t.msg(501, '🚚 Ishni boshlash');
   assert.match(t.last('sendMessage', 501).text, /ruxsati yo‘q/);
+});
+
+// автопарк с госномерами: Sozlamalar D24:D39
+function withPlates(t) { const sh = t.s.book.sheets.Sozlamalar; sh.maxCols = 4; sh.set(25, 4, '01 A 222 BB'); return t; }
+
+test('госномер машины из автопарка: водитель его не пишет, кнопки машин — с номерами; «plates» с сайта пишет столбец D', () => {
+  const t = withPlates(setup()); connect(t);
+  t.msg(501, '/start'); t.cb(501, 'lang:ru'); t.msg(501, 'Akmal Karimov');
+  const kb = t.last('sendMessage', 501).reply_markup.inline_keyboard.flat().map(b => b.text);
+  assert.deepEqual(kb.slice(0, 2), ['Gazel-1', 'Gazel-2 · 01 A 222 BB']);
+  t.cb(501, 'trk:1');
+  assert.match(t.last('sendMessage', 501).text, /Gazel-2\n🔢 01 A 222 BB/);
+  t.cb(501, 'reg:send');
+  assert.equal(t.s.book.sheets.Haydovchilar.rows[1][3], '01 A 222 BB');
+  const r = t.s.post({ token: '', ops: [{ t: 'plates', v: { 'Gazel-1': '01 A 111 AA', 'Kamaz-1': '01 K 555 KK' } }] });
+  assert.equal(r.results[0].ok, true);
+  const set = t.s.book.sheets.Sozlamalar.rows;
+  assert.deepEqual([set[23][3], set[24][3], set[27][3], set[22][3]], ['01 A 111 AA', '', '01 K 555 KK', 'Davlat raqami']);
+  assert.equal(t.s.get({}).data.sheets.Sozlamalar[23].length, 4, 'выгрузка — 4 столбца');
+  // список машин поменялся (Gazel-1 убрали, Kamaz-3 добавили) — номера остаются у своих машин
+  const names = set.slice(23, 39).map(r => r[2]).filter(Boolean), next = names.filter(n => n !== 'Gazel-1').concat(['Kamaz-3']);
+  assert.equal(t.s.post({ token: '', ops: [{ t: 'trucks', v: next }] }).results[0].ok, true);
+  const now = Object.fromEntries(set.slice(23, 39).filter(r => r[2]).map(r => [r[2], r[3] || '']));
+  assert.deepEqual([now['Gazel-1'], now['Gazel-2'], now['Kamaz-1'], now['Kamaz-3']], [undefined, '', '01 K 555 KK', '']);
+  assert.equal(set[26][2] + ' ' + set[26][3], 'Kamaz-1 01 K 555 KK', 'Kamaz-1 сдвинулась вверх вместе с номером');
+});
+
+test('«Отправить» партию с сайта: задание со списком точек по рейсам; «Начать работу» — точки этой партии, даже если дата не сегодня', () => {
+  const t = approved(), g = t.group.id;
+  // партия вчерашняя (25.09): переносим отгрузки Gazel-2 на 25.09
+  t.s.book.sheets.Yuborishlar.rows.forEach(r => { if (r[12] === 'Gazel-2' && r[2] !== 'BL-905') r[0] = day(2026, 9, 25); });
+  const r = t.s.post({ token: '', tg: { action: 'dispatch', date: '2026-09-25' } });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.deepEqual(r.sent.map(x => [x.truck, x.n]), [['Gazel-2', 4]]);
+  assert.deepEqual(r.skipped, []);
+  const a = t.last('sendMessage', 501).text;
+  assert.match(a, /Задание: партия 25\.09\.2026\n🚚 Gazel-2 · точек: 4/); assert.match(a, /— рейс 1 —\n1\. BL-901 · NOVA · Chilonzor\n2\. BL-902 · Botir · Yunusobod/); assert.match(a, /3\. BL-905\n— рейс 2 —\n4\. BL-903 · STAR · Sergeli/);
+  assert.equal(r.tg.drivers[0].assign.date, '2026-09-25');
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  assert.match(t.last('sendMessage', g).text, /партия 25\.09\.2026 · точек: 4/);
+  assert.match(t.texts(501).filter(x => /Точка/.test(x)).pop(), /BL-901/);
+  const dayRow = t.s.book.sheets['Ish kuni'].rows[1];
+  assert.deepEqual([dayRow[0], dayRow[10]], [TODAY, '2026-09-25']);
+  // водитель уже работает — новое задание сразу меняет партию и присылает первую точку
+  t.s.book.sheets.Yuborishlar.rows.forEach(r => { if (r[2] === 'BL-904') r[12] = 'Gazel-2'; });
+  const r2 = t.s.post({ token: '', tg: { action: 'dispatch', date: TODAY, ids: ['501'] } });
+  assert.deepEqual(r2.sent.map(x => x.n), [1]);
+  const last3 = t.texts(501).slice(-3);
+  assert.match(last3[0], /Новое задание: партия 26\.09\.2026 — точек: 1/); assert.match(last3[1], /Точка 1 из 1 · рейс 1\n\n🏷 BL-904\n📦 5 мест/);
+  // партия без водителя в боте — в пропущенных
+  const r3 = t.s.post({ token: '', tg: { action: 'dispatch', date: '2026-09-25' } });
+  assert.ok(r3.skipped.some(x => x.truck === 'Gazel-2' && x.why === 'нет точек') || r3.sent.length === 1);
+});
+
+test('«Отправить всем»: машины с точками, но без водителя в боте — в ответе сайту', () => {
+  const t = approved();
+  const r = t.s.post({ token: '', tg: { action: 'dispatch', date: TODAY } });
+  assert.deepEqual(r.sent.map(x => x.truck), ['Gazel-2']); assert.deepEqual(r.skipped, [{ truck: 'Gazel-3', why: 'нет водителя в боте' }]);
+  assert.equal(t.s.post({ token: '', tg: { action: 'dispatch', date: '26.09.2026' } }).error, 'Выберите партию');
+});
+
+test('задание изменилось на сайте до начала работы — водителю новый список', () => {
+  const t = approved();
+  t.s.post({ token: '', tg: { action: 'dispatch', date: TODAY } });
+  const n = t.texts(501).length;
+  const w2 = { date: TODAY, bl: 'BL-902', cbm: 2, kg: 300, places: 12, truck: 'Gazel-2', route: 1, status: 'Rejada', note: 'осторожно, стекло' };
+  t.s.post({ token: '', ops: [{ t: 'ship.upsert', row: 6, guard: { bl: 'BL-902', date: TODAY }, was: w2, v: { ...w2, truck: 'Gazel-3' } }] });
+  const m = t.texts(501).slice(n);
+  assert.equal(m.length, 1); assert.match(m[0], /Задание изменилось\.\n\n📋 Задание: партия 26\.09\.2026\n🚚 Gazel-2 · точек: 2/);
+});
+
+test('«Написать водителю»: выбранным и всем на линии', () => {
+  const t = approved();
+  assert.equal(t.s.post({ token: '', tg: { action: 'message', ids: ['501'], text: 'Позвоните в офис' } }).sent, 1);
+  assert.match(t.last('sendMessage', 501).text, /Сообщение от руководителя:\nПозвоните в офис/);
+  assert.equal(t.s.post({ token: '', tg: { action: 'message', ids: 'online', text: 'x' } }).sent, 0, 'никто не на линии');
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  assert.equal(t.s.post({ token: '', tg: { action: 'message', ids: 'online', text: 'Обед до 14:00' } }).sent, 1);
+  assert.equal(t.s.post({ token: '', tg: { action: 'message', ids: ['501'], text: '  ' } }).error, 'Пустое сообщение');
+});
+
+test('итог дня в группу: по машинам — доставлено, не доставлено, осталось, время; по кнопке и по расписанию', () => {
+  const t = approved(), g = t.group.id;
+  assert.match(t.s.post({ token: '', tg: { action: 'summary' } }).error, /ещё не работали/);
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  t.cb(501, 'ok:BL-901|1'); t.photo(501, 'P'); t.msg(501, '✅ Готово'); t.loc(501, [41.31, 69.21]);
+  t.cb(501, 'fail:BL-902|1'); t.cb(501, 'why:0'); t.msg(501, '➡️ Без фото'); t.loc(501, DEPOT);
+  const r = t.s.post({ token: '', tg: { action: 'summary' } });
+  assert.equal(r.ok, true);
+  assert.match(r.text, /Итог дня 26\.09\.2026\n\n🚚 Gazel-2 · Akmal Karimov: доставлено 1, не доставлено 1, осталось 1 \(09:00–не закончил\)\n\nВсего: доставлено 1, не доставлено 1, осталось 1/);
+  assert.equal(t.last('sendMessage', g).text, r.text);
+  const n = t.tg.sent.length; t.s.ctx.tgDailySummary(); assert.equal(t.tg.sent.length, n + 1);
 });

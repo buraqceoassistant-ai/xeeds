@@ -34,7 +34,7 @@ export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
   // «сейчас» для скрипта: new Date() без аргументов — now.value (если задано)
   class MockDate extends Date { constructor(...a) { if (!a.length && now && now.value) super(now.value.getTime()); else super(...a); } static [Symbol.hasInstance](x) { return x instanceof Date; } }
   const book = { name: 'Тест', sheets: Object.fromEntries(Object.entries(sheets).map(([n, s]) => [n, new Sheet(n, s.rows || [], s.maxCols || 26)])) };
-  const calls = [], logs = [], cache = new Map(); let uuid = 0;
+  const calls = [], logs = [], cache = new Map(), triggers = []; let uuid = 0;
   // Google Диск: папки и файлы в памяти
   const files = [], folders = {};
   const folder = (name, parent) => { const id = 'f' + (Object.keys(folders).length + 1), f = { id, name, parent, getId: () => id,
@@ -62,7 +62,8 @@ export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
     DriveApp: drive,
     console: { error: m => logs.push('error: ' + m), log: m => logs.push(m) },
     Logger: { log: m => logs.push(m) },
-    ScriptApp: { AuthMode: { FULL: 'FULL' }, requireAllScopes: m => logs.push('requireAllScopes ' + m) },
+    ScriptApp: { AuthMode: { FULL: 'FULL' }, requireAllScopes: m => logs.push('requireAllScopes ' + m), getProjectTriggers: () => triggers.map(t => ({ getHandlerFunction: () => t.fn })),
+      newTrigger: fn => { const t = { fn }, b = { timeBased: () => b, atHour: h => { t.hour = h; return b; }, everyDays: n => { t.every = n; return b; }, inTimezone: z => { t.tz = z; return b; }, create: () => { triggers.push(t); return t; } }; return b; } },
     Maps: {}, Date: MockDate, JSON, Math, String, Number, Object, Array, isNaN, RegExp, Error
   };
   vm.createContext(ctx);
@@ -71,5 +72,5 @@ export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
   const get = (params = {}) => JSON.parse(ctx.doGet({ parameter: params }).text);
   // обновление от Telegram: doPost с ?tg=<секрет>
   const tgPost = (update, secret = props.TG_SECRET) => ctx.doPost({ parameter: { tg: secret }, postData: { contents: JSON.stringify(update) } });
-  return { ctx, book, calls, logs, post, get, tgPost, files, props, cache };
+  return { ctx, book, calls, logs, post, get, tgPost, files, props, cache, triggers };
 }

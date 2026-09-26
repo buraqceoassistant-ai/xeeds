@@ -13,7 +13,7 @@ var TG = { drivers: 'Haydovchilar', log: 'Yetkazish', days: 'Ish kuni' };
 var TG_HEAD = {
   drivers: ['Telegram ID', 'Ism', 'Mashina', 'Davlat raqami', 'Til', 'Holat', 'Ro‘yxatdan o‘tgan', 'Tasdiqlagan', 'Telegram', 'Bot holati (tizim uchun)'],
   log: ['Vaqt', 'Sana', 'Haydovchi', 'Mashina', 'BL', 'Mijoz', 'Natija', 'Sabab', 'Rasmlar', 'Joylashuv', 'Telegram ID', 'Reys'],
-  days: ['Sana', 'Haydovchi', 'Mashina', 'Boshlandi', 'Boshlanish joyi', 'Tugadi', 'Tugash joyi', 'Yetkazildi', 'Yetkazilmadi', 'Telegram ID']
+  days: ['Sana', 'Haydovchi', 'Mashina', 'Boshlandi', 'Boshlanish joyi', 'Tugadi', 'Tugash joyi', 'Yetkazildi', 'Yetkazilmadi', 'Telegram ID', 'Partiya']
 };
 var TG_DONE = ['Yetkazildi', 'Qolib ketgan', 'Mijoz ozi oldi', 'Bekor qilindi'];   // точка с таким статусом водителю больше не нужна
 var TG_NOT_TRUCKS = ['Belgilanmagan', 'Mijoz ozi oladi'];
@@ -52,7 +52,10 @@ var TX = {
     endDay: 'Ish kuni tugadi. Yetkazildi: {ok}, yetkazilmadi: {fail}, qoldi: {left}. Rahmat!',
     notWorking: 'Avval «🚚 Ishni boshlash» tugmasini bosing.', already: 'Ish kuni allaqachon boshlangan.',
     stale: 'Bu tugma eskirgan — joriy manzil pastda.', changed: '⚠️ Bugungi reyslaringiz o‘zgardi.', busy: 'Avval joriy manzilni yakunlang.',
-    unknown: 'Tugmalardan foydalaning 👇'
+    unknown: 'Tugmalardan foydalaning 👇',
+    assign: '📋 Topshiriq: {date} partiyasi\n🚚 {truck} · {n} ta manzil\n\n{list}\n\nBoshlash uchun «🚚 Ishni boshlash» tugmasini bosing.',
+    assignNow: '📋 Yangi topshiriq: {date} partiyasi — {n} ta manzil. Birinchi manzil pastda 👇',
+    assignChanged: '⚠️ Topshiriq o‘zgardi.', round: '{round}-reys', msg: '📩 Rahbardan xabar:\n{text}'
   },
   ru: {
     hello: 'Здравствуйте! Это бот для водителей BURAQ logistics.\nВыберите язык:',
@@ -85,7 +88,10 @@ var TX = {
     endDay: 'Рабочий день закончен. Доставлено: {ok}, не доставлено: {fail}, осталось: {left}. Спасибо!',
     notWorking: 'Сначала нажмите «🚚 Начать работу».', already: 'Рабочий день уже начат.',
     stale: 'Эта кнопка устарела — текущая точка ниже.', changed: '⚠️ Ваши рейсы на сегодня изменились.', busy: 'Сначала завершите текущую точку.',
-    unknown: 'Пользуйтесь кнопками 👇'
+    unknown: 'Пользуйтесь кнопками 👇',
+    assign: '📋 Задание: партия {date}\n🚚 {truck} · точек: {n}\n\n{list}\n\nЧтобы начать, нажмите «🚚 Начать работу».',
+    assignNow: '📋 Новое задание: партия {date} — точек: {n}. Первая точка ниже 👇',
+    assignChanged: '⚠️ Задание изменилось.', round: 'рейс {round}', msg: '📩 Сообщение от руководителя:\n{text}'
   }
 };
 // нажатая кнопка меню — на любом из двух языков (после смены языка у водителя может остаться старая клавиатура)
@@ -124,6 +130,13 @@ function tgSheet_(k) {
   if (!sh) { sh = ss.insertSheet(TG[k]); sh.getRange(1, 1, 1, TG_HEAD[k].length).setValues([TG_HEAD[k]]).setFontWeight('bold'); sh.setFrozenRows(1); }
   return sh;
 }
+// лист бота с заголовком нужной длины (новые столбцы дописываются в заголовок листа прошлой версии)
+function tgHead_(k) {
+  var sh = tgSheet_(k), n = TG_HEAD[k].length, h = sh.getRange(1, 1, 1, n).getValues()[0];
+  if (String(h[n - 1] || '') === '') sh.getRange(1, 1, 1, n).setValues([TG_HEAD[k]]);
+  return sh;
+}
+function tgDmy_(iso) { var p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : String(iso || ''); }
 function tgDrivers_() {
   var sh = tgSheet_('drivers'), last = sh.getLastRow(), out = [];
   if (last < 2) return out;
@@ -145,6 +158,27 @@ function tgTrucks_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH.set);
   if (!sh) return [];
   return sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).getValues().map(function (r) { return String(r[0]).trim(); }).filter(function (t) { return t && TG_NOT_TRUCKS.indexOf(t) < 0; });
+}
+
+// рабочий день водителя: сегодня начат и не закончен; w.day — календарный день, w.date — дата развозимой партии
+function tgWork_(d) {
+  var w = d.st && d.st.work;
+  if (!w) return null;
+  if (!w.day) w.day = w.date;   // состояние версии 9
+  return w.day === tgNow_('yyyy-MM-dd') && !w.ended ? w : null;
+}
+// партия из «Отправить» на сайте (действует 3 дня, до начала работы), иначе — сегодняшняя дата
+function tgAssigned_(d) {
+  var a = d.st && d.st.assign;
+  if (!a || a.used) return null;
+  var age = (Date.parse(tgNow_('yyyy-MM-dd')) - Date.parse(a.day)) / 864e5;
+  return age >= 0 && age <= 3 ? a : null;
+}
+function tgPlates_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH.set), out = {};
+  if (!sh || sh.getMaxColumns() < 4) return out;   // столбца госномеров ещё нет
+  sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 2).getValues().forEach(function (r) { var t = String(r[0]).trim(), p = String(r[1] || '').trim(); if (t && p) out[t] = p; });
+  return out;
 }
 
 // ── вход: обновление от Telegram ──
@@ -203,13 +237,14 @@ function tgHandle_(u) {
     return tgSend_(id, TX.uz.hello + '\n' + TX.ru.hello.split('\n')[1], tgInline_([[{ text: 'O‘zbekcha', callback_data: 'lang:uz' }, { text: 'Русский', callback_data: 'lang:ru' }]]));
   }
   // водитель с доступом
-  var w = d.st.work && d.st.work.date === tgNow_('yyyy-MM-dd') && !d.st.work.ended ? d.st.work : null;
+  var w = tgWork_(d);
   if (m.location) return tgLocation_(d, w, [m.location.latitude, m.location.longitude]);
   if (m.photo && m.photo.length) return tgPhoto_(d, w, m.photo[m.photo.length - 1].file_id);
   if (tgIs_(text, 'bLang') || /^\/til\b|^\/lang\b/.test(text)) { d.lang = L === 'uz' ? 'ru' : 'uz'; tgSave_(d); return tgSend_(id, tx_(d.lang, 'langSet'), tgMenu_(d.lang)); }
   if (tgIs_(text, 'bStart') || /^\/ish\b/.test(text)) {
     if (w && w.started) return tgSend_(id, tx_(L, 'already'), tgMenu_(L)) && tgCurrent_(d, w);
-    d.st.work = { date: tgNow_('yyyy-MM-dd'), stage: 'startLoc' }; tgSave_(d);
+    var a = tgAssigned_(d);
+    d.st.work = { day: tgNow_('yyyy-MM-dd'), date: a ? a.date : tgNow_('yyyy-MM-dd'), stage: 'startLoc' }; tgSave_(d);
     return tgSend_(id, tx_(L, 'askLocStart'), tgLocKb_(L));
   }
   if (tgIs_(text, 'bEnd') || /^\/tugatish\b/.test(text)) {
@@ -234,7 +269,8 @@ function tgHandle_(u) {
 
 function tgAskTruck_(d) {
   var list = tgTrucks_(), rows = [];
-  for (var i = 0; i < list.length; i += 3) rows.push(list.slice(i, i + 3).map(function (t, j) { return { text: t, callback_data: 'trk:' + (i + j) }; }));
+  var plates = tgPlates_();
+  for (var i = 0; i < list.length; i += 2) rows.push(list.slice(i, i + 2).map(function (t, j) { return { text: t + (plates[t] ? ' · ' + plates[t] : ''), callback_data: 'trk:' + (i + j) }; }));
   return tgSend_(d.id, tx_(d.lang, 'askTruck'), tgInline_(rows));
 }
 
@@ -252,7 +288,10 @@ function tgCallback_(q) {
   if (/^trk:\d+$/.test(data) && d.st.step === 'truck') {
     var t = tgTrucks_()[Number(data.slice(4))];
     if (!t) return tgAskTruck_(d);
-    d.truck = t; d.st = { step: 'plate' }; tgSave_(d);
+    d.truck = t;
+    var fp = tgPlates_()[t];   // госномер машины из автопарка — водитель его не пишет
+    if (fp) { d.plate = fp; d.st = { step: 'confirm' }; tgSave_(d); return tgSend_(d.id, tx_(L, 'check', { name: d.name, truck: d.truck, plate: d.plate }), tgInline_([[{ text: tx_(L, 'send'), callback_data: 'reg:send' }, { text: tx_(L, 'redo'), callback_data: 'reg:redo' }]])); }
+    d.st = { step: 'plate' }; tgSave_(d);
     return tgSend_(d.id, tx_(L, 'askPlate'));
   }
   if (data === 'reg:redo' && d.status !== 'ruxsat') { d.st = { step: 'name' }; tgSave_(d); return tgSend_(d.id, tx_(L, 'askName')); }
@@ -262,7 +301,7 @@ function tgCallback_(q) {
     return tgAskApproval_(d);
   }
   if (d.status !== 'ruxsat') return;
-  var w = d.st.work && d.st.work.date === tgNow_('yyyy-MM-dd') && !d.st.work.ended ? d.st.work : null;
+  var w = tgWork_(d);
   if (!w || !w.started) return tgSend_(d.id, tx_(L, 'notWorking'), tgMenu_(L));
   var m = data.match(/^(ok|fail):(.+)$/);
   if (m) {
@@ -378,8 +417,8 @@ function tgFmt_(x) { return String(Math.round(x * 1000) / 1000).replace('.', ','
 function tgCard_(d, s, stops) {
   var L = d.lang, inRound = stops.filter(function (x) { return x.round === s.round; }), done = inRound.filter(function (x) { return !x.open; }).length, c = s.c;
   var lines = [tx_(L, 'stop', { i: done + 1, n: inRound.length, round: s.round }), '',
-    '🏷 ' + s.bl + (c.brand || c.name ? ' · ' + [c.brand, c.name].filter(Boolean).join(' — ') : ''),
-    '📍 ' + [c.district, c.address].filter(Boolean).join(', ')];
+    '🏷 ' + s.bl + (c.brand || c.name ? ' · ' + [c.brand, c.name].filter(Boolean).join(' — ') : '')];
+  if (c.district || c.address) lines.push('📍 ' + [c.district, c.address].filter(Boolean).join(', '));
   if (c.receiver || c.recvTel) lines.push('👤 ' + tx_(L, 'recv') + ': ' + [c.receiver, c.recvTel].filter(Boolean).join(' · '));
   if (c.tel1 && c.tel1 !== c.recvTel) lines.push('☎️ ' + tx_(L, 'tel') + ': ' + c.tel1);
   lines.push('📦 ' + tx_(L, 'cargo', { places: s.places, cbm: tgFmt_(s.cbm), kg: tgFmt_(s.kg) }));
@@ -424,21 +463,23 @@ function tgLocation_(d, w, ll) {
   var L = d.lang;
   if (!w) return tgSend_(d.id, tx_(L, 'notWorking'), tgMenu_(L));
   if (w.stage === 'startLoc') {
-    w.started = tgNow_('HH:mm'); w.stage = null; w.pos = ll; w.round = null; w.ok = 0; w.fail = 0; tgSave_(d);
-    tgSheet_('days').appendRow([w.date, d.name, d.truck, w.started, ll.join(','), '', '', '', '', d.id]);
+    w.started = tgNow_('HH:mm'); w.stage = null; w.pos = ll; w.posAt = w.started; w.round = null; w.ok = 0; w.fail = 0;
+    if (d.st.assign && !d.st.assign.used && d.st.assign.date === w.date) d.st.assign.used = w.day;
+    tgSave_(d);
+    tgHead_('days').appendRow([w.day, d.name, d.truck, w.started, ll.join(','), '', '', '', '', d.id, w.date]);
     var stops = tgStops_(d.truck, w.date);
-    tgReport_('🚚 ' + d.name + ' (' + d.truck + ') начал работу в ' + w.started + ' · точек на сегодня: ' + stops.filter(function (s) { return s.open; }).length + ' · 📍 ' + tgMap_(ll));
+    tgReport_('🚚 ' + d.name + ' (' + d.truck + ') начал работу в ' + w.started + ' · ' + (w.date !== w.day ? 'партия ' + tgDmy_(w.date) + ' · ' : '') + 'точек: ' + stops.filter(function (s) { return s.open; }).length + ' · 📍 ' + tgMap_(ll));
     return tgNext_(d, w);
   }
   if (w.stage === 'endLoc') {
     var all = tgStops_(d.truck, w.date), left = all.filter(function (s) { return s.open; }).length, end = tgNow_('HH:mm');
-    w.ended = end; w.stage = null; tgSave_(d);
+    w.ended = end; w.stage = null; w.pos = ll; w.posAt = end; tgSave_(d);
     tgDayEnd_(d, w, end, ll);
     tgReport_('🏁 ' + d.name + ' (' + d.truck + ') закончил работу в ' + end + ': доставлено ' + (w.ok || 0) + ', не доставлено ' + (w.fail || 0) + ', осталось ' + left + ' · 📍 ' + tgMap_(ll));
     return tgSend_(d.id, tx_(L, 'endDay', { ok: w.ok || 0, fail: w.fail || 0, left: left }), tgMenu_(L));
   }
   if (w.stage === 'loc' && w.cur) return tgFinish_(d, w, ll);
-  w.pos = ll; tgSave_(d);
+  w.pos = ll; w.posAt = tgNow_('HH:mm'); tgSave_(d);
   return tgSend_(d.id, tx_(L, 'unknown'), tgMenu_(L));
 }
 function tgDayEnd_(d, w, end, ll) {
@@ -447,21 +488,21 @@ function tgDayEnd_(d, w, end, ll) {
   var v = sh.getRange(2, 1, last - 1, 10).getValues();
   for (var i = v.length - 1; i >= 0; i--) {
     var dt = v[i][0] instanceof Date ? Utilities.formatDate(v[i][0], SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd') : String(v[i][0]);
-    if (String(v[i][9]) === d.id && dt === w.date) { sh.getRange(2 + i, 6, 1, 4).setValues([[end, ll.join(','), w.ok || 0, w.fail || 0]]); return; }
+    if (String(v[i][9]) === d.id && dt === (w.day || w.date)) { sh.getRange(2 + i, 6, 1, 4).setValues([[end, ll.join(','), w.ok || 0, w.fail || 0]]); return; }
   }
 }
 // точка закрыта: статус в журнале, фото на Диск, строка в «Yetkazish», отчёт в группу, следующая точка
 function tgFinish_(d, w, ll) {
   var ok = w.result === 'ok', stops = tgStops_(d.truck, w.date), s = stops.filter(function (x) { return x.key === w.cur.key; })[0];
   var photos = (w.photos || []).slice(), reason = w.reason || '', cur = w.cur, now = tgNow_();
-  w.pos = ll; w.cur = null; w.stage = null; w.photos = []; w.reason = ''; w[ok ? 'ok' : 'fail'] = (w[ok ? 'ok' : 'fail'] || 0) + 1;
+  w.pos = ll; w.posAt = now.slice(11); w.cur = null; w.stage = null; w.photos = []; w.reason = ''; w[ok ? 'ok' : 'fail'] = (w[ok ? 'ok' : 'fail'] || 0) + 1;
   tgSave_(d);
   if (s) {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH.ship);
     s.rows.forEach(function (r) { if (String(sh.getRange(r, 3).getValue()).trim() === s.bl && String(sh.getRange(r, 13).getValue()).trim() === d.truck) sh.getRange(r, 15).setValue(ok ? 'Yetkazildi' : 'Qolib ketgan'); });
     TG_MEMO = null;   // журнал изменился — следующую точку считаем по свежим данным
   }
-  var links = tgSavePhotos_(photos, w.date, d.truck, cur.bl);
+  var links = tgSavePhotos_(photos, w.day || w.date, d.truck, cur.bl);
   var c = (s && s.c) || {}, who = [c.brand, c.name].filter(Boolean).join(' — ');
   tgSheet_('log').appendRow([now, w.date, d.name, d.truck, cur.bl, who, ok ? 'Yetkazildi' : 'Yetkazilmadi', reason, links.join(' '), ll.join(','), d.id, cur.round]);
   var cap = (ok ? '✅ ' : '❌ ') + d.truck + ' · ' + d.name + ' — ' + (ok ? 'доставлено' : 'не доставлено') + ': ' + cur.bl + (who ? ' ' + who : '') +
@@ -499,20 +540,124 @@ function tgReport_(text, photos) {
   return tg_('sendMediaGroup', { chat_id: g, media: photos.map(function (p, i) { return i ? { type: 'photo', media: p } : { type: 'photo', media: p, caption: text.slice(0, 1000) }; }) });
 }
 
-// ── изменения на сайте: водителям, у которых сегодня рабочий день, — если их точки поменялись ──
+// ── изменения на сайте: водителю, который работает с партией или получил её заданием, — если его точки поменялись ──
 function tgAfterOps_(ops) {
   if (!prop_('TG_TOKEN') || !(ops || []).some(function (op) { return /^ship\./.test(op.t); })) return;
-  var today = tgNow_('yyyy-MM-dd');
   TG_MEMO = null;
   tgDrivers_().forEach(function (d) {
-    var w = d.st && d.st.work;
-    if (d.status !== 'ruxsat' || !w || w.date !== today || !w.started || w.ended) return;
-    var sig = tgSig_(tgStops_(d.truck, today));
-    if (sig === w.sig) return;
-    tgSend_(d.id, tx_(d.lang, 'changed'));
-    if (!w.stage || w.stage === 'roundWait') tgCurrent_(d, w);
-    else { w.sig = sig; tgSave_(d); }
+    if (d.status !== 'ruxsat') return;
+    var w = tgWork_(d), a = tgAssigned_(d);
+    if (w && w.started) {
+      var sig = tgSig_(tgStops_(d.truck, w.date));
+      if (sig === w.sig) return;
+      tgSend_(d.id, tx_(d.lang, 'changed'));
+      if (!w.stage || w.stage === 'roundWait') tgCurrent_(d, w);
+      else { w.sig = sig; tgSave_(d); }
+    } else if (a) {
+      var st = tgStops_(d.truck, a.date), sg = tgSig_(st);
+      if (sg === a.sig) return;
+      a.sig = sg; tgSave_(d);
+      tgSend_(d.id, tx_(d.lang, 'assignChanged') + '\n\n' + tgAssignText_(d, a.date, st), tgMenu_(d.lang));
+    }
   });
+}
+
+// ── задание водителю: партия, точки по рейсам ──
+function tgAssignText_(d, date, stops) {
+  var open = stops.filter(function (x) { return x.open; }), rounds = {}, lines = [];
+  open.forEach(function (x) { (rounds[x.round] = rounds[x.round] || []).push(x); });
+  var rs = Object.keys(rounds).map(Number).sort(function (a, b) { return a - b; }), i = 0;
+  rs.forEach(function (r) {
+    if (rs.length > 1) lines.push('— ' + tx_(d.lang, 'round', { round: r }) + ' —');
+    rounds[r].forEach(function (x) { i++; if (i <= 40) lines.push(i + '. ' + x.bl + (x.c.brand || x.c.name ? ' · ' + (x.c.brand || x.c.name) : '') + (x.c.district ? ' · ' + x.c.district : '')); });
+  });
+  if (i > 40) lines.push('… +' + (i - 40));
+  return tx_(d.lang, 'assign', { date: tgDmy_(date), truck: d.truck, n: open.length, list: lines.join('\n') });
+}
+// «Отправить» с сайта: водителям (всем с точками в партии или выбранным) — задание; тем, кто уже работает, — сразу первая точка
+function tgDispatch_(date, ids) {
+  var sent = [], skipped = [], today = tgNow_('yyyy-MM-dd'), drivers = tgDrivers_().filter(function (d) { return d.status === 'ruxsat'; });
+  TG_MEMO = null;
+  var targets = ids && ids.length ? drivers.filter(function (d) { return ids.indexOf(d.id) >= 0; }) : drivers;
+  targets.forEach(function (d) {
+    var stops = tgStops_(d.truck, date), open = stops.filter(function (x) { return x.open; });
+    if (!open.length) { skipped.push({ id: d.id, name: d.name, truck: d.truck, why: 'нет точек' }); return; }
+    var w = tgWork_(d);
+    if (w && w.started) {
+      w.date = date; w.round = null; w.cur = null; w.stage = null; tgSave_(d);
+      tgSend_(d.id, tx_(d.lang, 'assignNow', { date: tgDmy_(date), n: open.length }));
+      tgNext_(d, w);
+    } else {
+      d.st.assign = { date: date, day: today, at: tgNow_(), sig: tgSig_(stops) }; tgSave_(d);
+      tgSend_(d.id, tgAssignText_(d, date, stops), tgMenu_(d.lang));
+    }
+    sent.push({ id: d.id, name: d.name, truck: d.truck, n: open.length });
+  });
+  // машины с точками, у которых нет водителя в боте
+  if (!(ids && ids.length)) {
+    var has = {}; drivers.forEach(function (d) { has[d.truck] = 1; });
+    var D = tgData_(), trucks = {};
+    D.rows.forEach(function (r) { var dt = r[0] instanceof Date ? Utilities.formatDate(r[0], D.tz, 'yyyy-MM-dd') : String(r[0]).slice(0, 10), t = String(r[12]).trim(); if (dt === date && t && TG_NOT_TRUCKS.indexOf(t) < 0 && TG_DONE.indexOf(String(r[14]).trim()) < 0 && !has[t]) trucks[t] = 1; });
+    Object.keys(trucks).forEach(function (t) { skipped.push({ truck: t, why: 'нет водителя в боте' }); });
+  }
+  return { sent: sent, skipped: skipped };
+}
+// «Написать водителю»: одному, выбранным или всем, кто сегодня на линии
+function tgMessage_(ids, text) {
+  text = String(text || '').trim().slice(0, 1500);
+  if (!text) return { error: 'Пустое сообщение' };
+  var list = tgDrivers_().filter(function (d) { return d.status === 'ruxsat' && (ids === 'online' ? (tgWork_(d) || {}).started : (ids || []).indexOf(d.id) >= 0); });
+  list.forEach(function (d) { tgSend_(d.id, tx_(d.lang, 'msg', { text: text })); });
+  return { sent: list.length };
+}
+
+// ── итог дня в группу: по каждой машине, где работали или было задание ──
+function tgSummaryText_(day) {
+  var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), rec = tgRecent_(1), byTruck = {};
+  var put = function (t) { return (byTruck[t] = byTruck[t] || { truck: t, names: [], ok: 0, fail: 0, left: 0, start: '', end: '', dates: {} }); };
+  rec.days.filter(function (x) { return x.day === day; }).forEach(function (x) { var o = put(x.truck); if (o.names.indexOf(x.name) < 0) o.names.push(x.name); o.start = o.start || x.start; o.end = x.end || o.end; o.dates[x.date || day] = 1; });
+  rec.log.filter(function (x) { return String(x.t).slice(0, 10) === day; }).forEach(function (x) { var o = put(x.truck); if (o.names.indexOf(x.name) < 0) o.names.push(x.name); o[x.ok ? 'ok' : 'fail']++; o.dates[x.date] = 1; });
+  tgDrivers_().forEach(function (d) { var a = d.st && d.st.assign; if (d.status === 'ruxsat' && a && a.day === day && !a.used) { var o = put(d.truck); if (o.names.indexOf(d.name) < 0) o.names.push(d.name); o.dates[a.date] = 1; o.noStart = true; } });
+  var list = Object.keys(byTruck).sort().map(function (k) { return byTruck[k]; });
+  if (!list.length) return '';
+  TG_MEMO = null;
+  var tot = { ok: 0, fail: 0, left: 0 };
+  var lines = list.map(function (o) {
+    Object.keys(o.dates).forEach(function (dt) { o.left += tgStops_(o.truck, dt).filter(function (x) { return x.open; }).length; });
+    tot.ok += o.ok; tot.fail += o.fail; tot.left += o.left;
+    return '🚚 ' + o.truck + ' · ' + (o.names.join(', ') || '—') + ': ' + (o.noStart && !o.start ? 'не вышел на линию' : 'доставлено ' + o.ok + ', не доставлено ' + o.fail + ', осталось ' + o.left + (o.start ? ' (' + o.start + '–' + (o.end || 'не закончил') + ')' : ''));
+  });
+  return '📊 Итог дня ' + tgDmy_(day) + '\n\n' + lines.join('\n') + '\n\nВсего: доставлено ' + tot.ok + ', не доставлено ' + tot.fail + ', осталось ' + tot.left;
+}
+// по расписанию (триггер создаётся при «Подключить бота»): итог дня в группу
+function tgDailySummary() {
+  if (!prop_('TG_TOKEN') || !tgGroup_()) return;
+  var text = tgSummaryText_(tgNow_('yyyy-MM-dd'));
+  if (text) tgSend_(tgGroup_(), text);
+}
+function tgEnsureTrigger_() {
+  try {
+    var has = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'tgDailySummary'; });
+    if (!has) ScriptApp.newTrigger('tgDailySummary').timeBased().atHour(TG_SUMMARY_HOUR).everyDays(1).inTimezone(SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone()).create();
+    return '';
+  } catch (err) { return 'Итог дня по расписанию не включился: ' + ((err && err.message) || err) + '. Выполните в Apps Script функцию authorize и нажмите «Подключить бота» ещё раз.'; }
+}
+var TG_SUMMARY_HOUR = 20;
+
+// ── для сайта: отметки доставки и рабочие дни за последние дни ──
+function tgRecent_(days) {
+  var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), from = Utilities.formatDate(new Date(Date.now() - (days - 1) * 864e5), tz, 'yyyy-MM-dd');
+  var iso = function (v) { return v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v || '').slice(0, 10); };
+  var rows = function (k, n) { var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TG[k]); if (!sh || sh.getLastRow() < 2) return []; var last = sh.getLastRow(), first = Math.max(2, last - 2999); return sh.getRange(first, 1, last - first + 1, n).getValues(); };
+  var log = rows('log', 12).filter(function (r) { return r[0] !== '' && iso(r[0] instanceof Date ? r[0] : String(r[0]).slice(0, 10)) >= from; }).map(function (r) {
+    var t = r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy-MM-dd HH:mm') : String(r[0]);
+    return { t: t, date: iso(r[1]), name: String(r[2]), truck: String(r[3]), bl: String(r[4]), client: String(r[5]), ok: String(r[6]) === 'Yetkazildi', reason: String(r[7] || ''), photos: String(r[8] || '').split(/\s+/).filter(Boolean), ll: String(r[9] || ''), id: String(r[10]), round: Number(r[11]) || 1 };
+  });
+  var hm = function (v) { return v instanceof Date ? Utilities.formatDate(v, tz, 'HH:mm') : String(v || ''); };
+  var dys = rows('days', 11).filter(function (r) { return r[0] !== '' && iso(r[0]) >= from; }).map(function (r) {
+    return { day: iso(r[0]), name: String(r[1]), truck: String(r[2]), start: hm(r[3]), startLL: String(r[4] || ''), end: hm(r[5]), endLL: String(r[6] || ''), ok: Number(r[7]) || 0, fail: Number(r[8]) || 0, id: String(r[9]), date: r[10] ? iso(r[10]) : iso(r[0]) };
+  });
+  return { log: log, days: dys };
 }
 
 // ── сайт: подключить бота, водители ──
@@ -533,24 +678,42 @@ function tgSite_(body) {
     var cmd = function (l) { return [{ command: 'start', description: l === 'ru' ? 'Регистрация' : 'Ro‘yxatdan o‘tish' }, { command: 'ish', description: tx_(l, 'bStart').slice(2) }, { command: 'hozir', description: tx_(l, 'bCur').slice(2) }, { command: 'tugatish', description: tx_(l, 'bEnd').slice(2) }, { command: 'til', description: tx_(l, 'bLang').slice(2) }]; };
     tg_('setMyCommands', { commands: cmd('uz') });
     tg_('setMyCommands', { commands: cmd('ru'), language_code: 'ru' });
-    return { ok: true, v: VERSION, tg: tgInfo_() };
+    var warn = tgEnsureTrigger_();
+    return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays), warn: warn };
+  }
+  if (a.action === 'dispatch') {
+    if (!/^20\d\d-\d\d-\d\d$/.test(String(a.date || ''))) return { error: 'Выберите партию', v: VERSION };
+    var r = tgDispatch_(a.date, a.ids);
+    return { ok: true, v: VERSION, sent: r.sent, skipped: r.skipped, tg: tgInfo_(body.tgdays) };
+  }
+  if (a.action === 'message') { var mr = tgMessage_(a.ids, a.text); return mr.error ? { error: mr.error, v: VERSION } : { ok: true, v: VERSION, sent: mr.sent }; }
+  if (a.action === 'summary') {
+    if (!tgGroup_()) return { error: 'Группа отчётов не привязана: отправьте в группе /ulash и код с сайта', v: VERSION };
+    var tx = tgSummaryText_(tgNow_('yyyy-MM-dd'));
+    if (!tx) return { error: 'Сегодня водители ещё не работали', v: VERSION };
+    tgSend_(tgGroup_(), tx);
+    return { ok: true, v: VERSION, text: tx };
   }
   if (a.action === 'driver') {
     var d = tgDriver_(a.id);
     if (!d) return { error: 'Нет такого водителя', v: VERSION };
     if (['ruxsat', 'rad', 'o‘chirilgan'].indexOf(a.status) < 0) return { error: 'Неизвестный статус', v: VERSION };
     tgSetStatus_(d, a.status, 'сайт');
-    return { ok: true, v: VERSION, tg: tgInfo_() };
+    return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
   }
-  return { ok: true, v: VERSION, tg: tgInfo_() };
+  return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
 }
-// для сайта: бот, группа, код привязки группы, водители (без состояния диалога)
-function tgInfo_() {
+// для сайта: бот, группа, код привязки группы, водители (без состояния диалога), отметки и рабочие дни за days дней
+// (по умолчанию 2 — сайт опрашивает таблицу каждые 30 с; до 45 — вкладка «Водители» за период)
+function tgInfo_(days) {
   if (!prop_('TG_TOKEN')) return null;
-  return { bot: prop_('TG_BOT'), hooked: !!prop_('TG_SECRET'), group: prop_('TG_GROUP_TITLE') || '', grouped: !!prop_('TG_GROUP'), code: prop_('TG_GROUP_CODE'),
+  var span = Math.min(45, Math.max(1, Math.round(Number(days)) || 2));
+  var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), rec = tgRecent_(span);
+  return { bot: prop_('TG_BOT'), hooked: !!prop_('TG_SECRET'), group: prop_('TG_GROUP_TITLE') || '', grouped: !!prop_('TG_GROUP'), code: prop_('TG_GROUP_CODE'), summaryHour: TG_SUMMARY_HOUR, span: span,
     drivers: tgDrivers_().filter(function (d) { return d.status !== 'yangi'; }).map(function (d) {
-      var w = d.st && d.st.work, today = tgNow_('yyyy-MM-dd');
-      return { id: d.id, name: d.name, truck: d.truck, plate: d.plate, lang: d.lang, status: d.status, at: d.at instanceof Date ? Utilities.formatDate(d.at, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm') : String(d.at || ''), user: d.user,
-        today: w && w.date === today && w.started ? { started: w.started, ended: w.ended || '', ok: w.ok || 0, fail: w.fail || 0, pos: w.pos || null } : null };
-    }) };
+      var w = d.st && d.st.work, today = tgNow_('yyyy-MM-dd'), a = tgAssigned_(d), day = w && (w.day || w.date);
+      return { id: d.id, name: d.name, truck: d.truck, plate: d.plate, lang: d.lang, status: d.status, at: d.at instanceof Date ? Utilities.formatDate(d.at, tz, 'yyyy-MM-dd HH:mm') : String(d.at || ''), user: d.user,
+        today: w && day === today && w.started ? { started: w.started, ended: w.ended || '', ok: w.ok || 0, fail: w.fail || 0, pos: w.pos || null, posAt: w.posAt || '', date: w.date, cur: w.cur ? { bl: w.cur.bl, round: w.cur.round } : null } : null,
+        assign: a ? { date: a.date, at: a.at } : null };
+    }), log: rec.log, days: rec.days };
 }
