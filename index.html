@@ -1232,6 +1232,9 @@
           <section class="ai-box" style="border:1px solid var(--color-divider);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
             <div style="font-weight:500">ИИ-импорт манифестов</div>
             <div style="font-size:13px;text-wrap:pretty">{{ aiInfo }}</div>
+            <sc-if value="{{ aiHasProps }}">
+              <div class="ai-props"><sc-for list="{{ aiProps }}" as="p"><code>{{ p.name }}</code><div>{{ p.value }}</div></sc-for></div>
+            </sc-if>
             <sc-if value="{{ aiShowSecret }}"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><code style="font-size:13px;padding:6px 10px;background:var(--color-surface);border:1px solid var(--color-divider);word-break:break-all">{{ aiSecret }}</code><button class="btn btn-ghost" sc-camel-on-click="{{ aiCopy }}">Скопировать</button></div></sc-if>
             <sc-if value="{{ aiNeedPass }}"><div class="field" style="max-width:320px"><label>Пароль входа — чтобы открыть или создать секрет</label><input class="input" type="password" autocomplete="current-password" value="{{ aiPass }}" sc-camel-on-change="{{ onAiPass }}"></div></sc-if>
             <div style="font-size:13px;color:{{ aiResColor }};text-wrap:pretty">{{ aiRes }}</div>
@@ -3189,9 +3192,16 @@ class Component extends DCLogic {
           const setAi = patch => this.setState(s => s.dialog && s.dialog.type === 'gs' ? { dialog: { ...s.dialog, ai: { ...(s.dialog.ai || {}), ...patch } } } : null);
           const fail = e => setAi({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' });
           out.aiInfo = this.gsVersion && this.gsVersion < 8 ? 'Скрипт таблицы версии ' + this.gsVersion + ': для ИИ нужна версия 8 — обновите код (шаги выше).' :
-            own.state === 'open' && sec ? 'В свойства скрипта (в этой Google Таблице: Расширения → Apps Script → ⚙ Настройки проекта → Свойства скрипта) впишите: ANTHROPIC_API_KEY — ключ Claude API, EDITOR_TOKEN — секрет редактора ниже, при желании AI_MODEL (по умолчанию claude-sonnet-5). Затем нажмите «Сохранить свойства скрипта».' :
+            own.state === 'open' && sec ? 'В этой Google Таблице: Расширения → Apps Script → ⚙ Настройки проекта → Свойства скрипта → «Изменить свойства скрипта» → «Добавить свойство». ' +
+              'В поле «Свойство» — имя слева, в поле «Значение» — то, что указано справа (сам ключ или секрет, а не этот текст). Затем «Сохранить свойства скрипта».' :
             own.state === 'locked' ? 'Секрет редактора есть, но на этом устройстве закрыт: введите пароль входа.' :
             'Секрет редактора не задан. Нажмите «Новый секрет редактора» (нужны пароль входа и GitHub-токен) и впишите его в свойство скрипта EDITOR_TOKEN.';
+          out.aiProps = own.state === 'open' && sec ? [
+            { name: 'ANTHROPIC_API_KEY', value: 'ключ Claude API — длинная строка, начинается с sk-ant- (Claude Console → Settings → API keys → Create key)' },
+            { name: 'EDITOR_TOKEN', value: 'секрет редактора: «Показать секрет» ниже → «Скопировать»' },
+            ...(this.gsToken ? [{ name: 'TOKEN', value: 'пароль таблицы — тот же, что в поле «Пароль» выше; тогда при обновлении кода его не нужно вписывать в код' }] : []),
+            { name: 'AI_MODEL', value: 'необязательно; без него — claude-sonnet-5' }] : [];
+          out.aiHasProps = out.aiProps.length > 0;
           Object.assign(out, { aiRes: ai.res || '', aiResColor: ai.color || 'var(--color-neutral-700)', aiBusy: !!ai.busy, aiNeedPass: own.state !== 'open', aiPass: ai.pass || '',
             aiHasSecret: !!sec, aiShowSecret: !!(ai.show && sec), aiSecret: sec, aiShowLabel: ai.show ? 'Скрыть секрет' : 'Показать секрет', aiLocked: own.state === 'locked',
             onAiPass: e => setAi({ pass: e.target.value }),

@@ -235,3 +235,7 @@ button.imp-check:hover { background: var(--color-surface); }
 .imp-plan { border: 1px solid var(--color-divider); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
 .imp-foot { position: sticky; bottom: 0; z-index: 5; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: flex-end; padding: 12px 0; border-top: 1px solid var(--color-divider); background: var(--color-bg); }
 .btn.imp-disabled { opacity: .55; cursor: not-allowed; }
+/* «Настройки связи» → ИИ: свойства скрипта — имя и что вписать в значение */
+.ai-props { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 12px; font-size: 13px; align-items: baseline; }
+.ai-props code { font-size: 12px; padding: 2px 6px; background: var(--color-surface); border: 1px solid var(--color-divider); }
+@media screen and (max-width: 560px) { .ai-props { grid-template-columns: minmax(0, 1fr); gap: 2px; } .ai-props > div { margin-bottom: 6px; } }
