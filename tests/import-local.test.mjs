@@ -74,10 +74,10 @@ test('ответ ИИ с числом объединённой ячейки в �
 });
 
 test('несколько брендов у клиента через запятую — маркировка узнаётся по любому из них', () => {
-  const idx = L.clientIndex([{ bl: 'BL-908', brand: 'SPECIAL ORDER, DESIGN', name: 'Umar' }, { bl: 'BL-909', brand: 'NOVA; STAR', name: 'Ali' }]);
-  assert.deepEqual(L.matchMark('DESIGN', idx), { client: 'BL-908', by: 'brand', reason: 'бренд' });
-  assert.equal(L.matchMark('SPECIAL ORDER', idx).client, 'BL-908'); assert.equal(L.matchMark('star', idx).client, 'BL-909');
-  assert.equal(L.matchMark('ORDER', idx), null);
+  const idx = L.clientIndex([{ bl: 'BL-908', brand: 'NORD DECOR, STUDIO', name: 'Umar' }, { bl: 'BL-909', brand: 'NOVA; STAR', name: 'Ali' }]);
+  assert.deepEqual(L.matchMark('STUDIO', idx), { client: 'BL-908', by: 'brand', reason: 'бренд' });
+  assert.equal(L.matchMark('NORD DECOR', idx).client, 'BL-908'); assert.equal(L.matchMark('star', idx).client, 'BL-909');
+  assert.equal(L.matchMark('DECOR', idx), null);
 });
 
 test('партия уже в журнале, но итог разошёлся из-за одной строки — предупреждение по клиентам', async () => {
