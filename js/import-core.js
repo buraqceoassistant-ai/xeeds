@@ -21,6 +21,12 @@
     const m = mergeAt(sheet, r, typeof c === 'number' ? c : colNum(c));
     return m ? ((sheet.rows[m.r1] || {})[colName(m.c1)] ?? null) : null;
   }
+  // своя ячейка: часть объединения ниже или правее левой верхней — пустая (число объединённой ячейки считаем один раз)
+  function ownCell(sheet, r, c) {
+    const cn = typeof c === 'number' ? c : colNum(c), m = mergeAt(sheet, r, cn);
+    if (m && (m.r1 !== r || m.c1 !== cn)) return null;
+    return cellOf(sheet, r, cn);
+  }
   function mergeAt(sheet, r, c) {
     if (!sheet._merges) sheet._merges = (sheet.merges || []).map(ref => { const [a, b] = ref.split(':').map(parseRef); return a && b ? { r1: a.r, c1: a.c, r2: b.r, c2: b.c } : null; }).filter(Boolean);
     return sheet._merges.find(m => r >= m.r1 && r <= m.r2 && c >= m.c1 && c <= m.c2) || null;
@@ -80,6 +86,7 @@
     'маркировка (SHIPPING MARK, 唛头, MARK), места (CTN, 件数, PKGS), м³ (CBM, T/CBM, 体积, VOLUME), кг (KG, G.W., 毛重, WEIGHT).',
     'rows: каждая строка груза в порядке документа. Маркировка — как написана (BL-146, ECLIPSE, CBETKO; кириллицу не переводи).',
     'Если маркировка занимает несколько строк (ячейка объединена или пустая, а строка продолжает маркировку сверху) — повтори её в каждой строке.',
+    'Число в объединённой ячейке на несколько строк (пометка ↑ в строках ниже) пиши только в первой строке, в остальных — null: иначе оно посчитается дважды.',
     'Источник строки: для Excel — лист и номер строки из пометки R; для PDF — номер страницы (с 1). text — дословный текст строки документа.',
     'Строки заголовков, итогов, подытогов и пустые строки в rows не включай.',
     'notes: всё, что не удалось прочитать, неоднозначно или похоже на ошибку в самом документе (например, итог не сходится).'
@@ -157,8 +164,16 @@
   // ───────── разбор документа: части → ответы ИИ → черновик ─────────
   // ai(req) → Promise<{ ok, result, usage, ms, model, mode } | { error, code }> — вызов скрипта таблицы (index.html, aiPost)
   const RETRY_SPLIT = ['truncated', 'timeout'], RETRY_SAME = ['http500', 'http502', 'http503', 'http504', 'http529', 'net'];
-  async function analyze({ doc, fileName, clients, ai, draftId, today, onProgress = () => {}, parallel = 3, wait = ms => new Promise(r => setTimeout(r, ms)) }) {
-    let queue = scopes(doc).map((p, i, a) => ({ p, idx: [i], n: a.length })), done = [], calls = [], failed = null, total = queue.length, finished = 0;
+  // local(doc) — разбор без ИИ (js/import-local.js): строки берутся кодом из ячеек Excel или текста PDF, тем же форматом, что ответ ИИ;
+  // без ai незнакомые маркировки остаются без предложений — клиента выбирает человек.
+  const LOCAL_MODEL = 'без ИИ';
+  async function analyze({ doc, fileName, clients, ai, local, draftId, today, onProgress = () => {}, parallel = 3, wait = ms => new Promise(r => setTimeout(r, ms)) }) {
+    let queue = local ? [] : scopes(doc).map((p, i, a) => ({ p, idx: [i], n: a.length })), done = [], calls = [], failed = null, total = local ? 1 : queue.length, finished = 0;
+    if (local) {
+      const t0 = Date.now(); onProgress({ done: 0, total: 1, step: 'Разбираю документ' });
+      done.push({ order: [0], result: local(doc) }); finished = 1;
+      calls.push({ part: '1/1', ok: true, ms: Date.now() - t0, model: LOCAL_MODEL, mode: 'local', usage: null, error: '' });
+    }
     const run = async job => {
       const req = { ...requestFor(doc, fileName, job.p, job.idx[job.idx.length - 1], job.n), meta: { file: fileName, draft: draftId, part: job.idx.map(x => x + 1).join('.') + '/' + job.n, step: 'разбор' } };
       let r = await ai(req);
@@ -184,8 +199,8 @@
     rows.forEach(x => { const k = key(x.mark); if (!k || marks[k]) return; const m = matchMark(x.mark, idx);
       marks[k] = { mark: x.mark, client: m ? m.client : null, by: m ? m.by : null, reason: m ? m.reason : '', options: (m && m.options) || null, decided: !!m && m.by !== 'ambiguous', suggest: null }; });
     const open = Object.values(marks).filter(m => !m.decided);
-    let summary = '';
-    if (open.length) {
+    let summary = local ? 'Маркировок {marks}, клиентов {clients}; без клиента {unknown}, мелких {small}.' : '';
+    if (open.length && ai) {
       onProgress({ done: finished, total, step: 'Сопоставляю маркировки с клиентами' });
       const req = { ...matchRequest(open.map(m => m.mark), clients), meta: { file: fileName, draft: draftId, part: '1/1', step: 'сопоставление' } };
       const r = await ai(req);
@@ -193,7 +208,7 @@
       if (r.ok) {
         const ids = new Set(clients.map(c => c.bl));
         (r.result.matches || []).forEach(s => { const m = marks[key(s.mark)]; if (m && !m.decided && s.client && ids.has(s.client)) m.suggest = { client: s.client, confidence: s.confidence, reason: s.reason || '' }; });
-        summary = r.result.summary || '';
+        summary = r.result.summary || summary;
       }
     }
     const usage = calls.reduce((a, c) => { const u = c.usage || {}; return { in: a.in + (u.in || 0), cache: a.cache + (u.cache || 0), out: a.out + (u.out || 0) }; }, { in: 0, cache: 0, out: 0 });
@@ -262,7 +277,7 @@
     return null;
   }
 
-  const API = { colNum, colName, cellOf, rowNums, rowLine, excelParts, excelText, scopes, requestFor, splitScope, extractRequests, matchRequest, mergeParts, analyze,
+  const API = { colNum, colName, cellOf, ownCell, LOCAL_MODEL, rowNums, rowLine, excelParts, excelText, scopes, requestFor, splitScope, extractRequests, matchRequest, mergeParts, analyze,
     SYSTEM_EXTRACT, SYSTEM_MATCH, EXTRACT_SCHEMA, MATCH_SCHEMA, key, translit, codeOf, variants, isUnknownOwner, clientIndex, matchMark, EXCEL_CHUNK_ROWS };
   root.LogiImport = Object.assign(root.LogiImport || {}, API);
   if (typeof module === 'object' && module.exports) module.exports = API;

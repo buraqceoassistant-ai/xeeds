@@ -21,6 +21,7 @@ const SHELL = [
   'js/xlsx-io.js',
   'js/import-core.js',
   'js/import-checks.js',
+  'js/import-local.js',
   'js/import-pdf.js',
   'js/auth.js',
   'data/vault.json',

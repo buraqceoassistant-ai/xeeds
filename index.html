@@ -26,6 +26,7 @@
 <script defer src="js/xlsx-io.js"></script>
 <script defer src="js/import-core.js"></script>
 <script defer src="js/import-checks.js"></script>
+<script defer src="js/import-local.js"></script>
 <script defer src="js/import-pdf.js"></script>
 <script defer src="js/logi-gs-script.js"></script>
 <script defer src="js/auth.js"></script>
@@ -728,8 +729,12 @@
           <div>
             <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Manifest importi</div>
             <h1 style="margin:2px 0 0;font-size:38px">Импорт манифеста</h1>
-            <div style="font-size:13px;color:var(--color-neutral-700);margin-top:4px;max-width:760px;text-wrap:pretty">ИИ разбирает манифест партии, сайт создаёт черновик. Вы проверяете и правите его — и только после подтверждения партия появится в журнале и Google Таблице.</div>
+            <div style="font-size:13px;color:var(--color-neutral-700);margin-top:4px;max-width:760px;text-wrap:pretty">Сайт разбирает манифест партии и создаёт черновик. Вы проверяете и правите его — и только после подтверждения партия появится в журнале и Google Таблице.</div>
           </div>
+        </div>
+        <div class="imp-mode">
+          <div class="viz-seg" style="border:1px solid var(--color-divider)"><sc-for list="{{ impModes }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:500;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for></div>
+          <div style="font-size:13px;color:var(--color-neutral-700);flex:1;min-width:240px;text-wrap:pretty">{{ impModeNote }}</div>
         </div>
         <sc-if value="{{ impHasSetup }}">
           <div class="imp-alert"><div style="flex:1;text-wrap:pretty">{{ impSetup }}</div><button class="btn btn-secondary" sc-camel-on-click="{{ impOpenGs }}">Настройки связи</button></div>
@@ -737,7 +742,7 @@
         <div class="imp-drop blueprint" sc-camel-on-drop="{{ onImpDrop }}" sc-camel-on-drag-over="{{ onImpDragOver }}">
           <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
           <div style="font-family:var(--font-heading);font-size:22px;text-transform:uppercase">Перетащите манифест сюда</div>
-          <div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">Excel (.xlsx) или PDF, в том числе скан · до 10 МБ, PDF — до 30 страниц</div>
+          <div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">{{ impDropNote }}</div>
           <button class="btn btn-primary" sc-camel-on-click="{{ impPick }}">Загрузить манифест</button>
         </div>
         <div class="kpi-strip imp-stats" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--color-divider)">
@@ -879,7 +884,7 @@
           <div class="imp-plans"><sc-for list="{{ impPlans }}" as="p"><div class="imp-plan"><div style="font-weight:500">{{ p.title }}</div><div style="font-family:var(--font-heading);font-size:20px">{{ p.price }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ p.trips }} · {{ p.kinds }}</div></div></sc-for></div>
           <div style="font-size:12px;color:var(--color-neutral-700);margin-top:6px">{{ impPlanNote }} Подробные планы — во вкладке «Планы» после подтверждения.</div>
         </section>
-        <sc-if value="{{ impHasNotes }}"><section><h3 style="margin:0 0 6px">Заметки ИИ</h3><ul style="margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px"><sc-for list="{{ impNotes }}" as="n"><li>{{ n.text }}</li></sc-for></ul></section></sc-if>
+        <sc-if value="{{ impHasNotes }}"><section><h3 style="margin:0 0 6px">{{ impNotesTitle }}</h3><ul style="margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px"><sc-for list="{{ impNotes }}" as="n"><li>{{ n.text }}</li></sc-for></ul></section></sc-if>
 
         <sc-if value="{{ impHasDone }}">
           <div class="imp-alert imp-done"><div style="flex:1;text-wrap:pretty">{{ impDone }}</div><sc-if value="{{ impIsConfirmed }}"><button class="btn btn-primary" sc-camel-on-click="{{ impGoJournal }}">Открыть журнал</button></sc-if></div>
@@ -1821,8 +1826,13 @@ class Component extends DCLogic {
       onImpDrop: e => { e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) this.impUpload(f); },
       onImpDragOver: e => e.preventDefault(), impOpenGs: () => this.openGs()
     });
-    const own = window.LogiAuth ? window.LogiAuth.owner() : { state: 'none', config: {} };
-    out.impSetup = !this.gsUrl ? 'Подключите Google Таблицу (полоса над журналом → «Настройки связи»): ИИ работает через её скрипт.' :
+    const own = window.LogiAuth ? window.LogiAuth.owner() : { state: 'none', config: {} }, mode = this.impModeGet();
+    out.impModes = [['local', 'Без ИИ — бесплатно'], ['ai', 'Через ИИ']].map(([k, l]) => ({ l, go: () => this.impSetMode(k),
+      bg: mode === k ? 'var(--color-accent)' : 'transparent', fg: mode === k ? 'var(--color-bg)' : 'var(--color-text)' }));
+    out.impModeNote = mode === 'local' ? 'Строки Excel — прямо из ячеек, PDF — из текста страниц. Скан без ИИ не прочитать. Незнакомые маркировки сопоставляете вы — один раз: сайт запомнит их у клиента.' :
+      'Claude разбирает любой формат, в том числе сканы, и предлагает клиентов для незнакомых маркировок. Нужен ключ Claude API — платно, центы за манифест.';
+    out.impDropNote = mode === 'local' ? 'Excel (.xlsx) или PDF с текстом · до 10 МБ, PDF — до 30 страниц' : 'Excel (.xlsx) или PDF, в том числе скан · до 10 МБ, PDF — до 30 страниц';
+    out.impSetup = mode === 'local' ? '' : !this.gsUrl ? 'Подключите Google Таблицу (полоса над журналом → «Настройки связи»): ИИ работает через её скрипт.' :
       !(this.gsVersion >= 8) ? 'Обновите код скрипта таблицы до версии 8 и впишите ключ Claude API в свойства скрипта: «Настройки связи» → «ИИ-импорт манифестов».' :
       own.state === 'locked' ? 'Секрет редактора закрыт на этом устройстве: «Настройки связи» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».' :
       own.state !== 'open' ? 'Секрет редактора не задан: «Настройки связи» → «ИИ-импорт манифестов» → «Новый секрет редактора».' : '';
@@ -1858,7 +1868,7 @@ class Component extends DCLogic {
       impJournalDate: d.journalDate || '', onImpDate: e => { if (!edit) return; d.journalDate = e.target.value; this.impTouch(); },
       onImpCons: e => { if (!edit) return; d.meta = { ...meta, consolidator: e.target.value.trim() }; this.impTouch(); },
       impAi: 'Разобрал ' + (d.model || 'ИИ') + ' · вызовов ' + d.calls.length + ' · токенов ' + f0(d.usage.in + d.usage.cache) + ' → ' + f0(d.usage.out) + ' · ' + f1(d.calls.reduce((a, x) => a + (x.ms || 0), 0) / 1000, 0) + ' с',
-      impNotes: (d.notes || []).map(text => ({ text })), impHasNotes: (d.notes || []).length > 0, impFileErr: c.fileError || '', impHasFileErr: !!c.fileError });
+      impNotes: (d.notes || []).map(text => ({ text })), impHasNotes: (d.notes || []).length > 0, impNotesTitle: d.model === window.LogiImport.LOCAL_MODEL ? 'Заметки разбора' : 'Заметки ИИ', impFileErr: c.fileError || '', impHasFileErr: !!c.fileError });
     const groups = chk.groups.filter(g => String(g.mark || '').trim()), t = chk.sum, doc = chk.doc;
     const dec = new Set(groups.filter(g => g.decision && g.decision.decided && g.decision.client).map(g => g.decision.client));
     out.impKpis = [
@@ -2424,10 +2434,12 @@ class Component extends DCLogic {
     if (/\.xls$/.test(lower)) return fail('Старый формат .xls: откройте файл в Excel и сохраните как «Книга Excel (.xlsx)».');
     const kind = /\.xlsx$/.test(lower) ? 'xlsx' : /\.pdf$/.test(lower) || file.type === 'application/pdf' ? 'pdf' : null;
     if (!kind) return fail('Нужен манифест в Excel (.xlsx) или PDF.');
-    if (!this.gsUrl) return fail('Сначала подключите Google Таблицу — ИИ работает через её скрипт.');
-    if (!(this.gsVersion >= 8)) return fail('Обновите код скрипта таблицы до версии 8: «Настройки связи» → «Скопировать код».');
-    const own = window.LogiAuth.owner();
-    if (own.state === 'locked') return fail('Секрет редактора закрыт на этом устройстве: «Настройки связи» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».');
+    const useAi = this.impModeGet() === 'ai';
+    if (useAi) {
+      if (!this.gsUrl) return fail('Сначала подключите Google Таблицу — ИИ работает через её скрипт.');
+      if (!(this.gsVersion >= 8)) return fail('Обновите код скрипта таблицы до версии 8: «Настройки связи» → «Скопировать код».');
+      if (window.LogiAuth.owner().state === 'locked') return fail('Секрет редактора закрыт на этом устройстве: «Настройки связи» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».');
+    }
     this.impBusy({ step: 'Читаю файл', done: 0, total: 1, file: name });
     let buf, doc, pages = null, sheets = null;
     try {
@@ -2439,12 +2451,18 @@ class Component extends DCLogic {
       } else {
         const pdf = await window.LogiPdf.open(buf);
         if (pdf.numPages > 30) throw new Error('В PDF ' + pdf.numPages + ' страниц — не больше 30. Разделите файл на части.');
-        doc = { kind, pages: pdf.numPages, base64: window.LogiPdf.b64(buf) }; pages = pdf.numPages;
+        doc = { kind, pages: pdf.numPages }; pages = pdf.numPages;
+        if (useAi) doc.base64 = window.LogiPdf.b64(buf);
+        else {
+          doc.texts = await window.LogiPdf.pageTexts(pdf);
+          if (!doc.texts.some(p => String(p.text || '').trim())) throw new Error('В PDF нет текста — это скан. Без ИИ его не прочитать: переключитесь на «Через ИИ» или внесите партию в журнал вручную.');
+        }
       }
     } catch (e) { return fail(e.message || String(e)); }
     const id = 'imp-' + Date.now().toString(36), today = new Date().toISOString().slice(0, 10);
     try {
-      const res = await window.LogiImport.analyze({ doc, fileName: name, clients: this.state.data.clients, draftId: id, today, ai: req => this.aiCall(req),
+      const res = await window.LogiImport.analyze({ doc, fileName: name, clients: this.state.data.clients, draftId: id, today,
+        ...(useAi ? { ai: req => this.aiCall(req) } : { local: window.LogiImport.localExtract }),
         onProgress: p => this.impBusy({ ...p, file: name }) });
       const draft = { id, createdAt: new Date().toISOString(), status: 'draft', file: { name, kind, size: file.size, pages, sheets }, ...res, deleted: [], ack: {} };
       await this.impDb('put', 'files', { id, buf, type: kind });
@@ -2574,6 +2592,8 @@ class Component extends DCLogic {
   // строка «ИИ-журнала» о подтверждении или отклонении (для статистики и проверки дубликатов на других устройствах)
   async impLog(d, status, stats) {
     const t = d.totals || {}, meta = d.meta || {};
+    // разбор без ИИ: строку в «ИИ-журнал» пишем, только если скрипт таблицы это умеет (v8) и секрет открыт — иначе молча пропускаем
+    if (d.model === window.LogiImport.LOCAL_MODEL && !(this.gsUrl && this.gsVersion >= 8 && window.LogiAuth.owner().state !== 'locked')) return;
     try {
       const j = await this.aiPost({ action: 'log', meta: { status, draft: d.id, file: d.file.name, data: { date: d.journalDate, route: meta.route || '', consolidator: meta.consolidator || '',
         places: t.places, cbm: t.cbm, kg: t.kg, rows: d.rows.length, shipments: (d.confirmed || {}).shipments || 0, edits: stats.total, of: stats.of, model: d.model || '', reason: (d.rejected || {}).reason || '' } } });
@@ -2581,6 +2601,9 @@ class Component extends DCLogic {
       if (d.logPending) { delete d.logPending; await this.impDb('put', 'drafts', d); }
     } catch (e) { d.logPending = status; await this.impDb('put', 'drafts', d).catch(() => {}); }
   }
+  // способ разбора — на этом устройстве: без ИИ (по умолчанию, бесплатно) или через ИИ
+  impModeGet() { if (this.state.impMode) return this.state.impMode; try { return localStorage.getItem('logi-imp-mode') === 'ai' ? 'ai' : 'local'; } catch (e) { return 'local'; } }
+  impSetMode(m) { try { localStorage.setItem('logi-imp-mode', m); } catch (e) { /* без хранилища — до перезагрузки */ } this.setState({ impMode: m }); }
   async impDelete(id) {
     const d = (this.impList || []).find(x => x.id === id);
     if (!d || !confirm('Удалить ' + (d.status === 'draft' ? 'черновик' : 'запись об импорте') + ' «' + d.file.name + '» с этого устройства?')) return;

@@ -17,7 +17,8 @@
       throw new Error('Не удалось открыть PDF: ' + (e && e.message || e));
     }
   }
-  // текст страниц строками: элементы с одной высотой строки — слева направо; координаты — для подсветки строки
+  // текст страниц строками: элементы с одной высотой строки — слева направо; координаты — для подсветки строки,
+  // слова строки с положением (items) — для разбора таблицы без ИИ (js/import-local.js)
   async function pageTexts(doc) {
     const out = [];
     for (let i = 1; i <= doc.numPages; i++) {
@@ -27,7 +28,8 @@
       const lines = [];
       items.forEach(it => { const l = lines.find(l => Math.abs(l.y - it.y) < Math.max(2, it.h * 0.45)); if (l) l.items.push(it); else lines.push({ y: it.y, items: [it] }); });
       const L = lines.map(l => { l.items.sort((a, b) => a.x - b.x);
-        return { text: l.items.map(x => x.s).join(' ').replace(/\s+/g, ' ').trim(), y: l.y, x1: Math.min(...l.items.map(x => x.x)), x2: Math.max(...l.items.map(x => x.x + x.w)), h: Math.max(...l.items.map(x => x.h)) }; });
+        return { text: l.items.map(x => x.s).join(' ').replace(/\s+/g, ' ').trim(), y: l.y, x1: Math.min(...l.items.map(x => x.x)), x2: Math.max(...l.items.map(x => x.x + x.w)), h: Math.max(...l.items.map(x => x.h)),
+          items: l.items.map(x => ({ s: x.s.trim(), x: x.x, w: x.w })) }; });
       out.push({ page: i, width: vp.width, height: vp.height, text: L.map(l => l.text).join('\n'), lines: L });
     }
     return out;

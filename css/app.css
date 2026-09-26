@@ -239,3 +239,5 @@ button.imp-check:hover { background: var(--color-surface); }
 .ai-props { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 12px; font-size: 13px; align-items: baseline; }
 .ai-props code { font-size: 12px; padding: 2px 6px; background: var(--color-surface); border: 1px solid var(--color-divider); }
 @media screen and (max-width: 560px) { .ai-props { grid-template-columns: minmax(0, 1fr); gap: 2px; } .ai-props > div { margin-bottom: 6px; } }
+/* «Импорт»: способ разбора — без ИИ или через ИИ */
+.imp-mode { display: flex; gap: 12px 16px; align-items: center; flex-wrap: wrap; }

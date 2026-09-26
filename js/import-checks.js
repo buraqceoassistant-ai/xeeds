@@ -11,7 +11,7 @@
 (function (root) {
   'use strict';
   const L = root.LogiImport || (typeof require === 'function' ? require('./import-core.js') : null);
-  const { key, codeOf, cellOf, rowNums, isUnknownOwner } = L;
+  const { key, codeOf, cellOf, ownCell, rowNums, isUnknownOwner } = L;
 
   const num = v => {
     if (typeof v === 'number') return isFinite(v) ? v : null;
@@ -28,30 +28,53 @@
   const FIELDS = ['places', 'cbm', 'kg'], NAMES = { mark: 'маркировка', places: 'места', cbm: 'м³', kg: 'кг' };
 
   // Столбцы таблицы манифеста находит и сам код — по заголовкам; ответу ИИ верим, только если он с ними совпадает.
+  // У каждого поля — варианты заголовка по приоритету: общий вес брутто (G.W.) раньше просто «KG», итоговый объём (T/CBM) раньше «CBM»;
+  // NOT — заголовки, которые этим полем не бывают (нетто, объём одной коробки).
   const HEAD = {
-    mark: /SHIPPING\s*MARK|^MARKS?$|唛头|МАРКИР/i,
-    places: /CTN|件数|箱数|PKGS?|PACKAGES|QTY|МЕСТ|КОЛ/i,
-    cbm: /CBM|M3|M³|М3|М³|体积|VOLUME|ОБ[ЪЬ]?[ЁЕ]М/i,
-    kg: /(^|[^A-Z])KGS?([^A-Z]|$)|G\.?\s?W|GROSS|毛重|重量|ВЕС|WEIGHT/i
+    mark: [/SHIPPING\s*MARKS?|唛头|МАРКИР|MARKIROVKA/i, /^\s*MARKS?\b/i, /CUSTOMER|CLIENT|客户|КЛИЕНТ|MIJOZ/i],
+    places: [/T(OTAL)?\.?\s*CTNS?|总件数|总箱数/i, /CTNS?|件数|箱数|PKGS?|PACKAGES|CARTONS?|МЕСТ/i, /QTY|КОЛ/i],
+    cbm: [/T(OTAL)?\.?\s*\/?\s*CBM|TOTAL\s*(VOLUME|M3|M³)|总体积/i, /CBM|M3|M³|М3|М³|体积|VOLUME|ОБ[ЪЬ]?[ЁЕ]М/i],
+    kg: [/T(OTAL)?\.?\s*\/?\s*G\.?\s?W|TOTAL\s*(G\.?\s?W|WEIGHT|KGS?)|总毛重/i, /G\.?\s?W|GROSS|毛重|БРУТТО/i, /(^|[^A-Z])KGS?([^A-Z]|$)|ВЕС|WEIGHT|重量/i]
   };
-  function findHeader(book) {
-    for (const sh of book) for (const r of rowNums(sh)) {
-      const row = sh.rows[r], cols = {};
-      for (const [c, v] of Object.entries(row)) if (typeof v === 'string') for (const f of Object.keys(HEAD)) if (!cols[f] && HEAD[f].test(v)) { cols[f] = c; break; }
-      if (cols.mark && (cols.cbm || cols.kg)) return { sheet: sh.name, row: r, mark: cols.mark, places: cols.places || null, cbm: cols.cbm || null, kg: cols.kg || null };
+  const NOT = { kg: /N\.?\s?W|NET|净重|НЕТТО/i, cbm: /(CBM|M3)\s*\/\s*(CTN|CARTON)|PER\s*(CTN|CARTON)|单箱|单件/i, places: /PCS|PIECES|件\/箱|ШТ/i };
+  // приоритет заголовка v для поля f: 0 — лучший, -1 — не подходит
+  const headRank = (f, v) => typeof v !== 'string' || (NOT[f] && NOT[f].test(v)) ? -1 : HEAD[f].findIndex(re => re.test(v));
+  const TOTAL_RE = /TOTAL|合计|总计|ИТОГО|JAMI|ВСЕГО/i, SUBTOTAL_RE = /SUB\s*-?\s*TOTAL|小计|ПОДЫТОГ|ПРОМЕЖУТ/i;
+  // строка заголовков: столбцы по приоритету (при равенстве — левее); маркировка и м³ или кг обязательны
+  function headerIn(sh, r) {
+    const cols = {}, rank = {};
+    for (const [c, v] of Object.entries(sh.rows[r] || {})) {
+      if (typeof v !== 'string' || v.length > 60) continue;
+      for (const f of Object.keys(HEAD)) {
+        if (Object.values(cols).includes(c)) break;
+        const k = headRank(f, v);
+        if (k >= 0 && (rank[f] == null || k < rank[f])) { cols[f] = c; rank[f] = k; break; }
+      }
     }
+    return cols.mark && (cols.cbm || cols.kg) ? { sheet: sh.name, row: r, mark: cols.mark, places: cols.places || null, cbm: cols.cbm || null, kg: cols.kg || null } : null;
+  }
+  // ближайшая непустая маркировка выше строки r в таблице (до строки заголовков; итоги и подытоги её обрывают)
+  function markAbove(sh, r, h) {
+    for (let n = r - 1; n > h.row; n--) {
+      const row = sh.rows[n]; if (!row) continue;
+      if (TOTAL_RE.test(Object.values(row).filter(v => typeof v === 'string').join(' '))) return null;
+      const m = cellOf(sh, n, h.mark); if (key(m)) return m;
+    }
+    return null;
+  }
+  function findHeader(book) {
+    for (const sh of book) for (const r of rowNums(sh)) { const h = headerIn(sh, r); if (h) return h; }
     return null;
   }
   function headerOf(book, ai) {
     const found = findHeader(book);
     if (ai && ai.sheet && ai.row) {
       const sh = book.find(s => s.name === ai.sheet), row = sh && sh.rows[ai.row];
-      const fits = row && ['mark', 'cbm', 'kg'].every(f => !ai[f] || (typeof row[ai[f]] === 'string' && HEAD[f].test(row[ai[f]])));
+      const fits = row && ['mark', 'cbm', 'kg'].every(f => !ai[f] || headRank(f, row[ai[f]]) >= 0);
       if (fits && (!found || (found.sheet === ai.sheet && found.row === ai.row))) return { ...ai, by: 'ai+code' };
     }
     return found ? { ...found, by: 'code' } : null;
   }
-  const TOTAL_RE = /TOTAL|合计|总计|ИТОГО|JAMI|ВСЕГО/i;
 
   // строки черновика → группы по маркировке (объединение строк одной маркировки)
   function groupsOf(draft) {
@@ -89,7 +112,9 @@
         seen[k] = r.id;
         if (!header || header.sheet !== s.sheet) return;
         if (header.row >= s.row) { block('src-header', 'Строка ' + s.row + ' — это шапка документа, а не груз', { rowIds: [r.id] }); flag(r.id, 'block', 'src-header', 'Это шапка документа'); return; }
-        const cm = cellOf(sh, s.row, header.mark);
+        let cm = cellOf(sh, s.row, header.mark);
+        // пустая ячейка маркировки — строка продолжает маркировку сверху (как у объединённой ячейки)
+        if (!key(cm)) { const up = markAbove(sh, s.row, header); if (up && key(up) === key(r.mark)) { cm = up; flag(r.id, 'warn', 'mark-above', 'Маркировка взята из строки выше: в документе ячейка пустая', 'mark'); } }
         if (key(cm) !== key(r.mark)) {
           const txt = 'маркировка в документе «' + (cm ?? '') + '», в строке «' + r.mark + '»';
           if (edited(r, 'mark')) { flag(r.id, 'warn', 'cell-mark', 'Исправлено вами: ' + txt, 'mark'); }
@@ -97,7 +122,7 @@
         }
         FIELDS.forEach(f => {
           if (!header[f]) return;
-          const cv = num(cellOf(sh, s.row, header[f])), v = num(r[f]);
+          const cv = num(ownCell(sh, s.row, header[f])), v = num(r[f]);
           if (cv == null && v == null) return;
           if (!same(v, cv)) {
             const txt = NAMES[f] + ': в документе ' + fmt(cv) + ', в строке ' + fmt(v);
@@ -111,8 +136,9 @@
         const sh = ctx.book.find(b => b.name === header.sheet), taken = new Set(rows.filter(r => r.src && r.src.sheet === header.sheet).map(r => r.src.row));
         for (const n of rowNums(sh).filter(n => n > header.row)) {
           const texts = Object.values(sh.rows[n]).filter(v => typeof v === 'string').join(' ');
+          if (SUBTOTAL_RE.test(texts)) continue;
           if (TOTAL_RE.test(texts)) { totalCells = { row: n, places: header.places ? num(cellOf(sh, n, header.places)) : null, cbm: header.cbm ? num(cellOf(sh, n, header.cbm)) : null, kg: header.kg ? num(cellOf(sh, n, header.kg)) : null }; break; }
-          const vals = FIELDS.filter(f => header[f]).map(f => num(cellOf(sh, n, header[f])));
+          const vals = FIELDS.filter(f => header[f]).map(f => num(ownCell(sh, n, header[f])));
           if (vals.some(v => v != null && v !== 0) && !taken.has(n) && !(draft.skipped || []).includes(header.sheet + '!' + n))
             block('missed', 'Строка документа R' + n + ' (' + (cellOf(sh, n, header.mark) ?? 'без маркировки') + ') не попала в черновик', { src: { sheet: header.sheet, row: n } });
         }
@@ -122,7 +148,8 @@
     if (kind === 'pdf' && ctx.pages) {
       const scans = ctx.pages.filter(p => !String(p.text || '').trim()).map(p => p.page);
       if (scans.length) warn('scan', 'Страниц без текста (скан): ' + scans.length + ' — числа на них не сверены с документом. Проверьте строки вручную.');
-      const norm = t => String(t || '').replace(/(\d),(\d)/g, '$1.$2').replace(/\s+/g, ' ');
+      // запятая в тексте: десятичная (1,234 → 1.234) или тысячи (1,320 → 1320) — число ищется в обоих вариантах
+      const norm = t => String(t || '').replace(/(\d),(\d)/g, '$1.$2').replace(/\s+/g, ' ') + '\n' + String(t || '').replace(/(\d),(\d{3})(?!\d)/g, '$1$2').replace(/\s+/g, ' ');
       rows.forEach(r => {
         const p = r.src && r.src.page, pg = ctx.pages.find(x => x.page === p);
         if (!p || !pg) { block('no-src', 'У строки нет номера страницы', { rowIds: [r.id] }); flag(r.id, 'block', 'no-src', 'Нет номера страницы'); return; }
@@ -221,7 +248,7 @@
     return { fields, added, deleted, clients, total, of };
   }
 
-  const API = { check, groupsOf, shipmentsOf, editStats, findHeader, headerOf, num };
+  const API = { check, groupsOf, shipmentsOf, editStats, findHeader, headerIn, headerOf, headRank, markAbove, num, TOTAL_RE, SUBTOTAL_RE };
   root.LogiImport = Object.assign(root.LogiImport || {}, API);
   if (typeof module === 'object' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
