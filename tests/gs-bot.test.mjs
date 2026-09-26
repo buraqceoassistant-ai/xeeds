@@ -4,6 +4,7 @@
 // Данные вымышленные. Запуск: node --test tests/
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHmac } from 'node:crypto';
 import { loadScript } from './gs-mock.mjs';
 
 const TODAY = '2026-09-26', day = (y, m, d) => new Date(Date.UTC(y, m - 1, d) - 5 * 3600e3);   // полночь по Ташкенту
@@ -38,6 +39,7 @@ function fakeTelegram() {
     if (m[1] === 'getMe') return { body: { ok: true, result: { id: 1, username: 'buraq_test_bot', first_name: 'BURAQ' } } };
     if (m[1] === 'getChatMember') return { body: { ok: true, result: { status: admins[req.user_id] || 'member' } } };
     if (m[1] === 'getFile') return { body: { ok: true, result: { file_path: 'photos/' + req.file_id + '.jpg' } } };
+    if (m[1] === 'sendPhoto' && req.photo && typeof req.photo === 'object') return { body: { ok: true, result: { message_id: ++mid, photo: [{ file_id: 'cam-s' }, { file_id: 'cam-' + mid }] } } };   // снимок с камеры — файлом
     return { body: { ok: true, result: { message_id: ++mid } } };
   };
   return { sent, fetch };
@@ -63,12 +65,12 @@ const connect = t => t.s.post({ token: '', editor: '', tg: { action: 'setup', ur
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 11); assert.equal(t.s.triggers.length, 1); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 12); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
   const cmds = t.tg.sent.filter(x => x.method === 'setMyCommands');
-  assert.equal(cmds.length, 2); assert.equal(cmds[1].language_code, 'ru'); assert.deepEqual(cmds[0].commands.map(c => c.command), ['start', 'ish', 'hozir', 'tugatish', 'til', 'dispetcher']);
+  assert.equal(cmds.length, 2); assert.equal(cmds[1].language_code, 'ru'); assert.deepEqual(cmds[0].commands.map(c => c.command), ['start', 'ish', 'hozir', 'tugatish', 'til', 'dispetcher', 'muammo']);
   assert.equal(connect(t).tg.code, r.tg.code, 'повторное подключение — тот же код группы');
   const n = setup({ TG_TOKEN: '' }), e = connect(n);
   assert.equal(e.code, 'notoken'); assert.match(e.error, /TG_TOKEN/);
@@ -146,7 +148,7 @@ test('регистрация: язык, имя, машина кнопками (�
   t.cb(900, 'allow:501', t.group, { message_id: 55, text: ask.text, chat: t.group });
   assert.equal(t.s.book.sheets.Haydovchilar.rows[1][5], 'ruxsat');
   assert.match(t.last('sendMessage', 501).text, /Доступ открыт/);
-  assert.deepEqual(t.last('sendMessage', 501).reply_markup.keyboard, [['🚚 Начать работу', '📍 Текущая точка'], ['🏁 Закончить работу', '🌐 Язык']]);
+  assert.deepEqual(t.last('sendMessage', 501).reply_markup.keyboard, [['🚚 Начать работу', '📍 Текущая точка'], ['🏁 Закончить работу', '🌐 Язык'], ['⚠️ Проблема']]);
   assert.match(t.last('editMessageText').text, /✅ Разрешено — Boss/);
 });
 
@@ -206,18 +208,20 @@ test('рабочий день: геолокация → ближайшая то�
   assert.match(t.texts(501).slice(-2)[0], /кнопка устарела/);
 });
 
-test('«Не доставлено»: причина, без фото, геолокация → «Qolib ketgan», отчёт с причиной; конец рейса 1 → рейс 2 со склада', () => {
+test('«Не доставлено»: причина, фото места (обязательно), геолокация → «Qolib ketgan», отчёт с причиной; конец рейса 1 → рейс 2 со склада', () => {
   const t = approved(), g = t.group.id;
   t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
   t.cb(501, 'ok:BL-901|1'); t.photo(501, 'P'); t.msg(501, '✅ Готово'); t.loc(501, [41.31, 69.21]);
   t.cb(501, 'fail:BL-902|1');
   assert.deepEqual(t.last('sendMessage', 501).reply_markup.inline_keyboard.map(r => r[0].text), ['Клиента нет на месте', 'Не отвечает на телефон', 'Отказался от груза', 'Другая причина']);
   t.cb(501, 'why:0');
-  assert.match(t.last('sendMessage', 501).text, /Без фото/);
-  t.msg(501, '➡️ Без фото');
+  assert.match(t.last('sendMessage', 501).text, /Отправьте фото места/);
+  t.msg(501, '✅ Готово');
+  assert.match(t.last('sendMessage', 501).text, /Нужно хотя бы одно фото/, 'фото обязательно и при «не доставлено»');
+  t.photo(501, 'F'); t.msg(501, '✅ Готово');
   t.loc(501, [41.36, 69.28]);
   assert.deepEqual(t.status('BL-902'), ['Qolib ketgan']);
-  assert.match(t.last('sendMessage', g).text, /❌ Gazel-2 · Akmal Karimov — не доставлено: BL-902 Botir\nПричина: Клиента нет на месте/);
+  assert.match(t.last('sendPhoto', g).caption, /❌ Gazel-2 · Akmal Karimov — не доставлено: BL-902 Botir\nПричина: Клиента нет на месте/);
   const round = t.last('sendMessage', 501);
   assert.match(round.text, /Рейс 1 закончен/); assert.equal(round.reply_markup.inline_keyboard[0][0].callback_data, 'round:2');
   t.cb(501, 'round:2');
@@ -226,8 +230,8 @@ test('«Не доставлено»: причина, без фото, геоло
   const u = approved();
   u.msg(501, '🚚 Начать работу'); u.loc(501, DEPOT); u.cb(501, 'fail:BL-901|1'); u.cb(501, 'why:3');
   assert.match(u.last('sendMessage', 501).text, /Коротко напишите причину/);
-  u.msg(501, 'ворота закрыты'); u.msg(501, '➡️ Без фото'); u.loc(501, DEPOT);
-  assert.match(u.last('sendMessage', u.group.id).text, /Причина: ворота закрыты/);
+  u.msg(501, 'ворота закрыты'); u.photo(501, 'F'); u.msg(501, '✅ Готово'); u.loc(501, DEPOT);
+  assert.match(u.last('sendPhoto', u.group.id).caption, /Причина: ворота закрыты/);
 });
 
 test('правки на сайте: статус от бота не затирается старым значением сайта; водителю — «рейсы изменились» и новая текущая точка', () => {
@@ -381,7 +385,7 @@ test('итог дня в группу: по машинам — доставле�
   assert.match(t.s.post({ token: '', tg: { action: 'summary' } }).error, /ещё не работали/);
   t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
   t.cb(501, 'ok:BL-901|1'); t.photo(501, 'P'); t.msg(501, '✅ Готово'); t.loc(501, [41.31, 69.21]);
-  t.cb(501, 'fail:BL-902|1'); t.cb(501, 'why:0'); t.msg(501, '➡️ Без фото'); t.loc(501, DEPOT);
+  t.cb(501, 'fail:BL-902|1'); t.cb(501, 'why:0'); t.photo(501, 'F'); t.msg(501, '✅ Готово'); t.loc(501, DEPOT);
   const r = t.s.post({ token: '', tg: { action: 'summary' } });
   assert.equal(r.ok, true);
   assert.match(r.text, /Итог дня 26\.09\.2026\n\n🚚 Gazel-2 · Akmal Karimov: доставлено 1, не доставлено 1, осталось 1 \(09:00–не закончил\)\n\nВсего: доставлено 1, не доставлено 1, осталось 1/);
@@ -397,11 +401,11 @@ test('«Не отвечает на телефон»: водителю меню (
   assert.equal(r.ok, true); assert.deepEqual(r.tg.dispatcher, { name: 'Jasur', phone: '+998770176611' });
   t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
   const kb = [...t.tg.sent].reverse().find(x => String(x.chat_id) === '501' && x.reply_markup && x.reply_markup.keyboard && JSON.stringify(x.reply_markup.keyboard).includes('Начать работу'));
-  assert.deepEqual(kb.reply_markup.keyboard.slice(-1)[0], ['📞 Диспетчер'], 'кнопка «Диспетчер» в меню');
+  assert.deepEqual(kb.reply_markup.keyboard.slice(-1)[0], ['⚠️ Проблема', '📞 Диспетчер'], 'кнопка «Диспетчер» в меню');
   t.cb(501, 'fail:BL-901|1'); t.cb(501, 'why:1');
   const menu = t.last('sendMessage', 501);
   assert.match(menu.text, /Клиент не отвечает на телефон[\s\S]*Диспетчеру отправлено сообщение/);
-  assert.deepEqual(menu.reply_markup.inline_keyboard.map(x => x[0].callback_data), ['na:call', 'na:tel', 'na:ok', 'na:fail']);
+  assert.deepEqual(menu.reply_markup.inline_keyboard.map(x => x[0].callback_data), ['na:call', 'na:tel', 'wait:BL-901|1', 'na:ok', 'na:fail']);
   assert.match(t.last('sendMessage', g).text, /📵 Gazel-2 · Akmal Karimov: клиент BL-901 NOVA — Aziz не отвечает на телефон\.\n☎️ \+998900000001 \(Aziz\)\n📍 Chilonzor, Bunyodkor 1\nПозвоните клиенту/);
   t.cb(501, 'na:call');
   const c = t.last('sendContact', 501);
@@ -417,8 +421,8 @@ test('«Не отвечает на телефон»: водителю меню (
   assert.deepEqual(t.status('BL-901'), ['Yetkazildi', 'Yetkazildi']);
   // следующая точка: не ответил — «всё равно не доставлено», причина в журнале доставок
   t.cb(501, 'fail:BL-902|1'); t.cb(501, 'why:1'); t.cb(501, 'na:fail');
-  assert.match(t.last('sendMessage', 501).text, /Без фото/);
-  t.msg(501, '➡️ Без фото'); t.loc(501, [41.36, 69.28]);
+  assert.match(t.last('sendMessage', 501).text, /Отправьте фото места/);
+  t.photo(501, 'F'); t.msg(501, '✅ Готово'); t.loc(501, [41.36, 69.28]);
   assert.deepEqual(t.status('BL-902'), ['Qolib ketgan']);
   const log = t.s.book.sheets.Yetkazish.rows.slice(1).map(x => [x[4], x[6], x[7]]);
   assert.deepEqual(log, [['BL-901', 'Yetkazildi', ''], ['BL-902', 'Yetkazilmadi', 'Не отвечает на телефон']]);
@@ -434,3 +438,211 @@ test('«Не отвечает на телефон»: водителю меню (
   assert.equal(t.s.get({}).data.tg.dispatcher.phone, '');
 });
 
+// подпись мини-приложения, как у Telegram: HMAC-SHA256 с ключом из токена бота
+function initData(user, { token = '123:ABC', at = Date.UTC(2026, 8, 26, 4, 0) / 1000 } = {}) {
+  const f = { auth_date: String(at), query_id: 'AAQ1', user: JSON.stringify(user) };
+  const dcs = Object.keys(f).sort().map(k => k + '=' + f[k]).join('\n');
+  const hash = createHmac('sha256', createHmac('sha256', 'WebAppData').update(token).digest()).update(dcs).digest('hex');
+  return Object.entries({ ...f, hash }).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
+}
+const JPEG = Buffer.from('ffd8ffe000104a464946', 'hex').toString('base64');
+
+test('фото только с камеры: кнопка открывает driver.html, фото из чата не принимается, снимок по подписи Telegram, место — со снимка, далеко от клиента — отметка', () => {
+  const t = approved(), g = t.group.id;
+  t.s.post({ token: '', site: 'https://buraq.example/xeeds/', tg: { action: 'status' } });
+  assert.equal(t.s.props.TG_SITE, 'https://buraq.example/xeeds/');
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  t.cb(501, 'ok:BL-901|1');
+  const ask = t.last('sendMessage', 501), cam = ask.reply_markup.inline_keyboard[0][0];
+  assert.match(ask.text, /Сфотографируйте груз у клиента/);
+  assert.equal(cam.web_app.url, 'https://buraq.example/xeeds/driver.html?s=' + encodeURIComponent('https://script.google.com/macros/s/AKfy-test_1/exec') + '&k=BL-901%7C1&bl=BL-901&l=ru&m=ok');
+  t.photo(501, 'GALLERY');
+  assert.match(t.last('sendMessage', 501).text, /только через кнопку «📷 Сфотографировать»/);
+  const up = (extra, init = initData({ id: 501, first_name: 'Akmal' })) => t.s.post({ tgphoto: { init, key: 'BL-901|1', img: JPEG, ...extra } });
+  assert.equal(up({}, initData({ id: 501 }, { token: 'чужой' })).code, 'auth', 'подпись другим токеном');
+  assert.equal(up({}, initData({ id: 501 }, { at: Date.UTC(2026, 8, 24) / 1000 })).code, 'auth', 'подпись старше суток');
+  assert.equal(up({ key: 'BL-902|1' }).code, 'stage', 'снимок не той точки');
+  const r = up({ ll: [41.3105, 69.2102] });
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
+  const sent = t.last('sendPhoto', 501);
+  assert.equal(typeof sent.photo, 'object'); assert.match(sent.caption, /📷 BL-901 · 09:00/);
+  assert.match(t.last('sendMessage', 501).text, /Фото принято: 1/);
+  t.cb(501, 'pdone');   // место — со снимка: без шага «геолокация»
+  assert.deepEqual(t.status('BL-901'), ['Yetkazildi', 'Yetkazildi']);
+  const cap = t.last('sendPhoto', g).caption;
+  assert.match(cap, /✅ Gazel-2 · Akmal Karimov — доставлено: BL-901/); assert.doesNotMatch(cap, /⚠️/);
+  // «не доставлено» — тоже со снимком; отметка в нескольких км от клиента
+  t.cb(501, 'fail:BL-902|1'); t.cb(501, 'why:0');
+  t.cb(501, 'pdone');
+  assert.match(t.last('sendMessage', 501).text, /Нужно хотя бы одно фото/);
+  assert.equal(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-902|1', img: JPEG, ll: [41.30, 69.20] } }).ok, true);
+  t.cb(501, 'pdone');
+  assert.deepEqual(t.status('BL-902'), ['Qolib ketgan']);
+  assert.match(t.last('sendPhoto', g).caption, /⚠️ Отметка в 9,4 км от точки клиента/);
+  const log = t.s.book.sheets.Yetkazish.rows;
+  assert.deepEqual(log[0].slice(12, 14), ['Kutdi (daq)', 'Mijozgacha (km)']);
+  assert.deepEqual(log.slice(1).map(x => x[13]), [0.1, 9.4]);
+  assert.deepEqual(t.s.get({ tgdays: '2' }).data.tg.log.map(x => x.km), [0.1, 9.4]);
+  // камера выключена на сайте — фото из чата снова принимаются
+  assert.equal(t.s.post({ token: '', tg: { action: 'settings', camera: false } }).tg.settings.camera, false);
+  t.cb(501, 'round:2');
+  t.cb(501, 'ok:BL-903|2');
+  assert.match(t.last('sendMessage', 501).text, /Отправьте фото доставленного груза/);
+  t.photo(501, 'P2');
+  assert.match(t.last('sendMessage', 501).text, /Фото принято: 1/);
+});
+
+test('карточка точки: маршрут в Яндекс и Google; «Жду клиента» — таймер, напоминание водителю и группе раз в 5 минут, минуты ожидания в журнале', () => {
+  const t = approved(), g = t.group.id;
+  assert.match(t.s.post({ token: '', tg: { action: 'settings', waitMin: 3 } }).error, /от 5 до 120/);
+  t.s.post({ token: '', tg: { action: 'settings', waitMin: 15 } });
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  const card = [...t.tg.sent].reverse().find(x => x.method === 'sendMessage' && /Точка 1 из/.test(x.text || ''));
+  const kb = card.reply_markup.inline_keyboard;
+  assert.deepEqual(kb[1].map(b => b.callback_data), ['wait:BL-901|1']);
+  assert.equal(kb[2][0].url, 'https://yandex.uz/maps/?rtext=~41.31,69.21&rtt=auto');
+  assert.equal(kb[2][1].url, 'https://www.google.com/maps/dir/?api=1&destination=41.31,69.21&travelmode=driving');
+  t.cb(501, 'wait:BL-901|1');
+  assert.match(t.last('sendMessage', 501).text, /Ждёте клиента до 09:15/);
+  const n0 = t.tg.sent.length;
+  t.s.ctx.tgTick();
+  assert.equal(t.tg.sent.length, n0, 'до конца ожидания — тишина');
+  t.now.value = new Date(Date.UTC(2026, 8, 26, 4, 16));
+  t.s.ctx.tgTick();
+  assert.match(t.last('sendMessage', 501).text, /Прошло 16 мин. Клиент пришёл\?/);
+  assert.deepEqual(t.last('sendMessage', 501).reply_markup.inline_keyboard[1].map(b => [b.text, b.callback_data]), [['⏳ Ещё 15 мин', 'wait:BL-901|1']]);
+  assert.match(t.last('sendMessage', g).text, /⏰ Gazel-2 · Akmal Karimov: ждёт клиента BL-901 уже 16 мин\.\n☎️ \+998900000001/);
+  const n1 = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n1, 'одно напоминание');
+  t.cb(501, 'wait:BL-901|1');
+  assert.match(t.last('sendMessage', 501).text, /до 09:31/);
+  t.now.value = new Date(Date.UTC(2026, 8, 26, 4, 20));
+  t.cb(501, 'ok:BL-901|1'); t.photo(501, 'P'); t.msg(501, '✅ Готово'); t.loc(501, [41.31, 69.21]);
+  assert.equal(t.s.book.sheets.Yetkazish.rows[1][12], 20, 'ждал 20 минут');
+  assert.match(t.last('sendPhoto', g).caption, /⏳ Ждал клиента 20 мин/);
+  // ночью «тик» ничего не делает
+  t.now.value = new Date(Date.UTC(2026, 8, 26, 18, 0));   // 23:00
+  const n2 = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n2);
+});
+
+test('«⚠️ Проблема»: вид кнопкой, описание, фото из галереи, геолокация → «Muammolar», фото на Диск, тревога в группу; на сайте — за период', () => {
+  const t = approved(), g = t.group.id;
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  t.msg(501, '⚠️ Проблема');
+  assert.deepEqual(t.last('sendMessage', 501).reply_markup.inline_keyboard.map(r => r[0].text), ['🔧 Поломка', '🚦 Пробка', '💥 ДТП', '👮 ГАИ / штраф', '⛽ Топливо', '✍️ Другое']);
+  t.cb(501, 'pr:0');
+  assert.match(t.last('sendMessage', 501).text, /🔧 Поломка\nКоротко опишите/);
+  t.msg(501, 'пробило колесо'); t.photo(501, 'WHEEL');
+  assert.match(t.last('sendMessage', 501).text, /Фото добавлено: 1/);
+  t.loc(501, [41.33, 69.25]);
+  const alert = t.last('sendPhoto', g);
+  assert.match(alert.caption, /⚠️ ПРОБЛЕМА: 🔧 Поломка — Gazel-2 · Akmal Karimov\nпробило колесо\nТекущая точка: BL-901\n09:00 · 📍 https:\/\/maps\.google\.com\/\?q=41\.33,69\.25/);
+  assert.match(t.last('sendMessage', 501).text, /Сообщение отправлено диспетчеру/);
+  const row = t.s.book.sheets.Muammolar.rows[1];
+  assert.deepEqual([row[1], row[2], row[3], row[4], row[6]], ['Akmal Karimov', 'Gazel-2', 'Поломка', 'пробило колесо', '41.33,69.25']);
+  assert.match(row[5], /^https:\/\/drive\.google\.com\/file\/d\//);
+  const pr = t.s.get({}).data.tg.problems;
+  assert.deepEqual(pr.map(x => [x.type, x.text, x.truck]), [['Поломка', 'пробило колесо', 'Gazel-2']]);
+  // проблема не мешает доставке: текущая точка на месте
+  t.msg(501, '📍 Текущая точка');
+  assert.match(t.texts(501).filter(x => /Точка/.test(x)).pop(), /BL-901/);
+  // отмена
+  t.msg(501, '⚠️ Проблема'); t.cb(501, 'pr:1'); t.msg(501, '↩️ Отмена');
+  assert.equal(t.s.book.sheets.Muammolar.rows.length, 2);
+});
+
+
+test('недоставленные — на завтра: в 20:00 вместе с итогом дня (статус «Rejada», без машины, пометка), выключается настройкой; с сайта — любая партия на выбранную дату', () => {
+  const t = approved(), g = t.group.id;
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  t.cb(501, 'ok:BL-901|1'); t.photo(501, 'P'); t.msg(501, '✅ Готово'); t.loc(501, [41.31, 69.21]);
+  t.cb(501, 'fail:BL-902|1'); t.cb(501, 'why:0'); t.photo(501, 'F'); t.msg(501, '✅ Готово'); t.loc(501, [41.36, 69.28]);
+  t.now.value = new Date(Date.UTC(2026, 8, 26, 15, 0));   // 20:00
+  t.s.ctx.tgDailySummary();
+  const r902 = t.s.book.sheets.Yuborishlar.rows.find(r => r[2] === 'BL-902');
+  const iso = v => t.s.ctx.Utilities.formatDate(v, 'Asia/Tashkent', 'yyyy-MM-dd');
+  assert.deepEqual([iso(r902[0]), r902[12], r902[13], r902[14]], ['2026-09-27', 'Belgilanmagan', '', 'Rejada']);
+  assert.match(r902[15], /осторожно, стекло · повторно: не доставлено 26\.09\.2026/);
+  assert.match(t.last('sendMessage', g).text, /📊 Итог дня 26\.09\.2026[\s\S]*↪️ Не доставленные перенесены на 27\.09\.2026: 1 \(BL-902\)/);
+  assert.deepEqual(t.status('BL-901'), ['Yetkazildi', 'Yetkazildi'], 'доставленные не трогаем');
+  // с сайта: партия 25.09 → 28.09
+  t.s.book.sheets.Yuborishlar.rows.find(r => r[2] === 'BL-905')[14] = 'Qolib ketgan';
+  assert.match(t.s.post({ token: '', tg: { action: 'carry', from: '2026-09-25', to: '2026-09-25' } }).error, /другую дату/);
+  const r = t.s.post({ token: '', tg: { action: 'carry', from: '2026-09-25', to: '2026-09-28' } });
+  assert.deepEqual(r.moved, ['BL-905']);
+  assert.equal(iso(t.s.book.sheets.Yuborishlar.rows.find(x => x[2] === 'BL-905')[0]), '2026-09-28');
+  // выключено — не переносим
+  const u = approved();
+  u.s.post({ token: '', tg: { action: 'settings', carry: false } });
+  u.msg(501, '🚚 Начать работу'); u.loc(501, DEPOT);
+  u.cb(501, 'fail:BL-901|1'); u.cb(501, 'why:0'); u.photo(501, 'F'); u.msg(501, '✅ Готово'); u.loc(501, DEPOT);
+  u.now.value = new Date(Date.UTC(2026, 8, 26, 15, 0));
+  u.s.ctx.tgDailySummary();
+  assert.deepEqual(u.status('BL-901'), ['Qolib ketgan', 'Qolib ketgan']);
+  assert.doesNotMatch(u.last('sendMessage', u.group.id).text, /перенесены/);
+});
+
+test('клиенты: подписка по ссылке и номеру (свой номер из карточки — сразу, чужой — через группу), уведомления на узбекском: сегодня, в пути, не отвечает, доставлено с фото, не доставлено; /stop', () => {
+  const t = approved(), g = t.group.id;
+  t.s.post({ token: '', tg: { action: 'dispatcher', phone: '+998770176611', name: 'Jasur' } });
+  const cmsg = (from, text, extra = {}) => t.upd({ message: { message_id: 1, from: { id: from, first_name: 'Aziz', username: 'aziz' }, chat: { id: from, type: 'private' }, text, ...extra } });
+  const contact = (from, phone, owner = from) => cmsg(from, undefined, { contact: { phone_number: phone, user_id: owner } });
+  assert.equal(t.s.book.sheets.Obunalar, undefined, 'лист подписок — с первым клиентом');
+  cmsg(700, '/start bl-901');
+  const hi = t.last('sendMessage', 700);
+  assert.match(hi.text, /BURAQ logistics boti[\s\S]*telefon raqamingizni yuboring/);
+  assert.equal(hi.reply_markup.keyboard[0][0].request_contact, true);
+  contact(700, '+998 90 000 00 01', 999);
+  assert.match(t.last('sendMessage', 700).text, /o‘zingizning raqamingizni/);
+  contact(700, '998900000001');
+  assert.match(t.last('sendMessage', 700).text, /✅ Obuna bo‘ldingiz: BL-901/);
+  // номера нет в карточке — решает администратор группы
+  cmsg(701, '/start BL-902'); contact(701, '+998911111111');
+  assert.match(t.last('sendMessage', 701).text, /Menejer tasdiqlagach/);
+  const ask = t.last('sendMessage', g);
+  assert.match(ask.text, /Клиент хочет получать уведомления о грузе: BL-902 Botir\nTelegram: Aziz @aziz · \+998911111111\nНомера в карточке: \+998900000002, \+998900000022/);
+  t.cb(555, 'callow:701', t.group);
+  assert.equal(t.s.book.sheets.Obunalar.rows.find(r => r[0] === '701')[4], 'kutilmoqda', 'не администратор — не может');
+  t.cb(900, 'callow:701', t.group);
+  assert.match(t.last('sendMessage', 701).text, /✅ Obuna bo‘ldingiz: BL-902/);
+  // без ссылки: кнопка «я клиент» → BL → номер
+  cmsg(702, '/start');
+  assert.equal(t.last('sendMessage', 702).reply_markup.inline_keyboard[1][0].callback_data, 'client');
+  t.cb(702, 'client');
+  assert.match(t.last('sendMessage', 702).text, /BL kodingizni yozing/);
+  cmsg(702, 'BL-999'); assert.match(t.last('sendMessage', 702).text, /topilmadi/);
+  cmsg(702, 'BL-903'); contact(702, '+998900000003');
+  assert.match(t.last('sendMessage', 702).text, /Obuna bo‘ldingiz: BL-903/);
+  assert.equal(t.s.book.sheets.Haydovchilar.rows.filter(r => r[0] === '702').length, 0, 'клиент не остаётся в листе водителей');
+  // сегодня доставим
+  t.s.post({ token: '', tg: { action: 'dispatch', date: '2026-09-26' } });
+  assert.match(t.last('sendMessage', 700).text, /📦 BURAQ logistics: yukingiz \(BL-901 · 12 joy\) bugun yetkaziladi/);
+  // в пути — время прибытия
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  assert.match(t.last('sendMessage', 700).text, /🚚 Haydovchi sizga yo‘lda! Taxminan 09:\d\d da yetib boradi\.\nMashina: Gazel-2\.\nSavollar bo‘lsa: \+998770176611/);
+  // не отвечает → клиенту просьба ответить
+  t.cb(501, 'fail:BL-901|1'); t.cb(501, 'why:1');
+  assert.match(t.last('sendMessage', 700).text, /Haydovchi manzilingiz yonida, lekin telefoningizga javob yo‘q/);
+  t.cb(501, 'na:ok'); t.photo(501, 'P1'); t.msg(501, '✅ Готово'); t.loc(501, [41.31, 69.21]);
+  const done = t.last('sendPhoto', 700);
+  assert.equal(done.photo, 'P1'); assert.match(done.caption, /✅ Yukingiz yetkazildi: BL-901 · 12 joy/);
+  // не доставлено — причина по-узбекски
+  t.cb(501, 'fail:BL-902|1'); t.cb(501, 'why:0'); t.photo(501, 'F'); t.msg(501, '✅ Готово'); t.loc(501, [41.36, 69.28]);
+  assert.match(t.last('sendMessage', 701).text, /Bugun yukingizni \(BL-902\) yetkazib bera olmadik\. Sabab: Mijoz yo‘q\./);
+  const n701 = t.texts(701).length;
+  t.cb(501, 'round:2');   // BL-903 → 702 «в пути»; 701 больше не пишем
+  assert.match(t.last('sendMessage', 702).text, /Haydovchi sizga yo‘lda/);
+  assert.equal(t.texts(701).length, n701);
+  // отписка
+  cmsg(700, '/stop'); assert.match(t.last('sendMessage', 700).text, /Obuna bekor qilindi/);
+  const subs = t.s.get({}).data.tg.subs;
+  assert.deepEqual(subs.map(x => [x.bl, x.status]), [['BL-901', 'o‘chirilgan'], ['BL-902', 'faol'], ['BL-903', 'faol']]);
+});
+
+test('камера: испорченная подпись — отказ без сбоя; клиентская ссылка не удаляет отключённого водителя', () => {
+  const t = approved();
+  assert.equal(t.s.post({ tgphoto: { init: 'user=%E0%A4%A&hash=%', key: 'x', img: JPEG } }).code, 'auth');
+  assert.equal(t.s.post({ tgphoto: { init: '', key: 'x', img: JPEG } }).code, 'auth');
+  t.s.post({ token: '', tg: { action: 'driver', id: '501', status: 'o‘chirilgan' } });
+  t.msg(501, '/start BL-901');
+  assert.equal(t.s.book.sheets.Haydovchilar.rows.filter(r => r[0] === '501').length, 1, 'строка водителя на месте');
+});

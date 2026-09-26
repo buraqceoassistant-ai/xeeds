@@ -23,9 +23,11 @@
  * Версия 10: госномера машин (Sozlamalar D24:D39), «Отправить» партию водителям с сайта, итог дня в группу в 20:00.
  * Версия 11: «Клиент не отвечает» — водителю меню со звонком диспетчеру, в группу — тревога с номерами клиента;
  *   номер диспетчера (TG_DISP_PHONE, TG_DISP_NAME) задаётся на сайте во вкладке «Водители».
+ * Версия 12: фото только с камеры (driver.html на сайте), маршрут в навигаторе, «Жду клиента» (триггер tgTick каждые 5 мин),
+ *   «Проблема в пути», перенос недоставленных на завтра, уведомления клиентам.
  */
 var TOKEN = '';
-var VERSION = 11; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 12; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 var COLS = { ship: 16, cli: 25, wh: 8, set: 4, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера машин
@@ -101,6 +103,7 @@ function doPost(e) {
   if (e && e.parameter && e.parameter.tg) return tgWebhook_(e);   // обновление от Telegram (ссылка с секретом бота)
   var raw = (e && e.postData && e.postData.contents) || '{}', body = {}, tk = token_();
   try { body = JSON.parse(raw); } catch (err) { return json_({ error: 'Плохой запрос' }); }
+  if (body.tgphoto) return json_(tgPhotoUpload_(body.tgphoto));   // фото с камеры водителя: вход по подписи Telegram
   if (tk && body.token !== tk) return json_({ error: 'Неверный пароль' });
   if (body.ai) return json_(ai_(body, raw.length));   // ИИ — без блокировки таблицы и без выгрузки данных
   if (body.tg) return json_(tgSite_(body));   // бот: подключить, водители

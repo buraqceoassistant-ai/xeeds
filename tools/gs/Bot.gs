@@ -9,12 +9,40 @@
 // отчёт в группу → следующая точка — ближайшая к месту отметки; рейс 2 — после возвращения на склад; «Ishni tugatish».
 // Листы: «Haydovchilar» (водители и состояние диалога), «Yetkazish» (отметки доставки), «Ish kuni» (начало и конец дня).
 var TG_API = 'https://api.telegram.org/';
-var TG = { drivers: 'Haydovchilar', log: 'Yetkazish', days: 'Ish kuni' };
+var TG = { drivers: 'Haydovchilar', log: 'Yetkazish', days: 'Ish kuni', problems: 'Muammolar', subs: 'Obunalar' };
 var TG_HEAD = {
   drivers: ['Telegram ID', 'Ism', 'Mashina', 'Davlat raqami', 'Til', 'Holat', 'Ro‘yxatdan o‘tgan', 'Tasdiqlagan', 'Telegram', 'Bot holati (tizim uchun)'],
-  log: ['Vaqt', 'Sana', 'Haydovchi', 'Mashina', 'BL', 'Mijoz', 'Natija', 'Sabab', 'Rasmlar', 'Joylashuv', 'Telegram ID', 'Reys'],
-  days: ['Sana', 'Haydovchi', 'Mashina', 'Boshlandi', 'Boshlanish joyi', 'Tugadi', 'Tugash joyi', 'Yetkazildi', 'Yetkazilmadi', 'Telegram ID', 'Partiya']
+  log: ['Vaqt', 'Sana', 'Haydovchi', 'Mashina', 'BL', 'Mijoz', 'Natija', 'Sabab', 'Rasmlar', 'Joylashuv', 'Telegram ID', 'Reys', 'Kutdi (daq)', 'Mijozgacha (km)'],
+  days: ['Sana', 'Haydovchi', 'Mashina', 'Boshlandi', 'Boshlanish joyi', 'Tugadi', 'Tugash joyi', 'Yetkazildi', 'Yetkazilmadi', 'Telegram ID', 'Partiya'],
+  problems: ['Vaqt', 'Haydovchi', 'Mashina', 'Turi', 'Izoh', 'Rasmlar', 'Joylashuv', 'Telegram ID'],
+  subs: ['Telegram ID', 'BL', 'Ism', 'Telefon', 'Holat', 'Sana', 'Tasdiqlagan', 'Holat (tizim uchun)']
 };
+// ── клиенты: подписка на уведомления о своём грузе (тексты для клиентов — на узбекском, латиницей) ──
+var TXC = {
+  hello: 'Assalomu alaykum! Bu — BURAQ logistics boti.\nYukingiz yo‘lga chiqqanda va yetkazilganda shu yerga xabar beramiz.',
+  askPhone: 'Obuna bo‘lish uchun telefon raqamingizni yuboring — pastdagi tugmani bosing 👇', bPhone: '📱 Raqamni yuborish',
+  askBl: 'BL kodingizni yozing (masalan: BL-202).', badBl: 'Bunday BL kod topilmadi. Tekshirib, qayta yozing yoki menejerga murojaat qiling.',
+  notOwn: 'Iltimos, o‘zingizning raqamingizni pastdagi tugma orqali yuboring 👇',
+  ok: '✅ Obuna bo‘ldingiz: {bl}. Yukingiz yo‘lga chiqqanda va yetkazilganda xabar beramiz.\nObunani bekor qilish: /stop',
+  pending: 'Raqamingiz mijoz kartasida topilmadi. Menejer tasdiqlagach, xabarlar kela boshlaydi.',
+  rejected: 'Obuna tasdiqlanmadi. Savollar bo‘lsa, menejerga murojaat qiling.',
+  stopped: 'Obuna bekor qilindi. Qayta obuna bo‘lish uchun menejerdan havola so‘rang.',
+  help: 'Yukingiz holati haqida xabarlar shu yerga keladi.{disp}\nObunani bekor qilish: /stop',
+  today: '📦 BURAQ logistics: yukingiz ({bl} · {places} joy) bugun yetkaziladi. Haydovchi yo‘lga chiqqanda xabar beramiz.',
+  onWay: '🚚 Haydovchi sizga yo‘lda! {eta}\nMashina: {truck}.{disp}',
+  eta: 'Taxminan {time} da yetib boradi.', etaNone: 'Tez orada yetib boradi.',
+  noAnswer: '📞 Haydovchi manzilingiz yonida, lekin telefoningizga javob yo‘q. Iltimos, qo‘ng‘iroqqa javob bering.{disp}',
+  delivered: '✅ Yukingiz yetkazildi: {bl} · {places} joy. BURAQ logistics bilan ishlaganingiz uchun rahmat!',
+  failed: 'Bugun yukingizni ({bl}) yetkazib bera olmadik. Sabab: {reason}.\nYetkazish qayta rejalashtiriladi.{disp}',
+  disp: '\nSavollar bo‘lsa: {phone}'
+};
+function txc_(k, vars) {
+  var p = tgDispatcher_().phone, v = Object.assign({ disp: p ? TXC.disp.replace('{phone}', p) : '' }, vars || {}), out = TXC[k];
+  Object.keys(v).forEach(function (x) { out = out.split('{' + x + '}').join(v[x]); });
+  return out;
+}
+// «Проблема в пути»: вид — кнопкой; в таблицу и на сайт — по-русски, без значка
+var TG_PROBLEMS = { uz: ['🔧 Mashina buzildi', '🚦 Tirbandlik', '💥 YTH (avariya)', '👮 YPX / jarima', '⛽ Yoqilg‘i', '✍️ Boshqa'], ru: ['🔧 Поломка', '🚦 Пробка', '💥 ДТП', '👮 ГАИ / штраф', '⛽ Топливо', '✍️ Другое'] };
 var TG_DONE = ['Yetkazildi', 'Qolib ketgan', 'Mijoz ozi oldi', 'Bekor qilindi'];   // точка с таким статусом водителю больше не нужна
 var TG_NOT_TRUCKS = ['Belgilanmagan', 'Mijoz ozi oladi'];
 var TG_REASONS = { uz: ['Mijoz yo‘q', 'Telefonga javob bermayapti', 'Yukni olmadi', 'Boshqa sabab'], ru: ['Клиента нет на месте', 'Не отвечает на телефон', 'Отказался от груза', 'Другая причина'] };
@@ -42,10 +70,15 @@ var TX = {
     noStops: 'Bugun {truck} uchun manzillar yo‘q. Reja jurnalga yozilgach, «📍 Joriy manzil» tugmasini bosing.',
     stop: '📦 {i}/{n} manzil · {round}-reys', client: 'Mijoz', addr: 'Manzil', recv: 'Qabul qiluvchi', tel: 'Tel', cargo: '{places} joy · {cbm} m³ · {kg} kg', note: 'Izoh', noCoords: 'Xaritada nuqta yo‘q — manzil bo‘yicha boring.',
     bOk: '✅ Yetkazildi', bFail: '❌ Yetkazilmadi',
-    askPhoto: 'Yetkazilgan yukning rasmini yuboring (bir yoki bir nechta), keyin «✅ Tayyor» tugmasini bosing.',
-    photoOk: '📷 Rasm qabul qilindi: {n}.', needPhoto: 'Kamida bitta rasm yuboring.',
+    askPhoto: 'Yukni mijoz oldida suratga oling: «📷 Suratga olish» tugmasini bosing — kamera ochiladi. Keyin «✅ Tayyor».',
+    askPhotoChat: 'Yetkazilgan yukning rasmini yuboring (bir yoki bir nechta), keyin «✅ Tayyor» tugmasini bosing.',
+    photoOk: '📷 Rasm qabul qilindi: {n}. Yana suratga olishingiz yoki «✅ Tayyor» tugmasini bosishingiz mumkin.', needPhoto: 'Kamida bitta rasm kerak: «📷 Suratga olish».',
+    bCam: '📷 Suratga olish', camOnly: 'Rasm faqat «📷 Suratga olish» tugmasi orqali qabul qilinadi — u kamerani ochadi. Galereyadagi rasmlar qabul qilinmaydi.',
+    bRoute: '🧭 Yo‘nalish (Yandex)', bRouteG: '🧭 Google Maps', bWait: '⏳ Mijozni kutyapman',
+    waiting: '⏳ Mijozni {until} gacha kutasiz. Mijoz kelsa — «✅ Yetkazildi», kelmasa — «❌ Yetkazilmadi».', waitOver: '⏰ {min} daqiqa o‘tdi. Mijoz keldimi?', bMore: '⏳ Yana {min} daqiqa',
     askReason: 'Sababni tanlang:', askReasonText: 'Sababni qisqacha yozing.',
-    askPhotoFail: 'Rasm yuborishingiz mumkin yoki «➡️ Rasmsiz davom etish» tugmasini bosing.',
+    askPhotoFail: 'Joyni suratga oling (yopiq eshik, manzil): «📷 Suratga olish» tugmasi. Keyin «✅ Tayyor».',
+    askPhotoFailChat: 'Joyning rasmini yuboring (yopiq eshik, manzil), keyin «✅ Tayyor» tugmasini bosing.',
     saved: 'Saqlandi ✅', next: 'Keyingi manzil 👇',
     roundDone: '{round}-reys tugadi. Omborga qayting, {next}-reys yukini oling va tugmani bosing.', bRound: '▶️ {next}-reysni boshlash',
     allDone: 'Bugungi barcha manzillar tugadi 👏 «🏁 Ishni tugatish» tugmasini bosing.',
@@ -56,6 +89,8 @@ var TX = {
     assign: '📋 Topshiriq: {date} partiyasi\n🚚 {truck} · {n} ta manzil\n\n{list}\n\nBoshlash uchun «🚚 Ishni boshlash» tugmasini bosing.',
     assignNow: '📋 Yangi topshiriq: {date} partiyasi — {n} ta manzil. Birinchi manzil pastda 👇',
     assignChanged: '⚠️ Topshiriq o‘zgardi.', round: '{round}-reys', msg: '📩 Rahbardan xabar:\n{text}',
+    bProblem: '⚠️ Muammo', askProblem: 'Nima bo‘ldi?', probAsk: 'Qisqacha yozing va rasm yuboring (ixtiyoriy), keyin joylashuvni yuboring 👇',
+    probPhoto: '📷 Rasm qo‘shildi: {n}. Endi joylashuvni yuboring 👇', probText: 'Yozildi. Endi joylashuvni yuboring 👇', probSent: 'Xabar dispetcherga yuborildi ✅ Kerak bo‘lsa, «📞 Dispetcher» tugmasi bilan qo‘ng‘iroq qiling.',
     bCall: '📞 Dispetcher', dispatcher: '📞 Dispetcher: {name}\n{phone}\nQo‘ng‘iroq qilish uchun raqamni bosing.', noDispatcher: 'Dispetcher raqami hali kiritilmagan. Rahbarga murojaat qiling.',
     noAnswer: '📵 Mijoz telefonga javob bermayapti. Nima qilamiz?', bCallDisp: '📞 Dispetcherga qo‘ng‘iroq', bClientTel: '☎️ Mijoz raqamlari',
     bAnswered: '✅ Mijoz javob berdi — yetkazaman', bStillFail: '❌ Baribir yetkazilmadi', dispAlerted: 'Dispetcherga xabar berildi — u ham mijozga qo‘ng‘iroq qiladi.',
@@ -82,10 +117,15 @@ var TX = {
     noStops: 'На сегодня у {truck} точек нет. Когда план запишут в журнал, нажмите «📍 Текущая точка».',
     stop: '📦 Точка {i} из {n} · рейс {round}', client: 'Клиент', addr: 'Адрес', recv: 'Получатель', tel: 'Тел', cargo: '{places} мест · {cbm} м³ · {kg} кг', note: 'Примечание', noCoords: 'Точки на карте нет — езжайте по адресу.',
     bOk: '✅ Доставлено', bFail: '❌ Не доставлено',
-    askPhoto: 'Отправьте фото доставленного груза (одно или несколько), затем нажмите «✅ Готово».',
-    photoOk: '📷 Фото принято: {n}.', needPhoto: 'Отправьте хотя бы одно фото.',
+    askPhoto: 'Сфотографируйте груз у клиента: нажмите «📷 Сфотографировать» — откроется камера. Затем «✅ Готово».',
+    askPhotoChat: 'Отправьте фото доставленного груза (одно или несколько), затем нажмите «✅ Готово».',
+    photoOk: '📷 Фото принято: {n}. Можно сделать ещё или нажать «✅ Готово».', needPhoto: 'Нужно хотя бы одно фото: «📷 Сфотографировать».',
+    bCam: '📷 Сфотографировать', camOnly: 'Фото принимается только через кнопку «📷 Сфотографировать» — она открывает камеру. Фото из галереи не принимаются.',
+    bRoute: '🧭 Маршрут (Яндекс)', bRouteG: '🧭 Google Maps', bWait: '⏳ Жду клиента',
+    waiting: '⏳ Ждёте клиента до {until}. Придёт — «✅ Доставлено», не придёт — «❌ Не доставлено».', waitOver: '⏰ Прошло {min} мин. Клиент пришёл?', bMore: '⏳ Ещё {min} мин',
     askReason: 'Выберите причину:', askReasonText: 'Коротко напишите причину.',
-    askPhotoFail: 'Можно отправить фото или нажать «➡️ Без фото».',
+    askPhotoFail: 'Сфотографируйте место (закрытые ворота, адрес): кнопка «📷 Сфотографировать». Затем «✅ Готово».',
+    askPhotoFailChat: 'Отправьте фото места (закрытые ворота, адрес), затем нажмите «✅ Готово».',
     saved: 'Сохранено ✅', next: 'Следующая точка 👇',
     roundDone: 'Рейс {round} закончен. Вернитесь на склад, загрузите рейс {next} и нажмите кнопку.', bRound: '▶️ Начать рейс {next}',
     allDone: 'Все точки на сегодня пройдены 👏 Нажмите «🏁 Закончить работу».',
@@ -96,6 +136,8 @@ var TX = {
     assign: '📋 Задание: партия {date}\n🚚 {truck} · точек: {n}\n\n{list}\n\nЧтобы начать, нажмите «🚚 Начать работу».',
     assignNow: '📋 Новое задание: партия {date} — точек: {n}. Первая точка ниже 👇',
     assignChanged: '⚠️ Задание изменилось.', round: 'рейс {round}', msg: '📩 Сообщение от руководителя:\n{text}',
+    bProblem: '⚠️ Проблема', askProblem: 'Что случилось?', probAsk: 'Коротко опишите и пришлите фото (по желанию), затем отправьте геолокацию 👇',
+    probPhoto: '📷 Фото добавлено: {n}. Теперь отправьте геолокацию 👇', probText: 'Записал. Теперь отправьте геолокацию 👇', probSent: 'Сообщение отправлено диспетчеру ✅ Если нужно — позвоните кнопкой «📞 Диспетчер».',
     bCall: '📞 Диспетчер', dispatcher: '📞 Диспетчер: {name}\n{phone}\nНажмите на номер, чтобы позвонить.', noDispatcher: 'Номер диспетчера ещё не указан. Обратитесь к руководителю.',
     noAnswer: '📵 Клиент не отвечает на телефон. Что делаем?', bCallDisp: '📞 Позвонить диспетчеру', bClientTel: '☎️ Номера клиента',
     bAnswered: '✅ Клиент ответил — доставляю', bStillFail: '❌ Всё равно не доставлено', dispAlerted: 'Диспетчеру отправлено сообщение — он тоже позвонит клиенту.',
@@ -126,8 +168,8 @@ function tg_(method, payload) {
 }
 function tgSend_(chat, text, markup) { return tg_('sendMessage', { chat_id: chat, text: text, reply_markup: markup, disable_web_page_preview: true }); }
 function tgMenu_(lang) {
-  var kb = [[tx_(lang, 'bStart'), tx_(lang, 'bCur')], [tx_(lang, 'bEnd'), tx_(lang, 'bLang')]];
-  if (tgDispatcher_().phone) kb.push([tx_(lang, 'bCall')]);
+  var kb = [[tx_(lang, 'bStart'), tx_(lang, 'bCur')], [tx_(lang, 'bEnd'), tx_(lang, 'bLang')], [tx_(lang, 'bProblem')]];
+  if (tgDispatcher_().phone) kb[2].push(tx_(lang, 'bCall'));
   return { keyboard: kb, resize_keyboard: true, is_persistent: true };
 }
 // диспетчер: имя и телефон — свойства скрипта TG_DISP_NAME / TG_DISP_PHONE, задаются на сайте («Водители»)
@@ -145,6 +187,40 @@ function tgClientTels_(c) {
   [[c.recvTel, c.receiver], [c.tel1, c.name || c.brand], [c.tel2, '']].forEach(function (x) { var t = String(x[0] || '').trim(); if (t && !out.some(function (o) { return o.t === t; })) out.push({ t: t, who: String(x[1] || '').trim() }); });
   return out;
 }
+// ── фото только с камеры: мини-приложение сайта (driver.html) открывает камеру, ставит штамп и шлёт снимок в скрипт ──
+// TG_SITE — адрес сайта (…/xeeds/), TG_URL — ссылка веб-приложения скрипта; TG_CAMERA = 0 — принимать фото из чата
+function tgCamera_() { return prop_('TG_CAMERA') !== '0' && /^https:\/\//.test(prop_('TG_SITE')) && !!prop_('TG_URL'); }
+function tgCamUrl_(d, w) {
+  return prop_('TG_SITE') + 'driver.html?s=' + encodeURIComponent(prop_('TG_URL')) + '&k=' + encodeURIComponent(w.cur.key) + '&bl=' + encodeURIComponent(w.cur.bl) + '&l=' + d.lang + '&m=' + (w.result === 'ok' ? 'ok' : 'fail');
+}
+function tgPhotoKb_(d, w) {
+  var L = d.lang;
+  return tgInline_([[{ text: tx_(L, 'bCam'), web_app: { url: tgCamUrl_(d, w) } }], [{ text: tx_(L, 'bDone'), callback_data: 'pdone' }, { text: tx_(L, 'bCancel'), callback_data: 'pcancel' }]]);
+}
+// шаг «фото»: с камерой — кнопки в сообщении; без неё — фото из чата и клавиатура «Готово / Отмена»
+function tgPhotoAsk_(d, w, key) {
+  var L = d.lang;
+  if (!tgCamera_()) return tgSend_(d.id, tx_(L, key + 'Chat'), { keyboard: [[tx_(L, 'bDone')], [tx_(L, 'bCancel')]], resize_keyboard: true });
+  return tgSend_(d.id, tx_(L, key), tgPhotoKb_(d, w));
+}
+// «Готово» после фото: без фото нельзя; место — со снимка камеры, иначе — геолокация
+function tgPhotoDone_(d, w) {
+  var L = d.lang;
+  if (!(w.photos || []).length) return tgSend_(d.id, tx_(L, 'needPhoto'), tgCamera_() ? tgPhotoKb_(d, w) : undefined);
+  if (w.photoLL) return tgFinish_(d, w, w.photoLL);
+  w.stage = 'loc'; tgSave_(d);
+  return tgSend_(d.id, tx_(L, 'askLoc'), tgLocKb_(L));
+}
+// карточка точки: доставлено / не доставлено, жду клиента, маршрут в навигаторе
+function tgStopKb_(d, s) {
+  var L = d.lang, rows = [[{ text: tx_(L, 'bOk'), callback_data: 'ok:' + s.key }, { text: tx_(L, 'bFail'), callback_data: 'fail:' + s.key }], [{ text: tx_(L, 'bWait'), callback_data: 'wait:' + s.key }]];
+  if (s.c && s.c.lat && s.c.lon) rows.push([{ text: tx_(L, 'bRoute'), url: 'https://yandex.uz/maps/?rtext=~' + s.c.lat + ',' + s.c.lon + '&rtt=auto' }, { text: tx_(L, 'bRouteG'), url: 'https://www.google.com/maps/dir/?api=1&destination=' + s.c.lat + ',' + s.c.lon + '&travelmode=driving' }]);
+  return tgInline_(rows);
+}
+function tgOkFailKb_(d, key) { return tgInline_([[{ text: tx_(d.lang, 'bOk'), callback_data: 'ok:' + key }, { text: tx_(d.lang, 'bFail'), callback_data: 'fail:' + key }]]); }
+function tgWaitMin_() { var n = Math.round(Number(prop_('TG_WAIT_MIN'))); return n >= 5 && n <= 120 ? n : 15; }
+function tgMaxKm_() { var n = Number(prop_('TG_MAX_KM')); return n > 0 && n <= 50 ? n : 1; }
+function tgHm_(ms) { return Utilities.formatDate(new Date(ms), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'HH:mm'); }
 function tgLocKb_(lang) { return { keyboard: [[{ text: tx_(lang, 'bLoc'), request_location: true }], [tx_(lang, 'bCancel')]], resize_keyboard: true }; }
 function tgInline_(rows) { return { inline_keyboard: rows }; }
 function tgNow_(f) { return Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), f || 'yyyy-MM-dd HH:mm'); }
@@ -235,10 +311,16 @@ function tgHandle_(u) {
   if (m.chat.type === 'group' || m.chat.type === 'supergroup') return tgGroupMsg_(m);
   if (m.chat.type !== 'private') return;
   var id = String(m.from.id), d = tgDriver_(id), text = String(m.text || '').trim();
+  // клиент: ссылка t.me/<бот>?start=<BL> или уже подписан (водители с доступом и заявкой — не клиенты)
+  if (!(d && (d.status === 'ruxsat' || d.status === 'kutilmoqda'))) {
+    var sp = (text.match(/^\/start\s+(\S+)/) || [])[1], cbl = sp ? tgClientBl_(sp) : '', cs = tgSub_(id);
+    if (cbl) return tgClientStart_(id, m, cbl, d);
+    if (cs) return tgClientMsg_(cs, m, text);
+  }
   if (!d) {
     d = { id: id, lang: 'uz', status: 'yangi', user: m.from.username ? '@' + m.from.username : [m.from.first_name, m.from.last_name].filter(Boolean).join(' '), st: { step: 'lang' } };
     tgSave_(d);
-    return tgSend_(id, TX.uz.hello + '\n' + TX.ru.hello.split('\n')[1], tgInline_([[{ text: 'O‘zbekcha', callback_data: 'lang:uz' }, { text: 'Русский', callback_data: 'lang:ru' }]]));
+    return tgSend_(id, TX.uz.hello + '\n' + TX.ru.hello.split('\n')[1], tgHelloKb_());
   }
   var L = d.lang;
   if (/^\/start\b/.test(text) && d.status !== 'ruxsat' && d.status !== 'kutilmoqda') { d.st = { step: 'lang' }; tgSave_(d); return tgSend_(id, TX.uz.hello + '\n' + TX.ru.hello.split('\n')[1], tgInline_([[{ text: 'O‘zbekcha', callback_data: 'lang:uz' }, { text: 'Русский', callback_data: 'lang:ru' }]])); }
@@ -264,7 +346,17 @@ function tgHandle_(u) {
     return tgSend_(id, TX.uz.hello + '\n' + TX.ru.hello.split('\n')[1], tgInline_([[{ text: 'O‘zbekcha', callback_data: 'lang:uz' }, { text: 'Русский', callback_data: 'lang:ru' }]]));
   }
   // водитель с доступом
-  var w = tgWork_(d);
+  var w = tgWork_(d), pr = d.st.pr;
+  if (tgIs_(text, 'bProblem') || /^\/muammo\b/.test(text)) {
+    d.st.pr = { stage: 'type' }; tgSave_(d);
+    return tgSend_(id, tx_(L, 'askProblem'), tgInline_(TG_PROBLEMS[L].map(function (x, i) { return [{ text: x, callback_data: 'pr:' + i }]; })));
+  }
+  if (pr && pr.stage === 'info') {   // проблема: описание, фото (можно из галереи), затем геолокация
+    if (m.location) return tgProblemDone_(d, w, [m.location.latitude, m.location.longitude]);
+    if (m.photo && m.photo.length) { pr.photos = (pr.photos || []).concat([m.photo[m.photo.length - 1].file_id]).slice(0, 5); tgSave_(d); return tgSend_(id, tx_(L, 'probPhoto', { n: pr.photos.length }), tgLocKb_(L)); }
+    if (tgIs_(text, 'bCancel')) { delete d.st.pr; tgSave_(d); return tgSend_(id, tx_(L, 'menu'), tgMenu_(L)); }
+    if (text && text.charAt(0) !== '/' && !['bStart', 'bCur', 'bEnd', 'bLang', 'bCall'].some(function (k) { return tgIs_(text, k); })) { pr.text = ((pr.text ? pr.text + ' ' : '') + text).slice(0, 300); tgSave_(d); return tgSend_(id, tx_(L, 'probText'), tgLocKb_(L)); }
+  }
   if (m.location) return tgLocation_(d, w, [m.location.latitude, m.location.longitude]);
   if (m.photo && m.photo.length) return tgPhoto_(d, w, m.photo[m.photo.length - 1].file_id);
   if (tgIs_(text, 'bCall') || /^\/dispetcher\b/.test(text)) return tgSendDispatcher_(d);
@@ -284,17 +376,98 @@ function tgHandle_(u) {
     if (!w || !w.started) return tgSend_(id, tx_(L, 'notWorking'), tgMenu_(L));
     return tgCurrent_(d, w);
   }
-  if (tgIs_(text, 'bCancel')) { if (w) { w.stage = w.started ? null : 'none'; if (!w.started) delete d.st.work; tgSave_(d); } return tgSend_(id, tx_(L, 'menu'), tgMenu_(L)); }
-  if (w && w.stage === 'photo' && tgIs_(text, 'bDone')) {
-    if (!(w.photos || []).length) return tgSend_(id, tx_(L, 'needPhoto'));
-    w.stage = 'loc'; tgSave_(d); return tgSend_(id, tx_(L, 'askLoc'), tgLocKb_(L));
-  }
-  if (w && w.stage === 'failPhoto' && (tgIs_(text, 'bSkip') || tgIs_(text, 'bDone'))) { w.stage = 'loc'; tgSave_(d); return tgSend_(id, tx_(L, 'askLoc'), tgLocKb_(L)); }
-  if (w && w.stage === 'reasonText' && text) { w.reason = text.slice(0, 200); w.stage = 'failPhoto'; tgSave_(d); return tgSend_(id, tx_(L, 'askPhotoFail'), { keyboard: [[tx_(L, 'bSkip')], [tx_(L, 'bCancel')]], resize_keyboard: true }); }
+  if (tgIs_(text, 'bCancel')) return tgCancel_(d, w);
+  if (w && (w.stage === 'photo' || w.stage === 'failPhoto') && tgIs_(text, 'bDone')) return tgPhotoDone_(d, w);
+  if (w && w.stage === 'reasonText' && text) { w.reason = text.slice(0, 200); w.stage = 'failPhoto'; tgSave_(d); return tgPhotoAsk_(d, w, 'askPhotoFail'); }
   if (w && /Loc$|^loc$/.test(w.stage || '')) return tgSend_(id, tx_(L, 'needLoc'), tgLocKb_(L));
   return tgSend_(id, tx_(L, 'unknown'), tgMenu_(L));
 }
 
+function tgHelloKb_() { return tgInline_([[{ text: 'O‘zbekcha', callback_data: 'lang:uz' }, { text: 'Русский', callback_data: 'lang:ru' }], [{ text: '📦 Men mijozman — yuk holati', callback_data: 'client' }]]); }
+// ── подписки клиентов: лист «Obunalar» ──
+function tgSubs_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TG.subs), out = [];   // лист появляется с первым клиентом
+  var last = sh ? sh.getLastRow() : 0;
+  if (last < 2) return out;
+  sh.getRange(2, 1, last - 1, TG_HEAD.subs.length).getValues().forEach(function (r, i) {
+    if (r[0] === '' || r[0] === null) return;
+    var st = {}; try { st = JSON.parse(r[7] || '{}'); } catch (err) { st = {}; }
+    out.push({ row: 2 + i, id: String(r[0]), bl: String(r[1]), name: String(r[2]), phone: String(r[3]), status: String(r[4]), at: r[5], by: String(r[6] || ''), st: st });
+  });
+  return out;
+}
+function tgSub_(id) { return tgSubs_().filter(function (c) { return c.id === String(id); })[0] || null; }
+function tgSubSave_(c) {
+  var sh = tgSheet_('subs'), row = c.row;
+  if (!row) { row = Math.max(2, sh.getLastRow() + 1); c.row = row; }
+  sh.getRange(row, 1, 1, TG_HEAD.subs.length).setValues([[c.id, c.bl || '', c.name || '', c.phone || '', c.status || '', c.at || '', c.by || '', JSON.stringify(c.st || {})]]);
+  sh.getRange(row, 1).setNumberFormat('@');
+}
+// BL клиента из справочника (без учёта регистра)
+function tgClientBl_(x) {
+  var u = String(x || '').trim().toUpperCase(), cl = tgData_().cl;
+  return Object.keys(cl).filter(function (k) { return k.toUpperCase() === u; })[0] || '';
+}
+function tgContactKb_() { return { keyboard: [[{ text: TXC.bPhone, request_contact: true }]], resize_keyboard: true, one_time_keyboard: true }; }
+function tgClientStart_(id, m, bl, d) {
+  if (d && d.row && (!d.status || d.status === 'yangi')) tgSheet_('drivers').deleteRow(d.row);   // начал регистрацию водителя — это клиент
+  var c = tgSub_(id) || { id: id };
+  c.bl = bl; c.name = [m.from.first_name, m.from.last_name].filter(Boolean).join(' ') + (m.from.username ? ' @' + m.from.username : ''); c.status = 'yangi'; c.st = { step: 'phone', sent: (c.st && c.st.sent) || {} };
+  tgSubSave_(c);
+  return tgSend_(id, TXC.hello + '\n\n' + TXC.askPhone, tgContactKb_());
+}
+function tgClientMsg_(c, m, text) {
+  var id = c.id, st = c.st || {};
+  if (/^\/stop\b/.test(text)) { c.status = 'o‘chirilgan'; tgSubSave_(c); return tgSend_(id, TXC.stopped, { remove_keyboard: true }); }
+  if (c.status === 'rad') return tgSend_(id, TXC.rejected);
+  if (c.status === 'o‘chirilgan') return tgSend_(id, TXC.stopped);
+  if (st.step === 'bl') {
+    var bl = tgClientBl_(text);
+    if (!bl) return tgSend_(id, TXC.badBl);
+    c.bl = bl; c.st.step = 'phone'; tgSubSave_(c);
+    return tgSend_(id, TXC.askPhone, tgContactKb_());
+  }
+  if (st.step === 'phone') {
+    if (!m.contact) return tgSend_(id, TXC.askPhone, tgContactKb_());
+    if (String(m.contact.user_id || '') !== String(m.from.id)) return tgSend_(id, TXC.notOwn, tgContactKb_());   // чужой контакт не подходит
+    var dg = String(m.contact.phone_number || '').replace(/\D/g, ''), cl = tgData_().cl[c.bl] || {};
+    var match = dg.length >= 9 && [cl.tel1, cl.tel2, cl.recvTel].some(function (t) { var x = String(t || '').replace(/\D/g, ''); return x.length >= 9 && x.slice(-9) === dg.slice(-9); });
+    c.phone = '+' + dg; c.st.step = ''; c.status = match ? 'faol' : 'kutilmoqda'; c.at = tgNow_(); tgSubSave_(c);
+    if (match) return tgSend_(id, txc_('ok', { bl: c.bl }), { remove_keyboard: true });
+    tgSend_(id, TXC.pending, { remove_keyboard: true });
+    var g = tgGroup_();
+    if (g) tgSend_(g, '🆕 Клиент хочет получать уведомления о грузе: ' + c.bl + ([cl.brand, cl.name].filter(Boolean).length ? ' ' + [cl.brand, cl.name].filter(Boolean).join(' — ') : '') +
+      '\nTelegram: ' + c.name + ' · ' + c.phone + '\nНомера в карточке: ' + ([cl.tel1, cl.tel2, cl.recvTel].filter(Boolean).join(', ') || 'нет') + '\nЭтого номера в карточке нет — подтвердите, если это клиент.',
+      tgInline_([[{ text: '✅ Разрешить', callback_data: 'callow:' + c.id }, { text: '❌ Отклонить', callback_data: 'cdeny:' + c.id }]]));
+    return;
+  }
+  if (c.status === 'kutilmoqda') return tgSend_(id, TXC.pending);
+  return tgSend_(id, txc_('help'));
+}
+// уведомление подписчикам BL — один раз на событие (key)
+function tgNotify_(bl, key, text, photo) {
+  var u = String(bl || '').toUpperCase();
+  tgSubs_().filter(function (c) { return c.status === 'faol' && c.bl.toUpperCase() === u; }).forEach(function (c) {
+    c.st = c.st || {}; c.st.sent = c.st.sent || {};
+    if (c.st.sent[key]) return;
+    if (photo) tg_('sendPhoto', { chat_id: c.id, photo: photo, caption: text.slice(0, 1000) }); else tgSend_(c.id, text);
+    c.st.sent[key] = 1;
+    var ks = Object.keys(c.st.sent); if (ks.length > 30) ks.slice(0, ks.length - 30).forEach(function (k) { delete c.st.sent[k]; });
+    tgSubSave_(c);
+  });
+}
+// когда водитель будет у клиента: от места последней отметки, скорость и коэффициент дороги — из «Sozlamalar»
+function tgEta_(pos, c) {
+  if (!pos || !c || !c.lat || !c.lon) return TXC.etaNone;
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH.set), speed = sh ? Number(sh.getRange(SET_ROWS.speed, 2).getValue()) : 0, k = sh ? Number(sh.getRange(SET_ROWS.roadK, 2).getValue()) : 0;
+  var min = tgKm_(pos, [c.lat, c.lon]) * (k > 0 ? k : 1.3) / (speed > 0 ? speed : 30) * 60 + 5;
+  return TXC.eta.replace('{time}', tgHm_(Math.ceil((new Date().getTime() + min * 60000) / 300000) * 300000));
+}
+function tgReasonUz_(reason) { var i = TG_REASONS.ru.indexOf(reason); return i >= 0 ? TG_REASONS.uz[i] : reason || TG_REASONS.uz[3]; }
+function tgCancel_(d, w) {
+  if (w) { w.stage = w.started ? null : 'none'; w.wait = null; w.photoLL = null; if (!w.started) delete d.st.work; tgSave_(d); }
+  return tgSend_(d.id, tx_(d.lang, 'menu'), tgMenu_(d.lang));
+}
 function tgAskTruck_(d) {
   var list = tgTrucks_(), rows = [];
   var plates = tgPlates_();
@@ -307,6 +480,13 @@ function tgCallback_(q) {
   if (chat && (chat.type === 'group' || chat.type === 'supergroup')) return tgGroupCallback_(q, data);
   var d = tgDriver_(from);
   tg_('answerCallbackQuery', { callback_query_id: q.id });
+  if (data === 'client' && !(d && (d.status === 'ruxsat' || d.status === 'kutilmoqda'))) {
+    if (d && d.row && (!d.status || d.status === 'yangi')) tgSheet_('drivers').deleteRow(d.row);
+    var c = tgSub_(from) || { id: from };
+    c.name = [q.from.first_name, q.from.last_name].filter(Boolean).join(' ') + (q.from.username ? ' @' + q.from.username : ''); c.status = 'yangi'; c.st = { step: 'bl', sent: (c.st && c.st.sent) || {} };
+    tgSubSave_(c);
+    return tgSend_(from, TXC.askBl, { remove_keyboard: true });
+  }
   if (!d) return;
   var L = d.lang;
   if (/^lang:(uz|ru)$/.test(data) && d.status !== 'ruxsat') {
@@ -329,13 +509,19 @@ function tgCallback_(q) {
     return tgAskApproval_(d);
   }
   if (d.status !== 'ruxsat') return;
+  if (/^pr:\d$/.test(data)) {   // вид проблемы — и до начала рабочего дня
+    if (!d.st.pr || d.st.pr.stage !== 'type') return tgSend_(d.id, tx_(L, 'menu'), tgMenu_(L));
+    d.st.pr = { stage: 'info', type: Number(data.slice(3)), text: '', photos: [] }; tgSave_(d);
+    return tgSend_(d.id, TG_PROBLEMS[L][d.st.pr.type] + '\n' + tx_(L, 'probAsk'), tgLocKb_(L));
+  }
   var w = tgWork_(d);
   if (!w || !w.started) return tgSend_(d.id, tx_(L, 'notWorking'), tgMenu_(L));
   var m = data.match(/^(ok|fail):(.+)$/);
   if (m) {
-    if (!w.cur || w.cur.key !== m[2] || w.stage) return tgSend_(d.id, tx_(L, w.stage ? 'busy' : 'stale')) && tgCurrent_(d, w);
-    w.result = m[1]; w.photos = []; w.reason = '';
-    if (m[1] === 'ok') { w.stage = 'photo'; tgSave_(d); return tgSend_(d.id, tx_(L, 'askPhoto'), { keyboard: [[tx_(L, 'bDone')], [tx_(L, 'bCancel')]], resize_keyboard: true }); }
+    if (!w.cur || w.cur.key !== m[2] || (w.stage && w.stage !== 'wait')) return tgSend_(d.id, tx_(L, w.stage ? 'busy' : 'stale')) && tgCurrent_(d, w);
+    w.waited = w.wait && w.wait.key === m[2] ? Math.max(1, Math.round((new Date().getTime() - w.wait.since) / 60000)) : 0; w.wait = null;
+    w.result = m[1]; w.photos = []; w.reason = ''; w.photoLL = null;
+    if (m[1] === 'ok') { w.stage = 'photo'; tgSave_(d); return tgPhotoAsk_(d, w, 'askPhoto'); }
     w.stage = 'reason'; tgSave_(d);
     return tgSend_(d.id, tx_(L, 'askReason'), tgInline_(TG_REASONS[L].map(function (r, i) { return [{ text: r, callback_data: 'why:' + i }]; })));
   }
@@ -345,7 +531,20 @@ function tgCallback_(q) {
     w.reason = TG_REASONS.ru[i];
     if (i === 1) return tgNoAnswer_(d, w);
     w.stage = 'failPhoto'; tgSave_(d);
-    return tgSend_(d.id, tx_(L, 'askPhotoFail'), { keyboard: [[tx_(L, 'bSkip')], [tx_(L, 'bCancel')]], resize_keyboard: true });
+    return tgPhotoAsk_(d, w, 'askPhotoFail');
+  }
+  // шаг «фото»: кнопки в сообщении
+  if (data === 'pdone' || data === 'pcancel') {
+    if (w.stage !== 'photo' && w.stage !== 'failPhoto') return tgSend_(d.id, tx_(L, 'stale')) && tgCurrent_(d, w);
+    return data === 'pdone' ? tgPhotoDone_(d, w) : tgCancel_(d, w);
+  }
+  // «⏳ Жду клиента»: таймер (tgTick раз в 5 минут напомнит водителю и напишет в группу)
+  if (/^wait:.+$/.test(data)) {
+    var wk = data.slice(5);
+    if (!w.cur || w.cur.key !== wk || (w.stage && w.stage !== 'wait' && w.stage !== 'noAnswer')) return tgSend_(d.id, tx_(L, w.stage ? 'busy' : 'stale')) && tgCurrent_(d, w);
+    var t0 = new Date().getTime();
+    w.wait = { key: wk, since: w.wait && w.wait.key === wk ? w.wait.since : t0, until: t0 + tgWaitMin_() * 60000 }; w.stage = 'wait'; tgSave_(d);
+    return tgSend_(d.id, tx_(L, 'waiting', { until: tgHm_(w.wait.until) }), tgOkFailKb_(d, wk));
   }
   // меню «клиент не отвечает»: позвонить диспетчеру, номера клиента, клиент ответил, всё равно не доставлено
   if (/^na:(call|tel|ok|fail)$/.test(data)) {
@@ -357,12 +556,12 @@ function tgCallback_(q) {
       return tgSend_(d.id, tels.length ? tx_(L, 'clientTels', { bl: w.cur.bl, list: tels.map(function (x) { return x.t + (x.who ? ' — ' + x.who : ''); }).join('\n') }) : tx_(L, 'noClientTel'));
     }
     if (act === 'ok') {
-      w.result = 'ok'; w.reason = ''; w.photos = []; w.stage = 'photo'; tgSave_(d);
+      w.result = 'ok'; w.reason = ''; w.photos = []; w.photoLL = null; w.stage = 'photo'; tgSave_(d);
       tgReport_('✅ ' + d.truck + ' · ' + d.name + ': клиент ' + w.cur.bl + ' ответил — водитель доставляет.');
-      return tgSend_(d.id, tx_(L, 'askPhoto'), { keyboard: [[tx_(L, 'bDone')], [tx_(L, 'bCancel')]], resize_keyboard: true });
+      return tgPhotoAsk_(d, w, 'askPhoto');
     }
     w.stage = 'failPhoto'; tgSave_(d);
-    return tgSend_(d.id, tx_(L, 'askPhotoFail'), { keyboard: [[tx_(L, 'bSkip')], [tx_(L, 'bCancel')]], resize_keyboard: true });
+    return tgPhotoAsk_(d, w, 'askPhotoFail');
   }
   if (/^round:\d+$/.test(data) && w.stage === 'roundWait') {
     w.round = Number(data.slice(6)); w.stage = null; w.pos = tgDepot_(); tgSave_(d);
@@ -370,15 +569,26 @@ function tgCallback_(q) {
   }
 }
 
+// проблема в пути: лист «Muammolar», фото на Диск, тревога в группу; водителю — подтверждение и меню
+function tgProblemDone_(d, w, ll) {
+  var pr = d.st.pr, kind = TG_PROBLEMS.ru[pr.type] || TG_PROBLEMS.ru[5], now = tgNow_(), label = kind.replace(/^\S+\s/, '');
+  delete d.st.pr; if (w) { w.pos = ll; w.posAt = now.slice(11); } tgSave_(d);
+  var photos = pr.photos || [], links = tgSavePhotos_(photos, now.slice(0, 10), d.truck, 'muammo');
+  tgHead_('problems').appendRow([now, d.name, d.truck, label, pr.text || '', links.join(' '), ll.join(','), d.id]);
+  tgReport_('⚠️ ПРОБЛЕМА: ' + kind + ' — ' + d.truck + ' · ' + d.name + (pr.text ? '\n' + pr.text : '') + (w && w.cur ? '\nТекущая точка: ' + w.cur.bl : '') + '\n' + now.slice(11) + ' · 📍 ' + tgMap_(ll), photos);
+  return tgSend_(d.id, tx_(d.lang, 'probSent'), tgMenu_(d.lang));
+}
+
 // клиент не отвечает: водителю — меню, в группу — тревога с номерами клиента, чтобы диспетчер позвонил сам
 function tgNoAnswer_(d, w) {
   var L = d.lang, s = tgStops_(d.truck, w.date).filter(function (x) { return x.key === w.cur.key; })[0], c = (s && s.c) || {};
   w.stage = 'noAnswer'; tgSave_(d);
+  tgNotify_(w.cur.bl, 'na:' + w.date + ':' + w.cur.key, txc_('noAnswer'));
   var tels = tgClientTels_(c), who = [c.brand, c.name].filter(Boolean).join(' — '), g = tgGroup_();
   if (g) tgReport_('📵 ' + d.truck + ' · ' + d.name + ': клиент ' + w.cur.bl + (who ? ' ' + who : '') + ' не отвечает на телефон.\n' +
     (tels.length ? '☎️ ' + tels.map(function (x) { return x.t + (x.who ? ' (' + x.who + ')' : ''); }).join(', ') + '\n' : 'Номера клиента нет в справочнике.\n') +
     (c.district || c.address ? '📍 ' + [c.district, c.address].filter(Boolean).join(', ') + '\n' : '') + 'Позвоните клиенту — водитель ждёт на точке.' + (w.pos ? '\n🚚 Последняя отметка водителя: ' + tgMap_(w.pos) : ''));
-  var rows = [[{ text: tx_(L, 'bCallDisp'), callback_data: 'na:call' }], [{ text: tx_(L, 'bClientTel'), callback_data: 'na:tel' }], [{ text: tx_(L, 'bAnswered'), callback_data: 'na:ok' }], [{ text: tx_(L, 'bStillFail'), callback_data: 'na:fail' }]];
+  var rows = [[{ text: tx_(L, 'bCallDisp'), callback_data: 'na:call' }], [{ text: tx_(L, 'bClientTel'), callback_data: 'na:tel' }], [{ text: tx_(L, 'bWait'), callback_data: 'wait:' + w.cur.key }], [{ text: tx_(L, 'bAnswered'), callback_data: 'na:ok' }], [{ text: tx_(L, 'bStillFail'), callback_data: 'na:fail' }]];
   return tgSend_(d.id, tx_(L, 'noAnswer') + (g ? '\n' + tx_(L, 'dispAlerted') : ''), tgInline_(rows));
 }
 
@@ -401,14 +611,21 @@ function tgAskApproval_(d) {
     tgInline_([[{ text: '✅ Разрешить', callback_data: 'allow:' + d.id }, { text: '❌ Отклонить', callback_data: 'deny:' + d.id }]]));
 }
 function tgGroupCallback_(q, data) {
-  var chat = q.message.chat, m = data.match(/^(allow|deny):(\d+)$/);
+  var chat = q.message.chat, m = data.match(/^(allow|deny|callow|cdeny):(\d+)$/);
   if (!m || String(chat.id) !== tgGroup_()) return tg_('answerCallbackQuery', { callback_query_id: q.id });
   var mem = tg_('getChatMember', { chat_id: chat.id, user_id: q.from.id }), role = mem.ok && mem.result && mem.result.status;
   if (role !== 'creator' && role !== 'administrator') return tg_('answerCallbackQuery', { callback_query_id: q.id, text: 'Подтверждать водителей могут только администраторы группы', show_alert: true });
   tg_('answerCallbackQuery', { callback_query_id: q.id });
+  var who = [q.from.first_name, q.from.last_name].filter(Boolean).join(' ');
+  if (m[1] === 'callow' || m[1] === 'cdeny') {   // клиент: номера нет в карточке — решает администратор группы
+    var c = tgSub_(m[2]);
+    if (!c || c.status !== 'kutilmoqda') return;
+    c.status = m[1] === 'callow' ? 'faol' : 'rad'; c.by = who; tgSubSave_(c);
+    tgSend_(c.id, c.status === 'faol' ? txc_('ok', { bl: c.bl }) : TXC.rejected);
+    return tg_('editMessageText', { chat_id: chat.id, message_id: q.message.message_id, text: q.message.text + '\n\n' + (c.status === 'faol' ? '✅ Разрешено' : '❌ Отклонено') + ' — ' + who + ', ' + tgNow_('dd.MM HH:mm') });
+  }
   var d = tgDriver_(m[2]);
   if (!d) return;
-  var who = [q.from.first_name, q.from.last_name].filter(Boolean).join(' ');
   tgSetStatus_(d, m[1] === 'allow' ? 'ruxsat' : 'rad', who);
   tg_('editMessageText', { chat_id: chat.id, message_id: q.message.message_id, text: q.message.text + '\n\n' + (m[1] === 'allow' ? '✅ Разрешено' : '❌ Отклонено') + ' — ' + who + ', ' + tgNow_('dd.MM HH:mm') });
 }
@@ -501,7 +718,8 @@ function tgNext_(d, w) {
     return tgSend_(d.id, tx_(L, 'roundDone', { round: round, next: nx }), tgInline_([[{ text: tx_(L, 'bRound', { next: nx }), callback_data: 'round:' + nx }]]));
   }
   w.round = round; w.cur = { key: s.key, bl: s.bl, round: s.round }; w.stage = null; tgSave_(d);
-  tgSend_(d.id, tgCard_(d, s, stops), tgInline_([[{ text: tx_(L, 'bOk'), callback_data: 'ok:' + s.key }, { text: tx_(L, 'bFail'), callback_data: 'fail:' + s.key }]]));
+  tgSend_(d.id, tgCard_(d, s, stops), tgStopKb_(d, s));
+  tgNotify_(s.bl, 'way:' + w.date + ':' + s.key, txc_('onWay', { eta: tgEta_(w.pos || tgDepot_(), s.c), truck: d.truck }));
   if (s.c.lat && s.c.lon) tg_('sendLocation', { chat_id: d.id, latitude: s.c.lat, longitude: s.c.lon, reply_markup: tgMenu_(L) });
   else tgSend_(d.id, tx_(L, 'menu'), tgMenu_(L));
 }
@@ -510,11 +728,12 @@ function tgCurrent_(d, w) {
   var stops = tgStops_(d.truck, w.date), s = stops.filter(function (x) { return x.key === w.cur.key && x.open; })[0];
   if (!s) return tgNext_(d, w);
   w.sig = tgSig_(stops); tgSave_(d);
-  tgSend_(d.id, tgCard_(d, s, stops), tgInline_([[{ text: tx_(d.lang, 'bOk'), callback_data: 'ok:' + s.key }, { text: tx_(d.lang, 'bFail'), callback_data: 'fail:' + s.key }]]));
+  tgSend_(d.id, tgCard_(d, s, stops), tgStopKb_(d, s));
   if (s.c.lat && s.c.lon) tg_('sendLocation', { chat_id: d.id, latitude: s.c.lat, longitude: s.c.lon });
 }
 function tgPhoto_(d, w, fileId) {
   if (!w || (w.stage !== 'photo' && w.stage !== 'failPhoto')) return tgSend_(d.id, tx_(d.lang, w && w.started ? 'unknown' : 'notWorking'), tgMenu_(d.lang));
+  if (tgCamera_()) return tgSend_(d.id, tx_(d.lang, 'camOnly'), tgPhotoKb_(d, w));   // из галереи или чата — нельзя, только камерой
   w.photos = (w.photos || []).concat([fileId]).slice(0, 10); tgSave_(d);
   return tgSend_(d.id, tx_(d.lang, 'photoOk', { n: w.photos.length }), { keyboard: [[tx_(d.lang, 'bDone')], [tx_(d.lang, 'bCancel')]], resize_keyboard: true });
 }
@@ -553,8 +772,8 @@ function tgDayEnd_(d, w, end, ll) {
 // точка закрыта: статус в журнале, фото на Диск, строка в «Yetkazish», отчёт в группу, следующая точка
 function tgFinish_(d, w, ll) {
   var ok = w.result === 'ok', stops = tgStops_(d.truck, w.date), s = stops.filter(function (x) { return x.key === w.cur.key; })[0];
-  var photos = (w.photos || []).slice(), reason = w.reason || '', cur = w.cur, now = tgNow_();
-  w.pos = ll; w.posAt = now.slice(11); w.cur = null; w.stage = null; w.photos = []; w.reason = ''; w[ok ? 'ok' : 'fail'] = (w[ok ? 'ok' : 'fail'] || 0) + 1;
+  var photos = (w.photos || []).slice(), reason = w.reason || '', cur = w.cur, now = tgNow_(), waited = w.waited || 0;
+  w.pos = ll; w.posAt = now.slice(11); w.cur = null; w.stage = null; w.photos = []; w.reason = ''; w.photoLL = null; w.waited = 0; w.wait = null; w[ok ? 'ok' : 'fail'] = (w[ok ? 'ok' : 'fail'] || 0) + 1;
   tgSave_(d);
   if (s) {
     var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH.ship);
@@ -563,10 +782,12 @@ function tgFinish_(d, w, ll) {
   }
   var links = tgSavePhotos_(photos, w.day || w.date, d.truck, cur.bl);
   var c = (s && s.c) || {}, who = [c.brand, c.name].filter(Boolean).join(' — ');
-  tgSheet_('log').appendRow([now, w.date, d.name, d.truck, cur.bl, who, ok ? 'Yetkazildi' : 'Yetkazilmadi', reason, links.join(' '), ll.join(','), d.id, cur.round]);
+  var km = c.lat && c.lon ? Math.round(tgKm_(ll, [c.lat, c.lon]) * 10) / 10 : '', far = km !== '' && km > tgMaxKm_();   // отметка далеко от клиента — видно в группе и на сайте
+  tgHead_('log').appendRow([now, w.date, d.name, d.truck, cur.bl, who, ok ? 'Yetkazildi' : 'Yetkazilmadi', reason, links.join(' '), ll.join(','), d.id, cur.round, waited || '', km]);
   var cap = (ok ? '✅ ' : '❌ ') + d.truck + ' · ' + d.name + ' — ' + (ok ? 'доставлено' : 'не доставлено') + ': ' + cur.bl + (who ? ' ' + who : '') +
-    (reason ? '\nПричина: ' + reason : '') + '\n' + now.slice(11) + ' · 📍 ' + tgMap_(ll);
+    (reason ? '\nПричина: ' + reason : '') + (waited ? '\n⏳ Ждал клиента ' + waited + ' мин' : '') + (far ? '\n⚠️ Отметка в ' + String(km).replace('.', ',') + ' км от точки клиента' : '') + '\n' + now.slice(11) + ' · 📍 ' + tgMap_(ll);
   tgReport_(cap, photos);
+  tgNotify_(cur.bl, 'end:' + w.date + ':' + cur.key, ok ? txc_('delivered', { bl: cur.bl, places: s ? s.places : '' }) : txc_('failed', { bl: cur.bl, reason: tgReasonUz_(reason) }), ok ? photos[0] : null);
   tgSend_(d.id, tx_(d.lang, 'saved') + '\n' + tx_(d.lang, 'next'), tgMenu_(d.lang));
   return tgNext_(d, w);
 }
@@ -650,6 +871,7 @@ function tgDispatch_(date, ids) {
       d.st.assign = { date: date, day: today, at: tgNow_(), sig: tgSig_(stops) }; tgSave_(d);
       tgSend_(d.id, tgAssignText_(d, date, stops), tgMenu_(d.lang));
     }
+    open.forEach(function (x) { tgNotify_(x.bl, 'today:' + date, txc_('today', { bl: x.bl, places: x.places })); });
     sent.push({ id: d.id, name: d.name, truck: d.truck, n: open.length });
   });
   // машины с точками, у которых нет водителя в боте
@@ -690,41 +912,162 @@ function tgSummaryText_(day) {
 }
 // по расписанию (триггер создаётся при «Подключить бота»): итог дня в группу
 function tgDailySummary() {
-  if (!prop_('TG_TOKEN') || !tgGroup_()) return;
-  var text = tgSummaryText_(tgNow_('yyyy-MM-dd'));
-  if (text) tgSend_(tgGroup_(), text);
+  if (!prop_('TG_TOKEN')) return;
+  var day = tgNow_('yyyy-MM-dd'), text = tgGroup_() ? tgSummaryText_(day) : '';
+  // недоставленные партий, которые сегодня развозили, — на завтра (TG_CARRY = 0 — не переносить)
+  if (prop_('TG_CARRY') !== '0') {
+    var rec = tgRecent_(1), dates = {};
+    rec.days.forEach(function (x) { if (x.day === day) dates[x.date] = 1; });
+    rec.log.forEach(function (x) { if (String(x.t).slice(0, 10) === day) dates[x.date] = 1; });
+    var to = Utilities.formatDate(new Date(new Date().getTime() + 864e5), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+    var moved = Object.keys(dates).length ? tgCarry_(Object.keys(dates), to) : [];
+    if (moved.length) text += (text ? '\n\n' : '') + '↪️ Не доставленные перенесены на ' + tgDmy_(to) + ': ' + moved.length + ' (' + moved.join(', ') + '). Машину назначьте в «Планах».';
+  }
+  if (text && tgGroup_()) tgSend_(tgGroup_(), text);
+}
+// перенос недоставленных («Qolib ketgan») партий dates на дату to: статус «Rejada», без машины и рейса, пометка в примечании;
+// попытка доставки с причиной остаётся в «Yetkazish». Возвращает BL (без повторов).
+function tgCarry_(dates, to) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(SH.ship);
+  if (!sh) return [];
+  var last = lastRow_(sh, 3, 5);
+  if (last < 5) return [];
+  var tz = ss.getSpreadsheetTimeZone(), moved = [];
+  sh.getRange(5, 1, last - 4, 16).getValues().forEach(function (r, i) {
+    var dt = r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy-MM-dd') : String(r[0]).slice(0, 10);
+    if (dates.indexOf(dt) < 0 || dt === to || String(r[14]).trim() !== 'Qolib ketgan') return;
+    var row = 5 + i, note = String(r[15] || '').trim();
+    sh.getRange(row, 1).setValue(date_(to));
+    sh.getRange(row, 13, 1, 4).setValues([['Belgilanmagan', '', 'Rejada', (note ? note + ' · ' : '') + 'повторно: не доставлено ' + tgDmy_(dt)]]);
+    var bl = String(r[2]).trim(); if (moved.indexOf(bl) < 0) moved.push(bl);
+  });
+  TG_MEMO = null;
+  return moved;
 }
 function tgEnsureTrigger_() {
   try {
-    var has = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'tgDailySummary'; });
-    if (!has) ScriptApp.newTrigger('tgDailySummary').timeBased().atHour(TG_SUMMARY_HOUR).everyDays(1).inTimezone(SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone()).create();
+    var fns = ScriptApp.getProjectTriggers().map(function (t) { return t.getHandlerFunction(); });
+    if (fns.indexOf('tgDailySummary') < 0) ScriptApp.newTrigger('tgDailySummary').timeBased().atHour(TG_SUMMARY_HOUR).everyDays(1).inTimezone(SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone()).create();
+    if (fns.indexOf('tgTick') < 0) ScriptApp.newTrigger('tgTick').timeBased().everyMinutes(5).create();
     return '';
   } catch (err) { return 'Итог дня по расписанию не включился: ' + ((err && err.message) || err) + '. Выполните в Apps Script функцию authorize и нажмите «Подключить бота» ещё раз.'; }
 }
 var TG_SUMMARY_HOUR = 20;
+
+// ── раз в 5 минут (триггер): таймер «Жду клиента» — напомнить водителю и написать в группу ──
+function tgTick() {
+  if (!prop_('TG_TOKEN')) return;
+  var h = Number(tgNow_('HH'));
+  if (h < 7 || h > 22) return;
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(20000); } catch (err) { return; }
+  try {
+    var t = new Date().getTime();
+    tgDrivers_().forEach(function (d) {
+      var w = d.status === 'ruxsat' ? tgWork_(d) : null;
+      if (!w || w.stage !== 'wait' || !w.wait || !w.cur || w.wait.key !== w.cur.key || t < w.wait.until || w.wait.alerted === w.wait.until) return;
+      w.wait.alerted = w.wait.until; tgSave_(d);
+      var L = d.lang, mins = Math.round((t - w.wait.since) / 60000), key = w.cur.key;
+      tgSend_(d.id, tx_(L, 'waitOver', { min: mins }), tgInline_([[{ text: tx_(L, 'bOk'), callback_data: 'ok:' + key }, { text: tx_(L, 'bFail'), callback_data: 'fail:' + key }], [{ text: tx_(L, 'bMore', { min: tgWaitMin_() }), callback_data: 'wait:' + key }]]));
+      var s = tgStops_(d.truck, w.date).filter(function (x) { return x.key === key; })[0], tels = s ? tgClientTels_(s.c) : [];
+      tgReport_('⏰ ' + d.truck + ' · ' + d.name + ': ждёт клиента ' + w.cur.bl + ' уже ' + mins + ' мин.' + (tels.length ? '\n☎️ ' + tels.map(function (x) { return x.t; }).join(', ') : ''));
+    });
+  } finally { lock.releaseLock(); }
+}
+
+// ── фото с камеры (driver.html): вход по подписи Telegram (initData), а не по паролю таблицы ──
+function tgInitUser_(init) {
+  var token = prop_('TG_TOKEN');
+  if (!token || !init) return null;
+  var data = {}, hash = '';
+  try { String(init).split('&').forEach(function (p) { var i = p.indexOf('='); if (i < 0) return; var k = decodeURIComponent(p.slice(0, i)), v = decodeURIComponent(p.slice(i + 1)); if (k === 'hash') hash = v; else data[k] = v; }); }
+  catch (err) { return null; }   // испорченная строка — не подпись Telegram
+  if (!hash || !data.user) return null;
+  var dcs = Object.keys(data).sort().map(function (k) { return k + '=' + data[k]; }).join('\n');
+  var key = Utilities.computeHmacSha256Signature(token, 'WebAppData');
+  var hex = Utilities.computeHmacSha256Signature(Utilities.newBlob(dcs).getBytes(), key).map(function (b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+  if (hex !== hash || new Date().getTime() / 1000 - Number(data.auth_date || 0) > 86400) return null;
+  try { return JSON.parse(data.user); } catch (err) { return null; }
+}
+function tgUpload_(method, fields, name, blob) {
+  var payload = {};
+  Object.keys(fields).forEach(function (k) { payload[k] = String(fields[k]); });
+  payload[name] = blob;
+  try { return JSON.parse(UrlFetchApp.fetch(TG_API + 'bot' + prop_('TG_TOKEN') + '/' + method, { method: 'post', payload: payload, muteHttpExceptions: true }).getContentText() || '{}'); }
+  catch (err) { return { ok: false, description: String((err && err.message) || err) }; }
+}
+// снимок водителя: в чат водителя (так у фото появляется file_id Telegram), в шаг «фото» текущей точки; место — со снимка
+function tgPhotoUpload_(p) {
+  var u = tgInitUser_(p && p.init);
+  if (!u) return { error: 'Откройте камеру кнопкой в боте: подпись Telegram не подходит или устарела', code: 'auth', v: VERSION };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try {
+    TG_MEMO = null;
+    var d = tgDriver_(u.id), w = d && d.status === 'ruxsat' ? tgWork_(d) : null;
+    if (!w) return { error: 'Рабочий день не начат', code: 'stage', v: VERSION };
+    if ((w.stage !== 'photo' && w.stage !== 'failPhoto') || !w.cur || w.cur.key !== String(p.key || '')) return { error: tx_(d.lang, 'stale'), code: 'stage', v: VERSION };
+    if ((w.photos || []).length >= 10) return { error: 'Не больше 10 фото на точку', code: 'many', v: VERSION };
+    var b64 = String(p.img || '').replace(/^data:image\/\w+;base64,/, '');
+    if (!b64 || b64.length > 8e6) return { error: 'Фото не пришло или слишком большое', code: 'img', v: VERSION };
+    var r = tgUpload_('sendPhoto', { chat_id: d.id, caption: '📷 ' + w.cur.bl + ' · ' + tgNow_('HH:mm') }, 'photo', Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', w.cur.bl + '.jpg'));
+    if (!r.ok || !r.result || !r.result.photo) return { error: 'Telegram не принял фото: ' + (r.description || 'нет ответа'), code: 'tg', v: VERSION };
+    w.photos = (w.photos || []).concat([r.result.photo[r.result.photo.length - 1].file_id]);
+    var ll = p.ll;
+    if (ll && ll.length === 2 && isFinite(ll[0]) && isFinite(ll[1]) && Math.abs(ll[0]) <= 90 && Math.abs(ll[1]) <= 180 && (ll[0] || ll[1])) w.photoLL = [Number(ll[0]), Number(ll[1])];
+    tgSave_(d);
+    tgSend_(d.id, tx_(d.lang, 'photoOk', { n: w.photos.length }), tgPhotoKb_(d, w));
+    return { ok: true, n: w.photos.length, v: VERSION };
+  } finally { lock.releaseLock(); }
+}
 
 // ── для сайта: отметки доставки и рабочие дни за последние дни ──
 function tgRecent_(days) {
   var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), from = Utilities.formatDate(new Date(Date.now() - (days - 1) * 864e5), tz, 'yyyy-MM-dd');
   var iso = function (v) { return v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v || '').slice(0, 10); };
   var rows = function (k, n) { var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TG[k]); if (!sh || sh.getLastRow() < 2) return []; var last = sh.getLastRow(), first = Math.max(2, last - 2999); return sh.getRange(first, 1, last - first + 1, n).getValues(); };
-  var log = rows('log', 12).filter(function (r) { return r[0] !== '' && iso(r[0] instanceof Date ? r[0] : String(r[0]).slice(0, 10)) >= from; }).map(function (r) {
+  var log = rows('log', 14).filter(function (r) { return r[0] !== '' && iso(r[0] instanceof Date ? r[0] : String(r[0]).slice(0, 10)) >= from; }).map(function (r) {
     var t = r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy-MM-dd HH:mm') : String(r[0]);
-    return { t: t, date: iso(r[1]), name: String(r[2]), truck: String(r[3]), bl: String(r[4]), client: String(r[5]), ok: String(r[6]) === 'Yetkazildi', reason: String(r[7] || ''), photos: String(r[8] || '').split(/\s+/).filter(Boolean), ll: String(r[9] || ''), id: String(r[10]), round: Number(r[11]) || 1 };
+    return { t: t, date: iso(r[1]), name: String(r[2]), truck: String(r[3]), bl: String(r[4]), client: String(r[5]), ok: String(r[6]) === 'Yetkazildi', reason: String(r[7] || ''), photos: String(r[8] || '').split(/\s+/).filter(Boolean), ll: String(r[9] || ''), id: String(r[10]), round: Number(r[11]) || 1, wait: Number(r[12]) || 0, km: r[13] === '' || r[13] == null ? null : Number(r[13]) };
   });
   var hm = function (v) { return v instanceof Date ? Utilities.formatDate(v, tz, 'HH:mm') : String(v || ''); };
   var dys = rows('days', 11).filter(function (r) { return r[0] !== '' && iso(r[0]) >= from; }).map(function (r) {
     return { day: iso(r[0]), name: String(r[1]), truck: String(r[2]), start: hm(r[3]), startLL: String(r[4] || ''), end: hm(r[5]), endLL: String(r[6] || ''), ok: Number(r[7]) || 0, fail: Number(r[8]) || 0, id: String(r[9]), date: r[10] ? iso(r[10]) : iso(r[0]) };
   });
-  return { log: log, days: dys };
+  var probs = rows('problems', 8).filter(function (r) { return r[0] !== '' && iso(r[0] instanceof Date ? r[0] : String(r[0]).slice(0, 10)) >= from; }).map(function (r) {
+    return { t: r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy-MM-dd HH:mm') : String(r[0]), name: String(r[1]), truck: String(r[2]), type: String(r[3]), text: String(r[4] || ''), photos: String(r[5] || '').split(/\s+/).filter(Boolean), ll: String(r[6] || ''), id: String(r[7]) };
+  });
+  return { log: log, days: dys, problems: probs };
 }
 
+// номер и имя диспетчера: 998… и 9 цифр → +998…; пусто — убрать
+function tgSetDispatcher_(p, a) {
+  var ph = String(a.phone || '').replace(/[^\d+]/g, ''), nm = String(a.name || '').trim().slice(0, 40);
+  if (ph && !/^\+?\d{9,15}$/.test(ph)) return 'Телефон диспетчера — 9–15 цифр, например +998 77 017 66 11';
+  if (ph && ph.charAt(0) !== '+' && ph.length === 12 && ph.slice(0, 3) === '998') ph = '+' + ph;
+  if (ph && ph.charAt(0) !== '+' && ph.length === 9) ph = '+998' + ph;
+  if (ph) p.setProperty('TG_DISP_PHONE', ph); else p.deleteProperty('TG_DISP_PHONE');
+  if (nm) p.setProperty('TG_DISP_NAME', nm); else p.deleteProperty('TG_DISP_NAME');
+  return '';
+}
 // ── сайт: подключить бота, водители ──
 function tgSite_(body) {
   var editor = prop_('EDITOR_TOKEN'), a = body.tg || {};
   if (editor && body.editor !== editor) return { error: 'Бот настраивает только руководитель: секрет редактора не подходит', code: 'editor', v: VERSION };
   if (!prop_('TG_TOKEN')) return { error: 'В свойствах скрипта нет TG_TOKEN — впишите токен бота от @BotFather и нажмите «Сохранить свойства скрипта». ' + propNames_(), code: 'notoken', v: VERSION };
   var p = props_();
+  // адрес сайта (кнопка камеры открывает его driver.html) и ссылка веб-приложения — с каждого запроса сайта
+  if (/^https:\/\/[^\s?#]+\/$/.test(String(body.site || '')) && prop_('TG_SITE') !== body.site) p.setProperty('TG_SITE', body.site);
+  var hookUrl = String(a.url || body.hook || '');
+  if (/^https:\/\/script\.google\.com\/(a\/macros\/[^\/]+|macros)\/s\/[\w-]+\/exec$/.test(hookUrl) && prop_('TG_URL') !== hookUrl) p.setProperty('TG_URL', hookUrl);
+  if (a.action === 'settings') {
+    if (a.phone != null) { var se = tgSetDispatcher_(p, a); if (se) return { error: se, v: VERSION }; }
+    if (a.camera != null) p.setProperty('TG_CAMERA', a.camera ? '1' : '0');
+    if (a.waitMin != null) { var wm = Math.round(Number(a.waitMin)); if (!(wm >= 5 && wm <= 120)) return { error: 'Ожидание клиента — от 5 до 120 минут', v: VERSION }; p.setProperty('TG_WAIT_MIN', String(wm)); }
+    if (a.maxKm != null) { var mk = Number(a.maxKm); if (!(mk > 0 && mk <= 50)) return { error: 'Расстояние до клиента — от 0,1 до 50 км', v: VERSION }; p.setProperty('TG_MAX_KM', String(mk)); }
+    if (a.carry != null) p.setProperty('TG_CARRY', a.carry ? '1' : '0');
+    return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
+  }
   if (a.action === 'setup') {
     var me = tg_('getMe', {});
     if (!me.ok) return { error: 'Telegram не принял токен из TG_TOKEN: ' + (me.description || 'нет ответа') + '. Проверьте токен у @BotFather.', code: 'badtoken', v: VERSION };
@@ -734,7 +1077,7 @@ function tgSite_(body) {
     if (!prop_('TG_GROUP_CODE')) p.setProperty('TG_GROUP_CODE', String(100000 + Math.floor(Math.random() * 900000)));
     var hook = tg_('setWebhook', { url: a.url + '?tg=' + secret, allowed_updates: ['message', 'callback_query'], max_connections: 10 });
     if (!hook.ok) return { error: 'Telegram не принял ссылку бота: ' + (hook.description || 'нет ответа'), code: 'hook', v: VERSION };
-    var cmd = function (l) { return [{ command: 'start', description: l === 'ru' ? 'Регистрация' : 'Ro‘yxatdan o‘tish' }, { command: 'ish', description: tx_(l, 'bStart').slice(2) }, { command: 'hozir', description: tx_(l, 'bCur').slice(2) }, { command: 'tugatish', description: tx_(l, 'bEnd').slice(2) }, { command: 'til', description: tx_(l, 'bLang').slice(2) }, { command: 'dispetcher', description: tx_(l, 'bCall').slice(2) }]; };
+    var cmd = function (l) { return [{ command: 'start', description: l === 'ru' ? 'Регистрация' : 'Ro‘yxatdan o‘tish' }, { command: 'ish', description: tx_(l, 'bStart').slice(2) }, { command: 'hozir', description: tx_(l, 'bCur').slice(2) }, { command: 'tugatish', description: tx_(l, 'bEnd').slice(2) }, { command: 'til', description: tx_(l, 'bLang').slice(2) }, { command: 'dispetcher', description: tx_(l, 'bCall').slice(2) }, { command: 'muammo', description: tx_(l, 'bProblem').slice(2) }]; };
     tg_('setMyCommands', { commands: cmd('uz') });
     tg_('setMyCommands', { commands: cmd('ru'), language_code: 'ru' });
     var warn = tgEnsureTrigger_();
@@ -746,13 +1089,12 @@ function tgSite_(body) {
     return { ok: true, v: VERSION, sent: r.sent, skipped: r.skipped, tg: tgInfo_(body.tgdays) };
   }
   if (a.action === 'dispatcher') {
-    var ph = String(a.phone || '').replace(/[^\d+]/g, ''), nm = String(a.name || '').trim().slice(0, 40);
-    if (ph && !/^\+?\d{9,15}$/.test(ph)) return { error: 'Телефон диспетчера — 9–15 цифр, например +998 77 017 66 11', v: VERSION };
-    if (ph && ph.charAt(0) !== '+' && ph.length === 12 && ph.slice(0, 3) === '998') ph = '+' + ph;   // 998… → +998…
-    if (ph && ph.charAt(0) !== '+' && ph.length === 9) ph = '+998' + ph;                              // 9 цифр — узбекский номер
-    if (ph) p.setProperty('TG_DISP_PHONE', ph); else p.deleteProperty('TG_DISP_PHONE');
-    if (nm) p.setProperty('TG_DISP_NAME', nm); else p.deleteProperty('TG_DISP_NAME');
-    return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
+    var de = tgSetDispatcher_(p, a);
+    return de ? { error: de, v: VERSION } : { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
+  }
+  if (a.action === 'carry') {
+    if (!/^20\d\d-\d\d-\d\d$/.test(String(a.from || '')) || !/^20\d\d-\d\d-\d\d$/.test(String(a.to || '')) || a.from === a.to) return { error: 'Выберите партию и другую дату', v: VERSION };
+    return { ok: true, v: VERSION, moved: tgCarry_([a.from], a.to) };
   }
   if (a.action === 'message') { var mr = tgMessage_(a.ids, a.text); return mr.error ? { error: mr.error, v: VERSION } : { ok: true, v: VERSION, sent: mr.sent }; }
   if (a.action === 'summary') {
@@ -779,10 +1121,12 @@ function tgInfo_(days) {
   var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), rec = tgRecent_(span);
   return { bot: prop_('TG_BOT'), hooked: !!prop_('TG_SECRET'), group: prop_('TG_GROUP_TITLE') || '', grouped: !!prop_('TG_GROUP'), code: prop_('TG_GROUP_CODE'), summaryHour: TG_SUMMARY_HOUR, span: span,
     dispatcher: { name: prop_('TG_DISP_NAME'), phone: prop_('TG_DISP_PHONE') },
+    settings: { camera: prop_('TG_CAMERA') !== '0', cameraReady: tgCamera_(), site: prop_('TG_SITE'), waitMin: tgWaitMin_(), maxKm: tgMaxKm_(), carry: prop_('TG_CARRY') !== '0' },
     drivers: tgDrivers_().filter(function (d) { return d.status !== 'yangi'; }).map(function (d) {
       var w = d.st && d.st.work, today = tgNow_('yyyy-MM-dd'), a = tgAssigned_(d), day = w && (w.day || w.date);
       return { id: d.id, name: d.name, truck: d.truck, plate: d.plate, lang: d.lang, status: d.status, at: d.at instanceof Date ? Utilities.formatDate(d.at, tz, 'yyyy-MM-dd HH:mm') : String(d.at || ''), user: d.user,
         today: w && day === today && w.started ? { started: w.started, ended: w.ended || '', ok: w.ok || 0, fail: w.fail || 0, pos: w.pos || null, posAt: w.posAt || '', date: w.date, cur: w.cur ? { bl: w.cur.bl, round: w.cur.round } : null } : null,
         assign: a ? { date: a.date, at: a.at } : null };
-    }), log: rec.log, days: rec.days };
+    }), log: rec.log, days: rec.days, problems: rec.problems,
+    subs: tgSubs_().filter(function (c) { return c.status !== 'yangi'; }).map(function (c) { return { bl: c.bl, name: c.name, phone: c.phone, status: c.status, at: c.at instanceof Date ? Utilities.formatDate(c.at, tz, 'yyyy-MM-dd HH:mm') : String(c.at || '') }; }) };
 }

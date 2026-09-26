@@ -18,7 +18,7 @@ const call = (extra = {}) => ({ token: '', login: 'buraq', ai: { action: 'call',
 test('проверка связи: ключ из свойств, модель по умолчанию, инструмент strict и tool_choice на него, запись в журнал', () => {
   const s = loadScript({ props: { ANTHROPIC_API_KEY: 'sk-test' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
   const r = s.post(ping());
-  assert.equal(r.ok, true); assert.equal(r.v, 11); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
+  assert.equal(r.ok, true); assert.equal(r.v, 12); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
   assert.equal(r.mode, 'tool'); assert.equal(r.editorSet, false); assert.deepEqual(r.usage, { in: 120, cache: 0, out: 30 });
   const c = s.calls[0];
   assert.equal(c.url, 'https://api.anthropic.com/v1/messages');
@@ -80,7 +80,7 @@ test('пароль скрипта из свойства TOKEN проверяет
   assert.equal(s.post(ping({ token: 'x' })).error, 'Неверный пароль');
   assert.equal(s.get({ token: 'x' }).error, 'Неверный пароль');
   assert.equal(s.post(ping({ token: 'pw' })).ok, true);
-  assert.equal(s.get({ token: 'pw' }).v, 11);
+  assert.equal(s.get({ token: 'pw' }).v, 12);
 });
 
 test('Opus 5.5 и Fable 5.1 не принимают принудительный tool_choice — схема уходит через output_config.format', () => {

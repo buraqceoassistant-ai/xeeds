@@ -1,6 +1,12 @@
 // Заглушки сервисов Google Apps Script для тестов tools/gs/Code.gs в Node (без сети и без Google).
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { createHmac } from 'node:crypto';
+
+// байты как в Apps Script: знаковые (−128…127)
+const sbytes = buf => Array.from(buf, b => (b > 127 ? b - 256 : b));
+const ubuf = x => typeof x === 'string' ? Buffer.from(x, 'utf8') : Buffer.from(x.map(b => (b + 256) % 256));
+const blob = (bytes, type = '', name = '') => { const b = { bytes, type, name, getBytes: () => bytes, getContentType: () => b.type, getName: () => b.name, setName(n) { b.name = n; return b; } }; return b; };
 
 class Range {
   constructor(sh, r, c, nr = 1, nc = 1) { Object.assign(this, { sh, r, c, nr, nc }); }
@@ -43,7 +49,7 @@ export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
   const drive = { createFolder: n => folder(n, null), getFolderById: id => { if (!folders[id]) throw new Error('нет папки'); return folders[id]; } };
   const ctx = {
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] ?? null, getProperties: () => ({ ...props }), setProperty: (k, v) => { props[k] = String(v); }, deleteProperty: k => { delete props[k]; } }) },
-    UrlFetchApp: { fetch: (url, opts = {}) => { const req = opts.payload ? JSON.parse(opts.payload) : null; calls.push({ url, opts, req }); const r = fetch(req, opts, calls.length, url); if (r instanceof Error) throw r;
+    UrlFetchApp: { fetch: (url, opts = {}) => { const req = typeof opts.payload === 'string' ? JSON.parse(opts.payload) : opts.payload || null; /* объект — multipart (фото) */ calls.push({ url, opts, req }); const r = fetch(req, opts, calls.length, url); if (r instanceof Error) throw r;
       return { getResponseCode: () => r.status ?? 200, getContentText: () => typeof r.body === 'string' ? r.body : JSON.stringify(r.body), getAllHeaders: () => ({}),
         getBlob: () => { const b = { name: '', bytes: r.body, setName(n) { b.name = n; return b; } }; return b; } }; } },
     SpreadsheetApp: {
@@ -56,14 +62,17 @@ export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     // время «сейчас» в тестах можно задать: now.value = new Date(…); часовой пояс таблицы — Ташкент (UTC+5)
     Utilities: { formatDate: (d, tz, f) => { const t = new Date(d.getTime() + 5 * 3600e3).toISOString(); return f.replace('yyyy', t.slice(0, 4)).replace('MM', t.slice(5, 7)).replace('dd', t.slice(8, 10)).replace('HH', t.slice(11, 13)).replace('mm', t.slice(14, 16)); },
-      getUuid: () => 'uuid-' + (++uuid) + '-0000-0000' },
+      getUuid: () => 'uuid-' + (++uuid) + '-0000-0000',
+      computeHmacSha256Signature: (value, key) => sbytes(createHmac('sha256', ubuf(key)).update(ubuf(value)).digest()),
+      base64Decode: s => sbytes(Buffer.from(String(s), 'base64')),
+      newBlob: (data, type, name) => blob(typeof data === 'string' ? sbytes(Buffer.from(data, 'utf8')) : data, type, name) },
     CacheService: { getScriptCache: () => ({ get: k => cache.get(k) ?? null, put: (k, v) => cache.set(k, v), remove: k => cache.delete(k) }) },
     HtmlService: { createHtmlOutput: s => ({ html: s }) },
     DriveApp: drive,
     console: { error: m => logs.push('error: ' + m), log: m => logs.push(m) },
     Logger: { log: m => logs.push(m) },
     ScriptApp: { AuthMode: { FULL: 'FULL' }, requireAllScopes: m => logs.push('requireAllScopes ' + m), getProjectTriggers: () => triggers.map(t => ({ getHandlerFunction: () => t.fn })),
-      newTrigger: fn => { const t = { fn }, b = { timeBased: () => b, atHour: h => { t.hour = h; return b; }, everyDays: n => { t.every = n; return b; }, inTimezone: z => { t.tz = z; return b; }, create: () => { triggers.push(t); return t; } }; return b; } },
+      newTrigger: fn => { const t = { fn }, b = { timeBased: () => b, atHour: h => { t.hour = h; return b; }, everyDays: n => { t.every = n; return b; }, everyMinutes: n => { t.minutes = n; return b; }, inTimezone: z => { t.tz = z; return b; }, create: () => { triggers.push(t); return t; } }; return b; } },
     Maps: {}, Date: MockDate, JSON, Math, String, Number, Object, Array, isNaN, RegExp, Error
   };
   vm.createContext(ctx);

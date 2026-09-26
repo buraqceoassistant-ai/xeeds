@@ -285,3 +285,12 @@ button.imp-check:hover { background: var(--color-surface); }
 /* «Тарифы»: текстовые поля (название склада, ссылка на склад) — на всю ширину под подписью, а не в узкой колонке чисел */
 .field:has(> div > input.set-input[type="text"]) { grid-template-columns: minmax(0, 1fr) !important; gap: 6px !important; }
 input.set-input[type="text"] { text-align: left !important; }
+.dv-set { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 14px; align-items: end; }
+.dv-set .field > span { font-size: 12px; color: var(--color-neutral-700); }
+.dv-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; cursor: pointer; }
+.dv-check input { margin-top: 3px; accent-color: var(--color-accent); }
+.dv-check small { color: var(--color-neutral-700); font-size: 12px; }
+.dv-prob { font-size: 13px; border-left: 2px solid var(--color-red); padding: 4px 8px; background: var(--color-surface); }
+.dv-prob a { color: var(--color-accent); }
+.tg-client { border: 1px solid var(--color-divider); background: var(--color-surface); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.tg-client .tg-code { word-break: break-all; }

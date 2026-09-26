@@ -926,6 +926,10 @@
             <button class="btn btn-primary" sc-camel-on-click="{{ dvSendAll }}" disabled="{{ dvBusy }}">Отправить всем</button>
             <button class="btn btn-secondary" sc-camel-on-click="{{ dvWriteOnline }}" disabled="{{ dvBusy }}">Написать всем на линии</button>
             <button class="btn btn-ghost" sc-camel-on-click="{{ dvSummary }}" disabled="{{ dvBusy }}">Итог дня в группу</button>
+            <sc-if value="{{ dvHasCarry }}">
+              <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Недоставленные ({{ dvCarryN }}) — на дату</span><input class="input" type="date" value="{{ dvCarryTo }}" sc-camel-on-change="{{ onDvCarryTo }}"></label>
+              <button class="btn btn-secondary" sc-camel-on-click="{{ dvCarry }}" disabled="{{ dvBusy }}">↪️ Перенести</button>
+            </sc-if>
           </sc-if>
         </div>
         <sc-if value="{{ dvHasPending }}">
@@ -935,16 +939,21 @@
               <sc-if value="{{ dvCanDrv }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.allow }}" disabled="{{ dvBusy }}">Разрешить</button><button class="btn btn-ghost" sc-camel-on-click="{{ d.deny }}" disabled="{{ dvBusy }}">Отклонить</button></sc-if></div></sc-for>
           </section>
         </sc-if>
-        <sc-if value="{{ dvHasDisp }}">
+        <sc-if value="{{ dvHasSet }}">
           <section class="dv-card">
-            <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
-              <div style="flex:1 1 280px;min-width:0"><h3 style="margin:0">Диспетчер для водителей</h3><div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty;margin-top:2px">{{ dvDispNote }}</div></div>
-              <sc-if value="{{ dvDispEdit }}">
-                <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Имя</span><input class="input" value="{{ dvDispName }}" sc-camel-on-change="{{ onDvDispName }}" placeholder="Имя диспетчера" maxlength="40" style="width:170px"></label>
-                <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Телефон</span><input class="input" type="tel" value="{{ dvDispPhone }}" sc-camel-on-change="{{ onDvDispPhone }}" placeholder="+998 __ ___ __ __" style="width:190px"></label>
-                <button class="btn btn-secondary" sc-camel-on-click="{{ dvDispSave }}" disabled="{{ dvBusy }}">Сохранить</button>
-              </sc-if>
-            </div>
+            <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h3 style="margin:0">Настройки бота</h3><span style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty;flex:1 1 320px">{{ dvSetNote }}</span></div>
+            <sc-if value="{{ dvSetEdit }}">
+              <div class="dv-set">
+                <label class="field" style="margin:0"><span>Диспетчер — имя</span><input class="input" value="{{ dvSetName }}" sc-camel-on-change="{{ onDvSetName }}" placeholder="Имя диспетчера" maxlength="40"></label>
+                <label class="field" style="margin:0"><span>Телефон диспетчера</span><input class="input" type="tel" value="{{ dvSetPhone }}" sc-camel-on-change="{{ onDvSetPhone }}" placeholder="+998 __ ___ __ __"></label>
+                <label class="field" style="margin:0"><span>Ждать клиента, мин</span><input class="input" type="number" min="5" max="120" step="5" value="{{ dvSetWait }}" sc-camel-on-change="{{ onDvSetWait }}"></label>
+                <label class="field" style="margin:0"><span>Отметка дальше от клиента, км</span><input class="input" type="number" min="0.1" max="50" step="0.1" value="{{ dvSetKm }}" sc-camel-on-change="{{ onDvSetKm }}"></label>
+                <label class="dv-check"><input type="checkbox" checked="{{ dvSetCam }}" sc-camel-on-change="{{ onDvSetCam }}"><span>Фото только с камеры<br><small>из галереи нельзя, место — со снимка</small></span></label>
+                <label class="dv-check"><input type="checkbox" checked="{{ dvSetCarry }}" sc-camel-on-change="{{ onDvSetCarry }}"><span>Недоставленные — на завтра<br><small>автоматически в 20:00</small></span></label>
+              </div>
+              <div><button class="btn btn-secondary" sc-camel-on-click="{{ dvSetSave }}" disabled="{{ dvBusy }}">Сохранить</button></div>
+            </sc-if>
+            <sc-if value="{{ dvSetView }}"><div style="font-size:13px;text-wrap:pretty">{{ dvSetSummary }}</div></sc-if>
           </section>
         </sc-if>
         <div class="kpi-strip dv-kpis" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--color-divider)">
@@ -959,6 +968,7 @@
                 <sc-if value="{{ t.canSend }}"><div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-secondary" sc-camel-on-click="{{ t.send }}" disabled="{{ dvBusy }}">Отправить</button><sc-if value="{{ t.canWrite }}"><button class="btn btn-ghost" sc-camel-on-click="{{ t.write }}" disabled="{{ dvBusy }}">Написать</button></sc-if></div></sc-if>
               </div>
               <sc-for list="{{ t.drivers }}" as="d"><div class="dv-driver"><span class="dv-dot" style="background:{{ d.dot }}"></span><b style="font-weight:500">{{ d.name }}</b><span style="color:var(--color-neutral-700)">{{ d.state }}</span></div></sc-for>
+              <sc-for list="{{ t.probs }}" as="p"><div class="dv-prob">⚠️ {{ p.time }} <b style="font-weight:500">{{ p.type }}</b> {{ p.text }}<sc-for list="{{ p.photos }}" as="ph"> <a href="{{ ph.u }}" target="_blank" rel="noopener">📷 {{ ph.n }}</a></sc-for><sc-if value="{{ p.hasLL }}"> <a href="{{ p.ll }}" target="_blank" rel="noopener">📍 место</a></sc-if></div></sc-for>
               <div class="dv-progress" title="{{ t.progTitle }}"><span style="width:{{ t.pOk }}%;background:var(--color-accent-2)"></span><span style="width:{{ t.pFail }}%;background:var(--color-red)"></span></div>
               <div style="font-size:12px;color:var(--color-neutral-700)">{{ t.progTitle }}</div>
               <sc-for list="{{ t.rounds }}" as="r">
@@ -1036,6 +1046,16 @@
             </sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
           <sc-if value="{{ dvNoDeliv }}"><div style="padding:16px;font-size:13px;color:var(--color-neutral-700)">{{ dvNoDelivText }}</div></sc-if>
         </section>
+        <sc-if value="{{ dvHasProbs }}">
+          <section class="dv-card" style="padding:0">
+            <h3 style="margin:14px 16px 6px">Проблемы в пути</h3>
+            <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Время</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Водитель</sc-raw-th><sc-raw-th>Что случилось</sc-raw-th><sc-raw-th>Фото и место</sc-raw-th></sc-raw-tr></sc-raw-thead>
+              <sc-raw-tbody><sc-for list="{{ dvProbs }}" as="p"><sc-raw-tr>
+                <sc-raw-td>{{ p.time }}</sc-raw-td><sc-raw-td>{{ p.truck }}</sc-raw-td><sc-raw-td>{{ p.name }}</sc-raw-td><sc-raw-td><span class="tag tag-red">{{ p.type }}</span><div style="font-size:12px;color:var(--color-neutral-700)">{{ p.text }}</div></sc-raw-td>
+                <sc-raw-td><div class="dv-photos"><sc-for list="{{ p.photos }}" as="ph"><a href="{{ ph.u }}" target="_blank" rel="noopener">📷 {{ ph.n }}</a></sc-for><sc-if value="{{ p.hasLL }}"><a href="{{ p.ll }}" target="_blank" rel="noopener">📍 карта</a></sc-if></div></sc-raw-td>
+              </sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
+          </section>
+        </sc-if>
       </sc-if>
 
       <sc-if value="{{ dvIsReport }}">
@@ -1486,6 +1506,14 @@
           <div class="field" style="grid-column:1/-1"><label>Примечание</label><textarea class="input" name="note" value="{{ draft.note }}" sc-camel-on-change="{{ onDraft }}" style="min-height:56px"></textarea></div>
           <div class="field" style="grid-column:1/-1"><label>Маркировки в манифестах <span style="font-weight:400;color:var(--color-neutral-700)">— через запятую, например CBETKO, SVETKO; по ним импорт узнаёт клиента</span></label><input class="input" name="marks" value="{{ draft.marks }}" sc-camel-on-change="{{ onDraft }}" placeholder="CBETKO, SVETKO"></div>
         </div>
+        <sc-if value="{{ draftTgHas }}">
+          <div class="tg-client">
+            <div style="font-weight:500">Уведомления клиенту в Telegram</div>
+            <div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty">Отправьте клиенту ссылку. Он поделится номером — если номер есть в карточке, подписка сразу; иначе её подтверждает группа. Дальше клиент получает на узбекском: «сегодня доставим», «водитель в пути», «доставлено» с фото или «не доставлено».</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><code class="tg-code">{{ draftTgLink }}</code><button class="btn btn-ghost" sc-camel-on-click="{{ draftTgCopy }}">Скопировать</button></div>
+            <div style="font-size:12px">{{ draftTgSubs }}</div>
+          </div>
+        </sc-if>
         <div style="font-size:13px;color:var(--color-accent-700)">{{ dialogError }}</div>
         <div class="dialog-actions">
           <sc-if value="{{ canDelete }}"><button data-edit class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ deleteItem }}">Удалить</button></sc-if>
@@ -1537,7 +1565,7 @@ class Component extends DCLogic {
     mapDate: 'all', mapPlan: 'none', mapBase: (() => { try { return localStorage.getItem('logi-map-base') || 'yandex'; } catch (e) { return 'yandex'; } })(), planDate: '', planKey: 'A', planC: (() => { try { return localStorage.getItem('logi-plan-c') === '1'; } catch (e) { return false; } })(), dialog: null,
     vizTrip: 'all', vizStep: 0, vizSel: null, vizView: '3d', vizErr: '',
     calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 },
-    dvTab: 'day', dvDate: '', dvPeriod: '7', dvTruck: 'all', dvRes: 'all', dvMsg: null, dvBusy: false, dvDisp: null };
+    dvTab: 'day', dvDate: '', dvPeriod: '7', dvTruck: 'all', dvRes: 'all', dvMsg: null, dvBusy: false, dvSet: null, dvCarryTo: '' };
   mapRef = React.createRef();
   dvMapRef = React.createRef();
   impPdfRef = React.createRef();
@@ -1760,7 +1788,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 11); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 12); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -2284,9 +2312,9 @@ class Component extends DCLogic {
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
     out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу в «Настройки связи».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 11. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 12. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
       !T ? 'Телеграм-бот не подключён: «Настройки связи» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (11): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (12): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота» в «Настройки связи».' :
       !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — в «Настройки связи».' :
       ro ? 'Только просмотр: отправлять задания, писать водителям и менять автопарк может руководитель.' : '';
@@ -2328,12 +2356,22 @@ class Component extends DCLogic {
           a && a.date === date ? 'задание отправлено ' + String(a.at || '').slice(11, 16) + ', ещё не начал' : a ? 'отправлена партия ' + dLong(a.date) : 'задание не отправлено';
         return { dot: on ? 'var(--color-red)' : w ? 'var(--color-accent)' : 'var(--color-neutral-400)', name: d.name, state: stTxt };
       }) : [{ dot: 'var(--color-neutral-300)', name: 'Нет водителя в боте', state: '' }];
-      return { name: t, plate: plateOf(t), hasPlate: !!plateOf(t), kindLine: (kind ? VEH[kind] + (cap.capM3 ? ' · ' + f1(cap.capM3, 1) + ' м³ / ' + f0(cap.capKg) + ' кг' : '') : 'не из автопарка') + ' · ' + (list.length ? list.length + ' точ. · ' + rounds.length + ' ' + reys(rounds.length) : 'нет точек'),
+      const probs = ((T && T.problems) || []).filter(p => p.truck === t && String(p.t).slice(0, 10) === today).map(p => { const ll = String(p.ll || '').split(',').map(Number);
+        return { time: String(p.t).slice(11, 16), type: p.type, text: p.text, photos: (p.photos || []).map(safeUrl).filter(Boolean).map((u, i) => ({ u, n: String(i + 1) })), hasLL: ll.length === 2 && !isNaN(ll[0]), ll: ll.length === 2 ? E.yPoint(ll[0], ll[1]) : '' }; });
+      return { name: t, plate: plateOf(t), hasPlate: !!plateOf(t), probs, kindLine: (kind ? VEH[kind] + (cap.capM3 ? ' · ' + f1(cap.capM3, 1) + ' м³ / ' + f0(cap.capKg) + ' кг' : '') : 'не из автопарка') + ' · ' + (list.length ? list.length + ' точ. · ' + rounds.length + ' ' + reys(rounds.length) : 'нет точек'),
         canSend: can && !!drv.length && n.open > 0, send: () => this.dvDispatch(date, drv, [t]), canWrite: can && !!drv.length, write: () => this.dvWrite(drv.map(d => d.id), drv.map(d => d.name).join(', ')),
         drivers: dStates, pOk: n.stops ? Math.round(n.ok / n.stops * 100) : 0, pFail: n.stops ? Math.round(n.fail / n.stops * 100) : 0,
         progTitle: n.stops ? 'Доставлено ' + n.ok + ' из ' + n.stops + (n.fail ? ', не доставлено ' + n.fail : '') + (n.open ? ', осталось ' + n.open : '') : '', rounds, noStops: !list.length, _k: list.length ? 0 : 1, _o: order(t) };
     }).sort((a, b) => a._k - b._k || a._o - b._o || a.name.localeCompare(b.name));
     const noTruck = rows.filter(s => !E.vehicleKind(s.truck) && s.truck !== 'Mijoz ozi oladi' && !TG_DONE.includes(s.status));
+    // недоставленные партии — на другую дату (скрипт 12): статус «В плане», без машины; попытка остаётся в отметках
+    const failBls = [...new Set(rows.filter(s => s.status === 'Qolib ketgan').map(s => s.bl))], tomorrow = isoDay(new Date(Date.now() + 864e5)), carryTo = okDate(st.dvCarryTo) ? st.dvCarryTo : tomorrow;
+    Object.assign(out, { dvHasCarry: can && this.gsVersion >= 12 && failBls.length > 0, dvCarryN: failBls.length, dvCarryTo: carryTo, onDvCarryTo: e => set({ dvCarryTo: e.target.value }),
+      dvCarry: () => {
+        if (carryTo === date) return set({ dvMsg: { text: 'Выберите другую дату — не ту же партию.', color: 'var(--color-red)' } });
+        if (!confirm('Перенести недоставленные партии ' + dLong(date) + ' (' + failBls.join(', ') + ') на ' + dLong(carryTo) + '?\n\nСтатус станет «В плане», машина — не назначена; попытка доставки с причиной останется в отметках водителя.')) return;
+        this.dvRun('Переношу недоставленные…', { action: 'carry', from: date, to: carryTo }, j => { this.gsPull(); return (j.moved || []).length ? 'Перенесено на ' + dLong(carryTo) + ': ' + j.moved.length + ' (' + j.moved.join(', ') + '). Машину назначьте в «Планах».' : 'Переносить нечего.'; });
+      } });
     const online = drivers.filter(d => d.today && !d.today.ended), ended = drivers.filter(d => d.today && d.today.ended);
     Object.assign(out, {
       dvDate: date, onDvDate: e => set({ dvDate: e.target.value }),
@@ -2359,16 +2397,23 @@ class Component extends DCLogic {
       dvMapNote: 'Точки партии: синие — доставлено, красные — не доставлено, тёмные — ещё везут; 🚚 — где водитель отметился последний раз.'
     });
     out.dvHasPending = out.dvPending.length > 0;
-    // диспетчер: водитель звонит ему кнопкой «📞 Диспетчер» и когда клиент не отвечает на телефон (скрипт версии 11)
-    { const disp = (T && T.dispatcher) || {}, dd = st.dvDisp || { name: disp.name || '', phone: disp.phone || '' }, v11 = this.gsVersion >= 11;
-      Object.assign(out, { dvHasDisp: !!T, dvDispEdit: !ro && v11, dvDispName: dd.name, dvDispPhone: dd.phone,
-        onDvDispName: e => set({ dvDisp: { ...dd, name: e.target.value } }), onDvDispPhone: e => set({ dvDisp: { ...dd, phone: e.target.value } }),
-        dvDispSave: () => this.dvRun('Сохраняю номер диспетчера…', { action: 'dispatcher', name: dd.name, phone: dd.phone }, j => {
-          const p = (j.tg && j.tg.dispatcher) || {}; this.setState({ dvDisp: null });
-          return p.phone ? 'Номер диспетчера сохранён: ' + (p.name ? p.name + ' · ' : '') + p.phone + '. Кнопка «📞 Диспетчер» появится у водителей в меню бота со следующего сообщения бота.' : 'Номер диспетчера удалён: кнопки «📞 Диспетчер» в боте больше нет.'; }),
-        dvDispNote: !v11 ? 'Нужен код скрипта таблицы версии 11: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
-          (disp.phone ? 'Сейчас: ' + (disp.name ? disp.name + ' · ' : '') + disp.phone + '. ' : 'Номер не указан. ') +
-          'Водитель звонит диспетчеру кнопкой «📞 Диспетчер» в меню бота. Если клиент не отвечает на телефон, бот предлагает позвонить диспетчеру и сразу пишет в группу номера клиента.' }); }
+    // настройки бота (скрипт версии 12): диспетчер, ожидание клиента, расстояние до клиента, фото только с камеры, перенос недоставленных
+    { const cfg = (T && T.settings) || {}, disp = (T && T.dispatcher) || {}, v12 = this.gsVersion >= 12;
+      const dd = st.dvSet || { name: disp.name || '', phone: disp.phone || '', waitMin: cfg.waitMin || 15, maxKm: cfg.maxKm || 1, camera: cfg.camera !== false, carry: cfg.carry !== false };
+      const upd = patch => set({ dvSet: { ...dd, ...patch } });
+      Object.assign(out, { dvHasSet: !!T, dvSetEdit: !ro && v12, dvSetView: ro || !v12,
+        dvSetName: dd.name, dvSetPhone: dd.phone, dvSetWait: dd.waitMin, dvSetKm: dd.maxKm, dvSetCam: !!dd.camera, dvSetCarry: !!dd.carry,
+        onDvSetName: e => upd({ name: e.target.value }), onDvSetPhone: e => upd({ phone: e.target.value }), onDvSetWait: e => upd({ waitMin: e.target.value }), onDvSetKm: e => upd({ maxKm: e.target.value }),
+        onDvSetCam: e => upd({ camera: e.target.checked }), onDvSetCarry: e => upd({ carry: e.target.checked }),
+        dvSetSave: () => this.dvRun('Сохраняю настройки бота…', { action: 'settings', name: dd.name, phone: dd.phone, waitMin: +dd.waitMin, maxKm: +String(dd.maxKm).replace(',', '.'), camera: !!dd.camera, carry: !!dd.carry }, j => {
+          const c = (j.tg && j.tg.settings) || {}; this.setState({ dvSet: null });
+          return 'Настройки бота сохранены.' + (c.camera && !c.cameraReady ? ' Кнопка камеры включится, когда скрипт узнает адрес сайта — откройте сайт по его адресу в интернете (не с компьютера) и нажмите «Сохранить» ещё раз.' : '') +
+            ' Кнопки «📞 Диспетчер» и «⚠️ Проблема» появятся у водителей со следующего сообщения бота.'; }),
+        dvSetNote: !v12 ? 'Нужен код скрипта таблицы версии 12: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' :
+          'Водитель звонит диспетчеру кнопкой «📞 Диспетчер», а когда клиент не отвечает — бот предлагает позвонить и пишет в группу номера клиента. «⏳ Жду клиента» напоминает через заданное время.',
+        dvSetSummary: [disp.phone ? 'Диспетчер: ' + (disp.name ? disp.name + ' · ' : '') + disp.phone : 'Номер диспетчера не указан',
+          'ждать клиента ' + (cfg.waitMin || 15) + ' мин', 'отметка дальше ' + f1(cfg.maxKm || 1, 1) + ' км — в группу',
+          cfg.camera === false ? 'фото из чата' : 'фото только с камеры', cfg.carry === false ? 'недоставленные не переносятся' : 'недоставленные — на завтра в 20:00'].join(' · ') }); }
     this._dvMap = { date, cards, drivers: online.concat(ended) };
 
     // ── автопарк ──
@@ -2400,17 +2445,22 @@ class Component extends DCLogic {
       { name: 'Машины', rows: [['Машина', 'Госномер', 'Вид', 'Объём, м³', 'Грузоподъёмность, кг', 'Водители']].concat(fleetTrucks.map(t => { const k = E.vehicleKind(t), c = capOf(k); return [t, plateOf(t), k ? VEH[k] : '', c.capM3 || '', c.capKg || '', drivers.filter(d => d.truck === t && d.status === 'ruxsat').map(d => d.name).join(', ')]; })) }]);
 
     // ── лента доставок ──
-    const inP = x => String(x.t).slice(0, 10) >= from;
+    const inP = x => String(x.t).slice(0, 10) >= from, maxKm = ((T && T.settings) || {}).maxKm || 1;
+    const probsP = ((T && T.problems) || []).filter(p => inP(p) && (st.dvTruck === 'all' || p.truck === st.dvTruck)).sort((a, b) => String(b.t).localeCompare(String(a.t)));
+    out.dvProbs = probsP.map(p => { const ll = String(p.ll || '').split(',').map(Number);
+      return { time: dShort(String(p.t).slice(0, 10)) + ' ' + String(p.t).slice(11, 16), truck: p.truck, name: p.name, type: p.type, text: p.text, photos: (p.photos || []).map(safeUrl).filter(Boolean).map((u, i) => ({ u, n: String(i + 1) })), hasLL: ll.length === 2 && !isNaN(ll[0]), ll: ll.length === 2 ? E.yPoint(ll[0], ll[1]) : '' }; });
+    out.dvHasProbs = out.dvProbs.length > 0;
     const feed = log.filter(x => inP(x) && (st.dvTruck === 'all' || x.truck === st.dvTruck) && (st.dvRes === 'all' || (st.dvRes === 'ok') === x.ok)).sort((a, b) => String(b.t).localeCompare(String(a.t)));
     const llOf = x => { const p = String(x.ll || '').split(',').map(Number); return p.length === 2 && !isNaN(p[0]) && !isNaN(p[1]) ? p : null; };
     Object.assign(out, {
       dvTruck: st.dvTruck, onDvTruck: e => set({ dvTruck: e.target.value }), dvRes: st.dvRes, onDvRes: e => set({ dvRes: e.target.value }),
       dvTruckOpts: [{ v: 'all', l: 'Все машины' }].concat([...new Set(fleetTrucks.concat(log.map(x => x.truck)))].map(v => ({ v, l: v }))),
       dvDeliv: feed.slice(0, 300).map(x => { const c = D.cmap[x.bl] || {}, p = llOf(x); return { time: dShort(String(x.t).slice(0, 10)) + ' ' + String(x.t).slice(11, 16), date: dShort(x.date), truck: x.truck, name: x.name, bl: x.bl, client: x.client || [c.brand, c.name].filter(Boolean).join(' — '),
-        tag: x.ok ? 'Доставлено' : 'Не доставлено', tagCls: x.ok ? 'tag-accent' : 'tag-red', reason: x.reason, photos: x.photos.map(safeUrl).filter(Boolean).map((u, i) => ({ u, n: String(i + 1) })), hasLL: !!p, ll: p ? E.yPoint(p[0], p[1]) : '' }; }),
+        tag: x.ok ? 'Доставлено' : 'Не доставлено', tagCls: x.ok ? 'tag-accent' : 'tag-red', reason: [x.reason, x.wait ? 'ждал ' + x.wait + ' мин' : '', x.km != null && x.km > maxKm ? '⚠️ ' + f1(x.km, 1) + ' км от клиента' : ''].filter(Boolean).join(' · '), photos: x.photos.map(safeUrl).filter(Boolean).map((u, i) => ({ u, n: String(i + 1) })), hasLL: !!p, ll: p ? E.yPoint(p[0], p[1]) : '' }; }),
       dvDelivSum: feed.length ? 'Отметок ' + feed.length + ': доставлено ' + feed.filter(x => x.ok).length + ', не доставлено ' + feed.filter(x => !x.ok).length + (feed.length > 300 ? ' · показаны последние 300' : '') : '',
       dvNoDeliv: !feed.length, dvNoDelivText: !T ? 'Отметки появятся, когда водители начнут работать в телеграм-боте.' : 'За выбранный период отметок нет.',
-      dvDelivXlsx: () => this.dvXlsx('Dostavki_' + from + '_' + today, [{ name: 'Доставки', rows: [['Время', 'Партия', 'Машина', 'Госномер', 'Водитель', 'BL', 'Клиент', 'Итог', 'Причина', 'Рейс', 'Место (широта, долгота)', 'Фото']].concat(feed.map(x => [x.t, x.date, x.truck, plateOf(x.truck), x.name, x.bl, x.client, x.ok ? 'Доставлено' : 'Не доставлено', x.reason, x.round, x.ll, x.photos.join(' ')])) }])
+      dvDelivXlsx: () => this.dvXlsx('Dostavki_' + from + '_' + today, [{ name: 'Доставки', rows: [['Время', 'Партия', 'Машина', 'Госномер', 'Водитель', 'BL', 'Клиент', 'Итог', 'Причина', 'Ждал клиента, мин', 'До клиента, км', 'Рейс', 'Место (широта, долгота)', 'Фото']].concat(feed.map(x => [x.t, x.date, x.truck, plateOf(x.truck), x.name, x.bl, x.client, x.ok ? 'Доставлено' : 'Не доставлено', x.reason, x.wait || '', x.km ?? '', x.round, x.ll, x.photos.join(' ')])) },
+        { name: 'Проблемы', rows: [['Время', 'Машина', 'Водитель', 'Что случилось', 'Описание', 'Место', 'Фото']].concat(probsP.map(p => [p.t, p.truck, p.name, p.type, p.text, p.ll, (p.photos || []).join(' ')])) }])
     });
 
     // ── отчёты по водителям ──
@@ -2898,9 +2948,9 @@ class Component extends DCLogic {
     if (this.readOnly) throw new Error('Бот настраивает только руководитель');
     const A = window.LogiAuth, own = A && A.owner ? A.owner() : { config: {} };
     const r = await fetch(this.gsUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', tg, tgdays: this.tgDays() }) });
+      body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', tg, tgdays: this.tgDays(), site: location.origin + location.pathname.replace(/[^/]*$/, ''), hook: this.gsUrl }) });
     const j = await r.json();
-    const need = tg.action === 'dispatcher' ? 11 : ['dispatch', 'message', 'summary'].includes(tg.action) ? 10 : 9;   // отправка партии, сообщения, итог дня — с 10; номер диспетчера — с 11
+    const need = ['settings', 'carry'].includes(tg.action) ? 12 : tg.action === 'dispatcher' ? 11 : ['dispatch', 'message', 'summary'].includes(tg.action) ? 10 : 9;   // отправка партии, сообщения, итог дня — с 10; диспетчер — с 11; настройки бота и перенос — с 12
     if (!(j.v >= need)) throw new Error('Для этого нужен код скрипта таблицы версии ' + need + ' (сейчас ' + (j.v || 'старее 8') + '): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия развертывания');
     if (j.error && /external_request|UrlFetchApp\.fetch/.test(j.error)) throw new Error('Скрипту таблицы не разрешены внешние запросы: в Apps Script выберите функцию authorize → ▶ Выполнить → отметьте все галочки → Продолжить.');
     if (j.error) throw new Error(j.error);
@@ -3775,7 +3825,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 11 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 12 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :
@@ -3882,6 +3932,11 @@ class Component extends DCLogic {
       } else {
         out.isClientDialog = true;
         out.dialogTitle = dl.mode === 'new' ? 'Новый клиент' : 'Клиент ' + dr.bl;
+        { const T = this.gsTg, subs = ((T && T.subs) || []).filter(x => String(x.bl).toUpperCase() === String(dl.id || '').toUpperCase()), LBL = { faol: 'подписан', kutilmoqda: 'ждёт подтверждения в группе', rad: 'отклонён', 'o‘chirilgan': 'отписался' };
+          out.draftTgHas = !!(T && T.bot && dl.mode === 'edit' && this.gsVersion >= 12);
+          out.draftTgLink = out.draftTgHas ? 'https://t.me/' + T.bot + '?start=' + encodeURIComponent(String(dl.id)) : '';
+          out.draftTgCopy = e => { const b = e.currentTarget; navigator.clipboard.writeText(out.draftTgLink).then(() => { b.textContent = 'Скопировано ✓'; setTimeout(() => { b.textContent = 'Скопировать'; }, 1800); }).catch(() => {}); };
+          out.draftTgSubs = subs.length ? 'В Telegram: ' + subs.map(x => x.name + ' · ' + x.phone + ' — ' + (LBL[x.status] || x.status)).join('; ') : 'В Telegram пока никто не подписан.'; }
         const lat = parseFloat(String(dr.lat).replace(',', '.')), lon = parseFloat(String(dr.lon).replace(',', '.'));
         out.draftHasPoint = !isNaN(lat) && !isNaN(lon);
         out.draftPointHref = out.draftHasPoint ? E.yPoint(lat, lon) : '';

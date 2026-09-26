@@ -73,6 +73,9 @@ self.addEventListener('fetch', event => {
   // встретиться со старыми скриптами и данными). Новая сборка ставится в фоне и
   // включается со следующего открытия.
   if (req.mode === 'navigate') {
+    const page = url.pathname.split('/').pop();
+    // другие страницы (driver.html — камера водителя в Telegram) — из сети, без сети — из кэша
+    if (page && page !== 'index.html') { event.respondWith(fetch(req).catch(() => caches.match(req, { ignoreSearch: true }))); return; }
     event.respondWith(caches.match('index.html').then(hit => hit || fetch(req)));
     return;
   }
