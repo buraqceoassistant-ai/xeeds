@@ -26,8 +26,9 @@
   .cam-shutter:active { transform: scale(.94); }
   .cam-shutter:disabled { background: var(--color-neutral-400); box-shadow: 0 0 0 2px var(--color-neutral-400); }
   .cam-row { display: flex; gap: 8px; }
-  .cam-row .btn { flex: 1; padding: 12px; font-size: 16px; }
-  .cam-big { width: 100%; padding: 14px; font-size: 16px; }
+  .cam-row .btn { flex: 1; padding: 14px; font-size: 18px; }
+  .cam-row .cam-small { flex: 0 0 72px; }
+  .cam-big { width: 100%; padding: 16px; font-size: 18px; }
   .cam-msg { font-size: 14px; padding: 10px 12px; border-left: 2px solid var(--color-accent); background: var(--color-surface); white-space: pre-line; }
   .cam-msg.err { border-left-color: var(--color-red); }
   .cam-msg:empty { display: none; }
@@ -35,53 +36,44 @@
 </style>
 </head>
 <body>
-<header class="cam-head"><img src="buraq-brand/logo/buraq-logo-white.svg" alt="BURAQ logistics"><span id="link"></span></header>
+<header class="cam-head"><img src="buraq-brand/logo/buraq-logo-white.svg" alt="BURAQ logistics"></header>
 <main class="cam">
-  <div><h1 class="cam-title" id="title"></h1><div class="cam-sub" id="sub"></div></div>
-  <div class="cam-line" id="gps"></div>
+  <h1 class="cam-title"><span id="icon"></span> <span id="title"></span></h1>
   <div id="live">
     <div class="cam-view"><video id="video" playsinline muted autoplay></video><div class="cam-wait" id="wait"></div></div>
     <button class="cam-shutter" id="shutter" type="button" disabled></button>
-    <div class="cam-line" id="hint" style="text-align:center;margin-top:6px"></div>
   </div>
   <div id="preview" hidden>
     <div class="cam-view"><canvas id="cv"></canvas></div>
-    <div class="cam-row" style="margin-top:8px"><button class="btn btn-secondary" id="retake" type="button"></button><button class="btn btn-primary" id="send" type="button"></button></div>
+    <div class="cam-row" style="margin-top:10px"><button class="btn btn-secondary cam-small" id="retake" type="button"></button><button class="btn btn-primary" id="send" type="button"></button></div>
   </div>
   <div class="cam-msg" id="msg" role="status"></div>
+  <div id="after" hidden>
+    <button class="btn btn-primary cam-big" id="done" type="button"></button>
+    <button class="btn btn-secondary cam-big" id="more" type="button" style="margin-top:8px"></button>
+  </div>
   <div id="fallback" hidden>
     <button class="btn btn-secondary cam-big" id="retry" type="button"></button>
     <button class="btn btn-secondary cam-big" id="pick" type="button" style="margin-top:8px"></button>
   </div>
   <input id="file" type="file" accept="image/*" capture="environment" hidden>
-  <button class="btn btn-primary cam-big" id="done" type="button" hidden></button>
 </main>
 <script>
 (function () {
   var q = new URLSearchParams(location.search), L = q.get('l') === 'ru' ? 'ru' : 'uz';
   var T = {
-    uz: { ok: 'Yetkazilgan yuk', fail: 'Manzil (yetkazilmadi)', retake: '↩️ Qayta', send: '✅ Yuborish', done: '✅ Tayyor — botga qaytish',
-      hint: 'Tugmani bosing — rasm olinadi', camWait: 'Kamera yoqilmoqda…', linkWait: 'bot bilan aloqa…', linkOk: 'bot bilan aloqa ✓',
-      gpsWait: '📍 Joylashuv aniqlanmoqda…', gpsOk: '📍 Joylashuv: ±{acc} m', gpsNo: '📍 Joylashuv yo‘q — botda alohida so‘raladi',
-      camDenied: 'Kameraga ruxsat berilmadi. Telegram so‘raganda «Ruxsat berish»ni bosing yoki telefon sozlamalarida Telegram uchun kamerani yoqing, so‘ng «Kamerani qayta yoqish».',
-      camNone: 'Bu telefonda kamera sahifa ichida ochilmadi.', camBusy: 'Kamera boshqa ilova tomonidan band. Uni yoping va «Kamerani qayta yoqish»ni bosing.',
-      retry: '🔄 Kamerani qayta yoqish', pick: '📷 Telefon kamerasini ochish',
-      gallery: 'Bu rasm galereyadan ({age}). Yangi rasm oling — faqat kamera orqali.', badImg: 'Rasmni ochib bo‘lmadi ({why}). Kamerani sahifada qayta yoqing yoki qaytadan rasmga oling.',
-      sending: 'Yuborilmoqda…', sent: '✅ Rasm yuborildi: {n}. Yana olishingiz yoki «Tayyor» tugmasini bosishingiz mumkin.',
-      noTg: 'Bu sahifa botdagi «📷 Suratga olish» tugmasi orqali ochiladi.', bad: 'Havola noto‘g‘ri. Botdagi tugmani qayta bosing.',
-      net: 'Internet yo‘q yoki server javob bermadi. Internetni tekshirib, «Yuborish»ni qayta bosing.', badResp: 'Server kutilmagan javob berdi (HTTP {code}). Keyinroq qayta urinib ko‘ring.',
-      min: '{n} daqiqa oldin', day: '{n} kun oldin' },
-    ru: { ok: 'Доставленный груз', fail: 'Место (не доставлено)', retake: '↩️ Переснять', send: '✅ Отправить', done: '✅ Готово — вернуться в бот',
-      hint: 'Нажмите кнопку — будет снимок', camWait: 'Включаю камеру…', linkWait: 'связь с ботом…', linkOk: 'связь с ботом ✓',
-      gpsWait: '📍 Определяю место…', gpsOk: '📍 Место: ±{acc} м', gpsNo: '📍 Места нет — бот спросит геолокацию отдельно',
-      camDenied: 'Нет доступа к камере. Когда Telegram спросит — нажмите «Разрешить», или включите камеру для Telegram в настройках телефона, затем «Включить камеру ещё раз».',
-      camNone: 'На этом телефоне камера не открылась внутри страницы.', camBusy: 'Камера занята другим приложением. Закройте его и нажмите «Включить камеру ещё раз».',
-      retry: '🔄 Включить камеру ещё раз', pick: '📷 Открыть камеру телефона',
-      gallery: 'Это фото из галереи ({age}). Сделайте новое — только камерой.', badImg: 'Не удалось открыть снимок ({why}). Включите камеру на странице ещё раз или переснимите.',
-      sending: 'Отправляю…', sent: '✅ Фото отправлено: {n}. Можно сделать ещё или нажать «Готово».',
-      noTg: 'Эта страница открывается кнопкой «📷 Сфотографировать» в боте.', bad: 'Неверная ссылка. Нажмите кнопку в боте ещё раз.',
-      net: 'Нет интернета или сервер не ответил. Проверьте интернет и нажмите «Отправить» ещё раз.', badResp: 'Сервер ответил не так, как ожидалось (HTTP {code}). Попробуйте чуть позже.',
-      min: '{n} мин назад', day: '{n} дн. назад' }
+    uz: { retake: '↩️', send: '✅ Yuborish', done: '✅ Tayyor', more: '📷 Yana rasm', camWait: 'Kamera yoqilmoqda…', sent: '✅ Yuborildi ({n})', locBot: '📍 Endi botda joylashuvni yuboring',
+      camDenied: 'Kameraga ruxsat bering: Telegram so‘raganda «Ruxsat berish»ni bosing.', camNone: 'Kamera ochilmadi.', camBusy: 'Kamera band. Boshqa ilovani yoping.',
+      retry: '🔄 Kamerani yoqish', pick: '📷 Telefon kamerasi',
+      gallery: 'Galereyadagi rasm ({age}). Yangi rasm oling.', badImg: 'Rasm ochilmadi ({why}). Qayta oling.',
+      sending: 'Yuborilmoqda…', noTg: 'Botdagi «📷 Suratga olish» tugmasini bosing.', bad: 'Botdagi tugmani qayta bosing.',
+      net: 'Internet yo‘q. Qayta bosing.', badResp: 'Server xatosi (HTTP {code}). Qayta bosing.', min: '{n} daqiqa oldin', day: '{n} kun oldin' },
+    ru: { retake: '↩️', send: '✅ Отправить', done: '✅ Готово', more: '📷 Ещё фото', camWait: 'Включаю камеру…', sent: '✅ Отправлено ({n})', locBot: '📍 Теперь отправьте геолокацию в боте',
+      camDenied: 'Разрешите камеру: когда Telegram спросит — «Разрешить».', camNone: 'Камера не открылась.', camBusy: 'Камера занята. Закройте другое приложение.',
+      retry: '🔄 Включить камеру', pick: '📷 Камера телефона',
+      gallery: 'Фото из галереи ({age}). Сделайте новое.', badImg: 'Снимок не открылся ({why}). Переснимите.',
+      sending: 'Отправляю…', noTg: 'Нажмите «📷 Сфотографировать» в боте.', bad: 'Нажмите кнопку в боте ещё раз.',
+      net: 'Нет интернета. Нажмите ещё раз.', badResp: 'Ошибка сервера (HTTP {code}). Нажмите ещё раз.', min: '{n} мин назад', day: '{n} дн. назад' }
   }[L];
   var tx = function (k, v) { var s = T[k]; Object.keys(v || {}).forEach(function (x) { s = s.split('{' + x + '}').join(v[x]); }); return s; };
   var $ = function (id) { return document.getElementById(id); };
@@ -89,9 +81,10 @@
   var TW = window.Telegram && window.Telegram.WebApp, init = TW ? TW.initData : '';
   var url = q.get('s') || '', key = q.get('k') || '', bl = q.get('bl') || '', mode = q.get('m') === 'fail' ? 'fail' : 'ok';
   document.documentElement.lang = L;
-  $('title').textContent = bl; $('sub').textContent = T[mode];
-  $('retake').textContent = T.retake; $('send').textContent = T.send; $('done').textContent = T.done;
-  $('retry').textContent = T.retry; $('pick').textContent = T.pick; $('hint').textContent = T.hint; $('wait').textContent = T.camWait;
+  $('title').textContent = bl; $('icon').textContent = mode === 'fail' ? '🚪' : '📦';
+  $('retake').textContent = T.retake; $('retake').setAttribute('aria-label', L === 'ru' ? 'Переснять' : 'Qayta olish');
+  $('send').textContent = T.send; $('done').textContent = T.done; $('more').textContent = T.more;
+  $('retry').textContent = T.retry; $('pick').textContent = T.pick; $('wait').textContent = T.camWait;
   $('shutter').setAttribute('aria-label', L === 'ru' ? 'Снять' : 'Rasmga olish');
   var msg = function (t, err) { $('msg').textContent = t || ''; $('msg').className = 'cam-msg' + (err ? ' err' : ''); };
   if (TW) { try { TW.ready(); TW.expand(); if (TW.disableVerticalSwipes) TW.disableVerticalSwipes(); } catch (e) {} }
@@ -106,19 +99,17 @@
         function () { throw new Error(T.net); });
   };
   // проверка связи сразу при открытии: скрипт узнаёт водителя и шаг «фото»
-  $('link').textContent = T.linkWait;
   post({ init: init, key: key, ping: 1 }).then(function (j) {
-    if (j.ok || j.code === 'img') { $('link').textContent = T.linkOk; if (j.n) { $('done').hidden = false; } }   // «img» — скрипт без проверки связи: связь есть
-    else { $('link').textContent = ''; msg(j.error || T.net, true); }
-  }, function (e) { $('link').textContent = ''; msg(e.message, true); });
+    if (j.ok || j.code === 'img') { if (j.n) { sentN = j.n; show('after', true); } }   // «img» — скрипт без проверки связи: связь есть
+    else msg(j.error || T.net, true);
+  }, function (e) { msg(e.message, true); });
 
   // ── место: сначала Telegram (LocationManager), иначе браузер ──
-  var pos = null;
-  $('gps').textContent = T.gpsWait;
-  var setPos = function (lat, lon, acc) { pos = { ll: [+lat.toFixed(6), +lon.toFixed(6)], acc: Math.round(acc || 0) }; $('gps').textContent = tx('gpsOk', { acc: pos.acc || '?' }); };
+  var pos = null, sentN = 0, viaFile = false;   // место — молча: нет его — бот спросит геолокацию сам
+  var setPos = function (lat, lon, acc) { pos = { ll: [+lat.toFixed(6), +lon.toFixed(6)], acc: Math.round(acc || 0) }; };
   var browserGps = function () {
-    if (!navigator.geolocation) { $('gps').textContent = T.gpsNo; return; }
-    navigator.geolocation.watchPosition(function (p) { setPos(p.coords.latitude, p.coords.longitude, p.coords.accuracy); }, function () { if (!pos) $('gps').textContent = T.gpsNo; }, { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 });
+    if (!navigator.geolocation) return;
+    navigator.geolocation.watchPosition(function (p) { setPos(p.coords.latitude, p.coords.longitude, p.coords.accuracy); }, function () {}, { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 });
   };
   var LM = TW && TW.LocationManager;
   if (LM && typeof LM.init === 'function') {
@@ -139,7 +130,7 @@
   function toCanvas(src, sw, sh) {
     var k = Math.min(1, 1600 / Math.max(sw, sh)), w = Math.round(sw * k), h = Math.round(sh * k), cv = $('cv'), c = cv.getContext('2d');
     cv.width = w; cv.height = h; c.drawImage(src, 0, 0, w, h); stamp(c, w, h);
-    show('live', false); show('preview', true); msg('');
+    show('live', false); show('after', false); show('preview', true); msg('');
   }
 
   // ── камера на странице: живое изображение и кнопка «Снять» — выбора из галереи нет ──
@@ -158,7 +149,7 @@
   }
   function camFail(e) {
     var n = e && e.name;
-    $('wait').textContent = ''; show('live', false); show('fallback', true);
+    viaFile = true; $('wait').textContent = ''; show('live', false); show('fallback', true);
     msg(n === 'NotAllowedError' || n === 'SecurityError' ? T.camDenied : n === 'NotReadableError' || n === 'AbortError' ? T.camBusy : T.camNone, true);
   }
   $('shutter').onclick = function () {
@@ -166,9 +157,19 @@
     toCanvas(video, video.videoWidth, video.videoHeight);
     if (TW && TW.HapticFeedback) try { TW.HapticFeedback.impactOccurred('medium'); } catch (e) {}
   };
-  $('retake').onclick = function () { show('preview', false); if (stream) { show('live', true); msg(''); } else if (!$('fallback').hidden || !navigator.mediaDevices) { $('file').value = ''; $('file').click(); } else startCam(); };
+  $('retake').onclick = function () { show('preview', false); msg(''); if (stream) show('live', true); else if (viaFile) { show('fallback', true); $('file').value = ''; $('file').click(); } else startCam(); };
   $('retry').onclick = startCam;
-  $('done').onclick = function () { stopCam(); if (TW) TW.close(); };
+  var close = function () { stopCam(); if (TW) TW.close(); };
+  $('done').onclick = function () {
+    if (busy) return;
+    busy = true; $('done').disabled = true; msg(T.sending);
+    post({ init: init, key: key, done: 1 }).then(function (j) {
+      if (j.ok) { if (j.needLoc) { msg(T.locBot); setTimeout(close, 1500); } else close(); return; }
+      if (j.code === 'img' || j.code === 'stage') return close();   // скрипт без «Готово» из камеры или точка уже закрыта — «Готово» в боте
+      msg(j.error || T.net, true);
+    }, function (e) { msg(e.message, true); }).then(function () { busy = false; $('done').disabled = false; });
+  };
+  $('more').onclick = function () { show('after', false); msg(''); if (stream) show('live', true); else if (viaFile) { show('fallback', true); $('file').value = ''; $('file').click(); } else startCam(); };
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') stopCam(); else if (!$('live').hidden && !stream) startCam(); });
 
   // ── запасной путь: камера телефона через выбор файла; фото из галереи — по дате съёмки (EXIF) или файла ──
@@ -227,8 +228,7 @@
     post({ init: init, key: key, img: $('cv').toDataURL('image/jpeg', 0.8), ll: pos ? pos.ll : null, acc: pos ? pos.acc : null })
       .then(function (j) {
         if (!j.ok) throw new Error(j.error || T.net);
-        show('preview', false); $('done').hidden = false; msg(tx('sent', { n: j.n }));
-        if (stream) show('live', true); else show('fallback', true);
+        sentN = j.n; show('preview', false); show('live', false); show('fallback', false); show('after', true); msg(tx('sent', { n: j.n }));
         if (TW && TW.HapticFeedback) try { TW.HapticFeedback.notificationOccurred('success'); } catch (e) {}
       })
       .catch(function (e) { msg(e.message || T.net, true); })

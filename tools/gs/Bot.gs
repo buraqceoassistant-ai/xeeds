@@ -70,14 +70,14 @@ var TX = {
     noStops: 'Bugun {truck} uchun manzillar yo‘q. Reja jurnalga yozilgach, «📍 Joriy manzil» tugmasini bosing.',
     stop: '📦 {i}/{n} manzil · {round}-reys', client: 'Mijoz', addr: 'Manzil', recv: 'Qabul qiluvchi', tel: 'Tel', cargo: '{places} joy · {cbm} m³ · {kg} kg', note: 'Izoh', noCoords: 'Xaritada nuqta yo‘q — manzil bo‘yicha boring.',
     bOk: '✅ Yetkazildi', bFail: '❌ Yetkazilmadi',
-    askPhoto: 'Yukni mijoz oldida suratga oling: «📷 Suratga olish» tugmasini bosing — kamera ochiladi. Keyin «✅ Tayyor».',
+    askPhoto: '📷 Yukni suratga oling 👇',
     askPhotoChat: 'Yetkazilgan yukning rasmini yuboring (bir yoki bir nechta), keyin «✅ Tayyor» tugmasini bosing.',
-    photoOk: '📷 Rasm qabul qilindi: {n}. Yana suratga olishingiz yoki «✅ Tayyor» tugmasini bosishingiz mumkin.', needPhoto: 'Kamida bitta rasm kerak: «📷 Suratga olish».',
-    bCam: '📷 Suratga olish', camOnly: 'Rasm faqat «📷 Suratga olish» tugmasi orqali qabul qilinadi — u kamerani ochadi. Galereyadagi rasmlar qabul qilinmaydi.',
+    photoOk: '✅ Rasm qabul qilindi ({n}). «✅ Tayyor» tugmasini bosing.', needPhoto: '📷 Avval suratga oling 👇', photoCap: '✅ Rasm qabul qilindi', bCamMore: '📷 Yana rasm',
+    bCam: '📷 Suratga olish', camOnly: 'Rasm — faqat shu tugma orqali 👇',
     bRoute: '🧭 Yo‘nalish (Yandex)', bRouteG: '🧭 Google Maps', bWait: '⏳ Mijozni kutyapman',
     waiting: '⏳ Mijozni {until} gacha kutasiz. Mijoz kelsa — «✅ Yetkazildi», kelmasa — «❌ Yetkazilmadi».', waitOver: '⏰ {min} daqiqa o‘tdi. Mijoz keldimi?', bMore: '⏳ Yana {min} daqiqa',
     askReason: 'Sababni tanlang:', askReasonText: 'Sababni qisqacha yozing.',
-    askPhotoFail: 'Joyni suratga oling (yopiq eshik, manzil): «📷 Suratga olish» tugmasi. Keyin «✅ Tayyor».',
+    askPhotoFail: '📷 Joyni suratga oling (eshik, manzil) 👇',
     askPhotoFailChat: 'Joyning rasmini yuboring (yopiq eshik, manzil), keyin «✅ Tayyor» tugmasini bosing.',
     saved: 'Saqlandi ✅', next: 'Keyingi manzil 👇',
     roundDone: '{round}-reys tugadi. Omborga qayting, {next}-reys yukini oling va tugmani bosing.', bRound: '▶️ {next}-reysni boshlash',
@@ -117,14 +117,14 @@ var TX = {
     noStops: 'На сегодня у {truck} точек нет. Когда план запишут в журнал, нажмите «📍 Текущая точка».',
     stop: '📦 Точка {i} из {n} · рейс {round}', client: 'Клиент', addr: 'Адрес', recv: 'Получатель', tel: 'Тел', cargo: '{places} мест · {cbm} м³ · {kg} кг', note: 'Примечание', noCoords: 'Точки на карте нет — езжайте по адресу.',
     bOk: '✅ Доставлено', bFail: '❌ Не доставлено',
-    askPhoto: 'Сфотографируйте груз у клиента: нажмите «📷 Сфотографировать» — откроется камера. Затем «✅ Готово».',
+    askPhoto: '📷 Сфотографируйте груз 👇',
     askPhotoChat: 'Отправьте фото доставленного груза (одно или несколько), затем нажмите «✅ Готово».',
-    photoOk: '📷 Фото принято: {n}. Можно сделать ещё или нажать «✅ Готово».', needPhoto: 'Нужно хотя бы одно фото: «📷 Сфотографировать».',
-    bCam: '📷 Сфотографировать', camOnly: 'Фото принимается только через кнопку «📷 Сфотографировать» — она открывает камеру. Фото из галереи не принимаются.',
+    photoOk: '✅ Фото принято ({n}). Нажмите «✅ Готово».', needPhoto: '📷 Сначала сделайте фото 👇', photoCap: '✅ Фото принято', bCamMore: '📷 Ещё фото',
+    bCam: '📷 Сфотографировать', camOnly: 'Фото — только этой кнопкой 👇',
     bRoute: '🧭 Маршрут (Яндекс)', bRouteG: '🧭 Google Maps', bWait: '⏳ Жду клиента',
     waiting: '⏳ Ждёте клиента до {until}. Придёт — «✅ Доставлено», не придёт — «❌ Не доставлено».', waitOver: '⏰ Прошло {min} мин. Клиент пришёл?', bMore: '⏳ Ещё {min} мин',
     askReason: 'Выберите причину:', askReasonText: 'Коротко напишите причину.',
-    askPhotoFail: 'Сфотографируйте место (закрытые ворота, адрес): кнопка «📷 Сфотографировать». Затем «✅ Готово».',
+    askPhotoFail: '📷 Сфотографируйте место (ворота, адрес) 👇',
     askPhotoFailChat: 'Отправьте фото места (закрытые ворота, адрес), затем нажмите «✅ Готово».',
     saved: 'Сохранено ✅', next: 'Следующая точка 👇',
     roundDone: 'Рейс {round} закончен. Вернитесь на склад, загрузите рейс {next} и нажмите кнопку.', bRound: '▶️ Начать рейс {next}',
@@ -195,7 +195,11 @@ function tgCamUrl_(d, w) {
 }
 function tgPhotoKb_(d, w) {
   var L = d.lang;
-  return tgInline_([[{ text: tx_(L, 'bCam'), web_app: { url: tgCamUrl_(d, w) } }], [{ text: tx_(L, 'bDone'), callback_data: 'pdone' }, { text: tx_(L, 'bCancel'), callback_data: 'pcancel' }]]);
+  return tgInline_([[{ text: tx_(L, 'bCam'), web_app: { url: tgCamUrl_(d, w) } }], [{ text: tx_(L, 'bCancel'), callback_data: 'pcancel' }]]);
+}
+function tgPhotoDoneKb_(d, w) {
+  var L = d.lang;
+  return tgInline_([[{ text: tx_(L, 'bDone'), callback_data: 'pdone' }], [{ text: tx_(L, 'bCamMore'), web_app: { url: tgCamUrl_(d, w) } }]]);
 }
 // шаг «фото»: с камерой — кнопки в сообщении; без неё — фото из чата и клавиатура «Готово / Отмена»
 function tgPhotoAsk_(d, w, key) {
@@ -946,6 +950,8 @@ function tgCarry_(dates, to) {
 }
 function tgEnsureTrigger_() {
   try {
+    // итог дня — заново: после смены часового пояса таблицы он должен приходить в 20:00 по Ташкенту
+    ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'tgDailySummary') ScriptApp.deleteTrigger(t); });
     var fns = ScriptApp.getProjectTriggers().map(function (t) { return t.getHandlerFunction(); });
     if (fns.indexOf('tgDailySummary') < 0) ScriptApp.newTrigger('tgDailySummary').timeBased().atHour(TG_SUMMARY_HOUR).everyDays(1).inTimezone(SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone()).create();
     if (fns.indexOf('tgTick') < 0) ScriptApp.newTrigger('tgTick').timeBased().everyMinutes(5).create();
@@ -991,7 +997,7 @@ function tgInitUser_(init) {
 }
 function tgUpload_(method, fields, name, blob) {
   var payload = {};
-  Object.keys(fields).forEach(function (k) { payload[k] = String(fields[k]); });
+  Object.keys(fields).forEach(function (k) { payload[k] = typeof fields[k] === 'object' ? JSON.stringify(fields[k]) : String(fields[k]); });
   payload[name] = blob;
   try { return JSON.parse(UrlFetchApp.fetch(TG_API + 'bot' + prop_('TG_TOKEN') + '/' + method, { method: 'post', payload: payload, muteHttpExceptions: true }).getContentText() || '{}'); }
   catch (err) { return { ok: false, description: String((err && err.message) || err) }; }
@@ -1008,16 +1014,21 @@ function tgPhotoUpload_(p) {
     if (!w) return { error: 'Рабочий день не начат', code: 'stage', v: VERSION };
     if ((w.stage !== 'photo' && w.stage !== 'failPhoto') || !w.cur || w.cur.key !== String(p.key || '')) return { error: tx_(d.lang, 'stale'), code: 'stage', v: VERSION };
     if (p.ping) return { ok: true, ping: true, n: (w.photos || []).length, v: VERSION };   // страница камеры открылась: связь и шаг — в порядке
+    if (p.done) {   // «✅ Готово» в мини-приложении: точка закрывается, как по кнопке в боте
+      if (!(w.photos || []).length) return { error: tx_(d.lang, 'needPhoto'), code: 'nophoto', v: VERSION };
+      var needLoc = !w.photoLL;
+      tgPhotoDone_(d, w);
+      return { ok: true, done: true, needLoc: needLoc, v: VERSION };
+    }
     if ((w.photos || []).length >= 10) return { error: 'Не больше 10 фото на точку', code: 'many', v: VERSION };
     var b64 = String(p.img || '').replace(/^data:image\/\w+;base64,/, '');
     if (!b64 || b64.length > 8e6) return { error: 'Фото не пришло или слишком большое', code: 'img', v: VERSION };
-    var r = tgUpload_('sendPhoto', { chat_id: d.id, caption: '📷 ' + w.cur.bl + ' · ' + tgNow_('HH:mm') }, 'photo', Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', w.cur.bl + '.jpg'));
+    var r = tgUpload_('sendPhoto', { chat_id: d.id, caption: tx_(d.lang, 'photoCap') + ' · ' + w.cur.bl + ' · ' + tgNow_('HH:mm'), reply_markup: tgPhotoDoneKb_(d, w) }, 'photo', Utilities.newBlob(Utilities.base64Decode(b64), 'image/jpeg', w.cur.bl + '.jpg'));
     if (!r.ok || !r.result || !r.result.photo) return { error: 'Telegram не принял фото: ' + (r.description || 'нет ответа'), code: 'tg', v: VERSION };
     w.photos = (w.photos || []).concat([r.result.photo[r.result.photo.length - 1].file_id]);
     var ll = p.ll;
     if (ll && ll.length === 2 && isFinite(ll[0]) && isFinite(ll[1]) && Math.abs(ll[0]) <= 90 && Math.abs(ll[1]) <= 180 && (ll[0] || ll[1])) w.photoLL = [Number(ll[0]), Number(ll[1])];
     tgSave_(d);
-    tgSend_(d.id, tx_(d.lang, 'photoOk', { n: w.photos.length }), tgPhotoKb_(d, w));
     return { ok: true, n: w.photos.length, v: VERSION };
   } finally { lock.releaseLock(); }
 }
@@ -1122,6 +1133,7 @@ function tgInfo_(days) {
   var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), rec = tgRecent_(span);
   return { bot: prop_('TG_BOT'), hooked: !!prop_('TG_SECRET'), group: prop_('TG_GROUP_TITLE') || '', grouped: !!prop_('TG_GROUP'), code: prop_('TG_GROUP_CODE'), summaryHour: TG_SUMMARY_HOUR, span: span,
     dispatcher: { name: prop_('TG_DISP_NAME'), phone: prop_('TG_DISP_PHONE') },
+    tz: tz, scriptTz: Session.getScriptTimeZone(),   // сайт предупредит, если не Ташкент: иначе «сегодня» и время водителей сдвинуты
     settings: { camera: prop_('TG_CAMERA') !== '0', cameraReady: tgCamera_(), site: prop_('TG_SITE'), waitMin: tgWaitMin_(), maxKm: tgMaxKm_(), carry: prop_('TG_CARRY') !== '0' },
     drivers: tgDrivers_().filter(function (d) { return d.status !== 'yangi'; }).map(function (d) {
       var w = d.st && d.st.work, today = tgNow_('yyyy-MM-dd'), a = tgAssigned_(d), day = w && (w.day || w.date);

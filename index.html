@@ -1552,6 +1552,7 @@ const hhmm = m => { m = Math.round(m); return String(Math.floor(m / 60) % 24).pa
 // дата по часам устройства (Ташкент), а не UTC: toISOString до 05:00 дал бы вчерашний день
 const isoDay = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 // телеграм-бот: точка с таким статусом водителю больше не нужна; «машины», которые не ездят
+const UZ_TZ = ['Asia/Tashkent', 'Asia/Samarkand'];   // UTC+5 — время Узбекистана
 const TG_DONE = ['Yetkazildi', 'Qolib ketgan', 'Mijoz ozi oldi', 'Bekor qilindi'], TG_NOT_TRUCKS = ['Belgilanmagan', 'Mijoz ozi oladi'];
 // текст из таблицы в HTML подсказок карты — только экранированный
 const escHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1788,7 +1789,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 12); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 13); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -2312,11 +2313,14 @@ class Component extends DCLogic {
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
     out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу в «Настройки связи».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 12. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 13. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
       !T ? 'Телеграм-бот не подключён: «Настройки связи» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (12): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (13): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота» в «Настройки связи».' :
       !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — в «Настройки связи».' :
+      T.tz && (!UZ_TZ.includes(T.tz) || (T.scriptTz && !UZ_TZ.includes(T.scriptTz))) ? 'Часовой пояс ' + (!UZ_TZ.includes(T.tz) ? 'Google Таблицы — ' + T.tz : 'скрипта — ' + T.scriptTz) + ', а не Ташкент: время водителей («на линии с …»), «сегодня» и итог дня в 20:00 сдвинуты. ' +
+        'Исправьте: в Google Таблице Файл → Настройки → Часовой пояс → «(GMT+05:00) Tashkent» → Сохранить; в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent». Затем «Настройки связи» → «Переподключить бота».' :
+      this.gsVersion < 13 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 13 — шаг «фото» у водителей станет проще («Готово» прямо под снимком и в камере), а сайт проверит часовой пояс таблицы: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       ro ? 'Только просмотр: отправлять задания, писать водителям и менять автопарк может руководитель.' : '';
     out.dvHasBanner = !!out.dvBanner;
     if (ro) out.dvCanSetup = false;
@@ -3496,6 +3500,8 @@ class Component extends DCLogic {
             if (!confirm('Удалить из Google Таблицы ' + sk.length + ' ' + (sk.length === 1 ? 'строку' : 'строк') + ' без даты?\n\n' + sk.map(x => 'стр. ' + x.row + ' · ' + x.bl + (x.value ? ' «' + x.value + '»' : '')).join('\n'))) return;
             this.gsEnqueue(sk.slice().sort((a, b) => b.row - a.row).map(x => ({ t: 'ship.delete', row: x.row, guard: { bl: x.bl, date: '' } })));
           } }))(data.skipped || [])) },
+        mk('Необычная дата партии', (() => { const now = Date.now(), far = D.dates.filter(d => { const t = Date.parse(d); return t < now - 365 * 864e5 || t > now + 90 * 864e5; }); return data.shipments.filter(s => far.includes(s.date)); })(),
+          'Больше года назад или больше чем через 3 месяца — похоже на опечатку в годе (например 2006 вместо 2026). Нажмите на отгрузку и исправьте дату.', 'warn', s => ({ label: s.bl, sub: dLong(s.date), go: () => this.openShipment(s) })),
         mk('Дата записана не датой', data.textDates || [], 'Ячейка с датой — текст или число (так бывает, если в таблице английская локаль). Сайт понял её как ДД.ММ; в Google Таблице: Файл → Настройки → Региональные настройки → Россия или Узбекистан.', 'info', x => ({ label: 'стр. ' + x.row + ' → ' + dLong(x.date), sub: x.bl + ' «' + x.value + '»', go: () => {} }))
       ];
       out.checks = out.checks.map(c => ({ act: '', go: () => {}, fix: '', ...c, hasAct: !!c.act, hasFix: !!c.fix }));
@@ -3825,7 +3831,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 12 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 13 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :

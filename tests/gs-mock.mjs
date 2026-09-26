@@ -71,7 +71,9 @@ export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
     DriveApp: drive,
     console: { error: m => logs.push('error: ' + m), log: m => logs.push(m) },
     Logger: { log: m => logs.push(m) },
-    ScriptApp: { AuthMode: { FULL: 'FULL' }, requireAllScopes: m => logs.push('requireAllScopes ' + m), getProjectTriggers: () => triggers.map(t => ({ getHandlerFunction: () => t.fn })),
+    Session: { getScriptTimeZone: () => props.__scriptTz || 'Asia/Tashkent' },
+    ScriptApp: { AuthMode: { FULL: 'FULL' }, requireAllScopes: m => logs.push('requireAllScopes ' + m), getProjectTriggers: () => triggers.map(t => ({ t, getHandlerFunction: () => t.fn })),
+      deleteTrigger: w => { const i = triggers.indexOf(w.t); if (i >= 0) triggers.splice(i, 1); },
       newTrigger: fn => { const t = { fn }, b = { timeBased: () => b, atHour: h => { t.hour = h; return b; }, everyDays: n => { t.every = n; return b; }, everyMinutes: n => { t.minutes = n; return b; }, inTimezone: z => { t.tz = z; return b; }, create: () => { triggers.push(t); return t; } }; return b; } },
     Maps: {}, Date: MockDate, JSON, Math, String, Number, Object, Array, isNaN, RegExp, Error
   };
