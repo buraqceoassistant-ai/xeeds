@@ -1007,6 +1007,7 @@ function tgPhotoUpload_(p) {
     var d = tgDriver_(u.id), w = d && d.status === 'ruxsat' ? tgWork_(d) : null;
     if (!w) return { error: 'Рабочий день не начат', code: 'stage', v: VERSION };
     if ((w.stage !== 'photo' && w.stage !== 'failPhoto') || !w.cur || w.cur.key !== String(p.key || '')) return { error: tx_(d.lang, 'stale'), code: 'stage', v: VERSION };
+    if (p.ping) return { ok: true, ping: true, n: (w.photos || []).length, v: VERSION };   // страница камеры открылась: связь и шаг — в порядке
     if ((w.photos || []).length >= 10) return { error: 'Не больше 10 фото на точку', code: 'many', v: VERSION };
     var b64 = String(p.img || '').replace(/^data:image\/\w+;base64,/, '');
     if (!b64 || b64.length > 8e6) return { error: 'Фото не пришло или слишком большое', code: 'img', v: VERSION };

@@ -6,21 +6,28 @@
 <title>BURAQ — kamera</title>
 <link rel="stylesheet" href="css/design-system.css">
 <!-- Мини-приложение Telegram: бот открывает эту страницу кнопкой «📷 Сфотографировать».
-     Только камера (не галерея), штамп на фото (BL, дата, время, координаты), снимок — в скрипт Google Таблицы
-     с подписью Telegram (initData), скрипт проверяет её токеном бота. -->
+     Камера включается прямо на странице (getUserMedia) — галереи нет. Штамп на фото: BL, дата, время, координаты.
+     Снимок уходит в скрипт Google Таблицы с подписью Telegram (initData), скрипт проверяет её токеном бота.
+     Если телефон не даёт камеру странице — запасной путь через камеру телефона (с проверкой даты снимка). -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   html, body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body); }
-  .cam-head { background: var(--color-brand); padding: 12px 16px; border-bottom: 2px solid var(--color-red); }
-  .cam-head img { height: 30px; display: block; }
-  .cam { padding: 16px; display: flex; flex-direction: column; gap: 12px; max-width: 560px; margin: 0 auto; }
-  .cam-title { font-family: var(--font-heading); font-size: 26px; text-transform: uppercase; line-height: 1.1; margin: 0; }
+  .cam-head { background: var(--color-brand); padding: 12px 16px; border-bottom: 2px solid var(--color-red); display: flex; align-items: center; gap: 12px; }
+  .cam-head img { height: 28px; display: block; }
+  .cam-head span { color: var(--color-on-brand); font-size: 13px; margin-left: auto; opacity: .85; }
+  .cam { padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 12px; max-width: 560px; margin: 0 auto; }
+  .cam-title { font-family: var(--font-heading); font-size: 24px; text-transform: uppercase; line-height: 1.1; margin: 0; }
   .cam-sub { font-size: 14px; color: var(--color-neutral-700); }
-  .cam-gps { font-size: 13px; color: var(--color-neutral-700); }
-  .cam-big { width: 100%; padding: 16px; font-size: 18px; }
+  .cam-line { font-size: 13px; color: var(--color-neutral-700); }
+  .cam-view { position: relative; background: var(--color-brand); border: 1px solid var(--color-divider); min-height: 240px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .cam-view video, .cam-view canvas { width: 100%; height: auto; display: block; }
+  .cam-view .cam-wait { color: var(--color-on-brand); font-size: 14px; padding: 24px; text-align: center; }
+  .cam-shutter { width: 76px; height: 76px; border-radius: 50%; border: 4px solid var(--color-bg); background: var(--color-red); box-shadow: 0 0 0 2px var(--color-red); margin: 4px auto 0; display: block; cursor: pointer; }
+  .cam-shutter:active { transform: scale(.94); }
+  .cam-shutter:disabled { background: var(--color-neutral-400); box-shadow: 0 0 0 2px var(--color-neutral-400); }
   .cam-row { display: flex; gap: 8px; }
   .cam-row .btn { flex: 1; padding: 12px; font-size: 16px; }
-  #cv { width: 100%; height: auto; border: 1px solid var(--color-divider); display: block; }
+  .cam-big { width: 100%; padding: 14px; font-size: 16px; }
   .cam-msg { font-size: 14px; padding: 10px 12px; border-left: 2px solid var(--color-accent); background: var(--color-surface); white-space: pre-line; }
   .cam-msg.err { border-left-color: var(--color-red); }
   .cam-msg:empty { display: none; }
@@ -28,45 +35,82 @@
 </style>
 </head>
 <body>
-<header class="cam-head"><img src="buraq-brand/logo/buraq-logo-white.svg" alt="BURAQ logistics"></header>
+<header class="cam-head"><img src="buraq-brand/logo/buraq-logo-white.svg" alt="BURAQ logistics"><span id="link"></span></header>
 <main class="cam">
-  <h1 class="cam-title" id="title"></h1>
-  <div class="cam-sub" id="sub"></div>
-  <div class="cam-gps" id="gps"></div>
-  <button class="btn btn-primary cam-big" id="shot" type="button"></button>
-  <input id="file" type="file" accept="image/*" capture="environment" hidden>
+  <div><h1 class="cam-title" id="title"></h1><div class="cam-sub" id="sub"></div></div>
+  <div class="cam-line" id="gps"></div>
+  <div id="live">
+    <div class="cam-view"><video id="video" playsinline muted autoplay></video><div class="cam-wait" id="wait"></div></div>
+    <button class="cam-shutter" id="shutter" type="button" disabled></button>
+    <div class="cam-line" id="hint" style="text-align:center;margin-top:6px"></div>
+  </div>
   <div id="preview" hidden>
-    <canvas id="cv"></canvas>
+    <div class="cam-view"><canvas id="cv"></canvas></div>
     <div class="cam-row" style="margin-top:8px"><button class="btn btn-secondary" id="retake" type="button"></button><button class="btn btn-primary" id="send" type="button"></button></div>
   </div>
   <div class="cam-msg" id="msg" role="status"></div>
-  <button class="btn btn-secondary cam-big" id="done" type="button" hidden></button>
+  <div id="fallback" hidden>
+    <button class="btn btn-secondary cam-big" id="retry" type="button"></button>
+    <button class="btn btn-secondary cam-big" id="pick" type="button" style="margin-top:8px"></button>
+  </div>
+  <input id="file" type="file" accept="image/*" capture="environment" hidden>
+  <button class="btn btn-primary cam-big" id="done" type="button" hidden></button>
 </main>
 <script>
 (function () {
   var q = new URLSearchParams(location.search), L = q.get('l') === 'ru' ? 'ru' : 'uz';
   var T = {
-    uz: { title: 'Suratga olish', ok: 'Yetkazilgan yuk', fail: 'Manzil (yetkazilmadi)', shot: '📷 Suratga olish', retake: '↩️ Qayta', send: '✅ Yuborish', done: '✅ Tayyor — botga qaytish',
+    uz: { ok: 'Yetkazilgan yuk', fail: 'Manzil (yetkazilmadi)', retake: '↩️ Qayta', send: '✅ Yuborish', done: '✅ Tayyor — botga qaytish',
+      hint: 'Tugmani bosing — rasm olinadi', camWait: 'Kamera yoqilmoqda…', linkWait: 'bot bilan aloqa…', linkOk: 'bot bilan aloqa ✓',
       gpsWait: '📍 Joylashuv aniqlanmoqda…', gpsOk: '📍 Joylashuv: ±{acc} m', gpsNo: '📍 Joylashuv yo‘q — botda alohida so‘raladi',
-      gallery: 'Bu rasm galereyadan ({age}). Yangi rasm oling — faqat kamera orqali.', sending: 'Yuborilmoqda…', sent: '✅ Rasm yuborildi: {n}. Yana olishingiz yoki «Tayyor» tugmasini bosishingiz mumkin.',
-      noTg: 'Bu sahifa botdagi «📷 Suratga olish» tugmasi orqali ochiladi.', bad: 'Havola noto‘g‘ri. Botdagi tugmani qayta bosing.', net: 'Internet yo‘q yoki javob kelmadi. Qayta urinib ko‘ring.', min: '{n} daqiqa oldin', day: '{n} kun oldin' },
-    ru: { title: 'Фото', ok: 'Доставленный груз', fail: 'Место (не доставлено)', shot: '📷 Сфотографировать', retake: '↩️ Переснять', send: '✅ Отправить', done: '✅ Готово — вернуться в бот',
+      camDenied: 'Kameraga ruxsat berilmadi. Telegram so‘raganda «Ruxsat berish»ni bosing yoki telefon sozlamalarida Telegram uchun kamerani yoqing, so‘ng «Kamerani qayta yoqish».',
+      camNone: 'Bu telefonda kamera sahifa ichida ochilmadi.', camBusy: 'Kamera boshqa ilova tomonidan band. Uni yoping va «Kamerani qayta yoqish»ni bosing.',
+      retry: '🔄 Kamerani qayta yoqish', pick: '📷 Telefon kamerasini ochish',
+      gallery: 'Bu rasm galereyadan ({age}). Yangi rasm oling — faqat kamera orqali.', badImg: 'Rasmni ochib bo‘lmadi ({why}). Kamerani sahifada qayta yoqing yoki qaytadan rasmga oling.',
+      sending: 'Yuborilmoqda…', sent: '✅ Rasm yuborildi: {n}. Yana olishingiz yoki «Tayyor» tugmasini bosishingiz mumkin.',
+      noTg: 'Bu sahifa botdagi «📷 Suratga olish» tugmasi orqali ochiladi.', bad: 'Havola noto‘g‘ri. Botdagi tugmani qayta bosing.',
+      net: 'Internet yo‘q yoki server javob bermadi. Internetni tekshirib, «Yuborish»ni qayta bosing.', badResp: 'Server kutilmagan javob berdi (HTTP {code}). Keyinroq qayta urinib ko‘ring.',
+      min: '{n} daqiqa oldin', day: '{n} kun oldin' },
+    ru: { ok: 'Доставленный груз', fail: 'Место (не доставлено)', retake: '↩️ Переснять', send: '✅ Отправить', done: '✅ Готово — вернуться в бот',
+      hint: 'Нажмите кнопку — будет снимок', camWait: 'Включаю камеру…', linkWait: 'связь с ботом…', linkOk: 'связь с ботом ✓',
       gpsWait: '📍 Определяю место…', gpsOk: '📍 Место: ±{acc} м', gpsNo: '📍 Места нет — бот спросит геолокацию отдельно',
-      gallery: 'Это фото из галереи ({age}). Сделайте новое — только камерой.', sending: 'Отправляю…', sent: '✅ Фото отправлено: {n}. Можно сделать ещё или нажать «Готово».',
-      noTg: 'Эта страница открывается кнопкой «📷 Сфотографировать» в боте.', bad: 'Неверная ссылка. Нажмите кнопку в боте ещё раз.', net: 'Нет интернета или нет ответа. Попробуйте ещё раз.', min: '{n} мин назад', day: '{n} дн. назад' }
+      camDenied: 'Нет доступа к камере. Когда Telegram спросит — нажмите «Разрешить», или включите камеру для Telegram в настройках телефона, затем «Включить камеру ещё раз».',
+      camNone: 'На этом телефоне камера не открылась внутри страницы.', camBusy: 'Камера занята другим приложением. Закройте его и нажмите «Включить камеру ещё раз».',
+      retry: '🔄 Включить камеру ещё раз', pick: '📷 Открыть камеру телефона',
+      gallery: 'Это фото из галереи ({age}). Сделайте новое — только камерой.', badImg: 'Не удалось открыть снимок ({why}). Включите камеру на странице ещё раз или переснимите.',
+      sending: 'Отправляю…', sent: '✅ Фото отправлено: {n}. Можно сделать ещё или нажать «Готово».',
+      noTg: 'Эта страница открывается кнопкой «📷 Сфотографировать» в боте.', bad: 'Неверная ссылка. Нажмите кнопку в боте ещё раз.',
+      net: 'Нет интернета или сервер не ответил. Проверьте интернет и нажмите «Отправить» ещё раз.', badResp: 'Сервер ответил не так, как ожидалось (HTTP {code}). Попробуйте чуть позже.',
+      min: '{n} мин назад', day: '{n} дн. назад' }
   }[L];
   var tx = function (k, v) { var s = T[k]; Object.keys(v || {}).forEach(function (x) { s = s.split('{' + x + '}').join(v[x]); }); return s; };
   var $ = function (id) { return document.getElementById(id); };
+  var show = function (id, on) { $(id).hidden = !on; };
   var TW = window.Telegram && window.Telegram.WebApp, init = TW ? TW.initData : '';
   var url = q.get('s') || '', key = q.get('k') || '', bl = q.get('bl') || '', mode = q.get('m') === 'fail' ? 'fail' : 'ok';
   document.documentElement.lang = L;
-  $('title').textContent = bl || T.title; $('sub').textContent = T[mode];
-  $('shot').textContent = T.shot; $('retake').textContent = T.retake; $('send').textContent = T.send; $('done').textContent = T.done;
+  $('title').textContent = bl; $('sub').textContent = T[mode];
+  $('retake').textContent = T.retake; $('send').textContent = T.send; $('done').textContent = T.done;
+  $('retry').textContent = T.retry; $('pick').textContent = T.pick; $('hint').textContent = T.hint; $('wait').textContent = T.camWait;
+  $('shutter').setAttribute('aria-label', L === 'ru' ? 'Снять' : 'Rasmga olish');
   var msg = function (t, err) { $('msg').textContent = t || ''; $('msg').className = 'cam-msg' + (err ? ' err' : ''); };
-  if (TW) { try { TW.ready(); TW.expand(); } catch (e) {} }
+  if (TW) { try { TW.ready(); TW.expand(); if (TW.disableVerticalSwipes) TW.disableVerticalSwipes(); } catch (e) {} }
   // снимок уходит только в скрипт Google Таблицы: подпись Telegram — не для чужих адресов
-  if (!/^https:\/\/script\.google\.com\/(a\/macros\/[^\/]+|macros)\/s\/[\w-]+\/exec$/.test(url) || !key) { msg(T.bad, true); $('shot').disabled = true; return; }
-  if (!init) { msg(T.noTg, true); $('shot').disabled = true; return; }
+  if (!/^https:\/\/script\.google\.com\/(a\/macros\/[^\/]+|macros)\/s\/[\w-]+\/exec$/.test(url) || !key) { show('live', false); msg(T.bad, true); return; }
+  if (!init) { show('live', false); msg(T.noTg, true); return; }
+
+  // ── запрос к скрипту: JSON; сеть и непонятный ответ — разные сообщения ──
+  var post = function (body) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ tgphoto: body }) })
+      .then(function (r) { return r.text().then(function (t) { var j; try { j = JSON.parse(t); } catch (e) { j = null; } if (!j || typeof j !== 'object') throw new Error(tx('badResp', { code: r.status })); return j; }); },
+        function () { throw new Error(T.net); });
+  };
+  // проверка связи сразу при открытии: скрипт узнаёт водителя и шаг «фото»
+  $('link').textContent = T.linkWait;
+  post({ init: init, key: key, ping: 1 }).then(function (j) {
+    if (j.ok || j.code === 'img') { $('link').textContent = T.linkOk; if (j.n) { $('done').hidden = false; } }   // «img» — скрипт без проверки связи: связь есть
+    else { $('link').textContent = ''; msg(j.error || T.net, true); }
+  }, function (e) { $('link').textContent = ''; msg(e.message, true); });
 
   // ── место: сначала Telegram (LocationManager), иначе браузер ──
   var pos = null;
@@ -82,7 +126,52 @@
     catch (e) { browserGps(); }
   } else browserGps();
 
-  // ── дата съёмки из EXIF (DateTimeOriginal): фото из галереи — старое ──
+  // ── штамп: BL, дата и время, координаты — на тёмной полосе внизу ──
+  function stamp(c, w, h) {
+    var d = new Date(), p2 = function (n) { return String(n).padStart(2, '0'); }, fs = Math.max(16, Math.round(w / 34)), pad = Math.round(fs * 0.6);
+    var lines = [bl + ' · ' + p2(d.getDate()) + '.' + p2(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()),
+      pos ? pos.ll[0].toFixed(5) + ', ' + pos.ll[1].toFixed(5) + (pos.acc ? ' ±' + pos.acc + (L === 'ru' ? ' м' : ' m') : '') : 'GPS —'];
+    var bh = lines.length * fs * 1.35 + pad * 2, css = getComputedStyle(document.documentElement);
+    c.globalAlpha = 0.72; c.fillStyle = css.getPropertyValue('--color-brand').trim() || '#0E2E54'; c.fillRect(0, h - bh, w, bh); c.globalAlpha = 1;
+    c.fillStyle = css.getPropertyValue('--color-on-brand').trim() || '#FFFFFF'; c.font = '500 ' + fs + 'px Inter, sans-serif'; c.textBaseline = 'top';
+    lines.forEach(function (t, i) { c.fillText(t, pad, h - bh + pad + i * fs * 1.35); });
+  }
+  function toCanvas(src, sw, sh) {
+    var k = Math.min(1, 1600 / Math.max(sw, sh)), w = Math.round(sw * k), h = Math.round(sh * k), cv = $('cv'), c = cv.getContext('2d');
+    cv.width = w; cv.height = h; c.drawImage(src, 0, 0, w, h); stamp(c, w, h);
+    show('live', false); show('preview', true); msg('');
+  }
+
+  // ── камера на странице: живое изображение и кнопка «Снять» — выбора из галереи нет ──
+  var stream = null, video = $('video');
+  function stopCam() { if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+  function startCam() {
+    show('fallback', false); show('live', true); $('shutter').disabled = true; $('wait').hidden = false; $('wait').textContent = T.camWait; msg('');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return camFail({ name: 'NotSupportedError' });
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false })
+      .then(function (s) {
+        stopCam(); stream = s; video.srcObject = s;
+        var ready = function () { if (video.videoWidth) { $('wait').hidden = true; $('shutter').disabled = false; } };
+        video.onloadedmetadata = ready; video.onplaying = ready;
+        var pl = video.play(); if (pl && pl.catch) pl.catch(function () {});
+      }, camFail);
+  }
+  function camFail(e) {
+    var n = e && e.name;
+    $('wait').textContent = ''; show('live', false); show('fallback', true);
+    msg(n === 'NotAllowedError' || n === 'SecurityError' ? T.camDenied : n === 'NotReadableError' || n === 'AbortError' ? T.camBusy : T.camNone, true);
+  }
+  $('shutter').onclick = function () {
+    if (!video.videoWidth) return;
+    toCanvas(video, video.videoWidth, video.videoHeight);
+    if (TW && TW.HapticFeedback) try { TW.HapticFeedback.impactOccurred('medium'); } catch (e) {}
+  };
+  $('retake').onclick = function () { show('preview', false); if (stream) { show('live', true); msg(''); } else if (!$('fallback').hidden || !navigator.mediaDevices) { $('file').value = ''; $('file').click(); } else startCam(); };
+  $('retry').onclick = startCam;
+  $('done').onclick = function () { stopCam(); if (TW) TW.close(); };
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') stopCam(); else if (!$('live').hidden && !stream) startCam(); });
+
+  // ── запасной путь: камера телефона через выбор файла; фото из галереи — по дате съёмки (EXIF) или файла ──
   function exifDate(buf) {
     try {
       var v = new DataView(buf), o = 2;
@@ -107,49 +196,46 @@
   }
   var ago = function (ms) { var m = Math.round(ms / 60000); return m < 1440 ? tx('min', { n: m }) : tx('day', { n: Math.round(m / 1440) }); };
   var FRESH = 10 * 60000;
-
-  var shots = 0, busy = false;
-  $('shot').onclick = $('retake').onclick = function () { $('file').value = ''; $('file').click(); };
-  $('done').onclick = function () { if (TW) TW.close(); };
+  var readHead = function (f) { return new Promise(function (res) { var r = new FileReader(); r.onload = function () { res(r.result); }; r.onerror = function () { res(null); }; r.readAsArrayBuffer(f.slice(0, 262144)); }); };
+  $('pick').onclick = function () { $('file').value = ''; $('file').click(); };
   $('file').onchange = function () {
     var f = this.files && this.files[0];
     if (!f) return;
     msg('');
-    f.slice(0, 262144).arrayBuffer().then(function (buf) {
-      var shot = exifDate(buf), now = Date.now(), age = shot ? now - shot.getTime() : now - (f.lastModified || now);
-      if (age > FRESH) { $('preview').hidden = true; msg(tx('gallery', { age: ago(age) }), true); return; }
-      var img = new Image(), src = URL.createObjectURL(f);
-      img.onload = function () {
-        var k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), w = Math.round(img.naturalWidth * k), h = Math.round(img.naturalHeight * k), cv = $('cv'), c = cv.getContext('2d');
-        cv.width = w; cv.height = h; c.drawImage(img, 0, 0, w, h); URL.revokeObjectURL(src);
-        // штамп: BL, дата и время, координаты — на тёмной полосе внизу
-        var d = new Date(), p2 = function (n) { return String(n).padStart(2, '0'); }, fs = Math.max(16, Math.round(w / 34)), pad = Math.round(fs * 0.6);
-        var lines = [bl + ' · ' + p2(d.getDate()) + '.' + p2(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()),
-          pos ? pos.ll[0].toFixed(5) + ', ' + pos.ll[1].toFixed(5) + (pos.acc ? ' ±' + pos.acc + (L === 'ru' ? ' м' : ' m') : '') : 'GPS —'];
-        var bh = lines.length * fs * 1.35 + pad * 2, css = getComputedStyle(document.documentElement);
-        c.globalAlpha = 0.72; c.fillStyle = css.getPropertyValue('--color-brand').trim() || '#0E2E54'; c.fillRect(0, h - bh, w, bh); c.globalAlpha = 1;
-        c.fillStyle = css.getPropertyValue('--color-on-brand').trim() || '#FFFFFF'; c.font = '500 ' + fs + 'px Inter, sans-serif'; c.textBaseline = 'top';
-        lines.forEach(function (t, i) { c.fillText(t, pad, h - bh + pad + i * fs * 1.35); });
-        $('preview').hidden = false;
+    if (!f.size) return msg(tx('badImg', { why: L === 'ru' ? 'телефон передал пустой файл' : 'telefon bo‘sh fayl berdi' }), true);
+    if (/hei[cf]/i.test(f.type || f.name)) return msg(tx('badImg', { why: 'HEIC' }), true);
+    readHead(f).then(function (buf) {
+      var shot = buf ? exifDate(buf) : null, now = Date.now(), age = shot ? now - shot.getTime() : now - (f.lastModified || now);
+      if (age > FRESH) { show('preview', false); msg(tx('gallery', { age: ago(age) }), true); return; }
+      var r = new FileReader();
+      r.onload = function () {
+        var img = new Image();
+        img.onload = function () { toCanvas(img, img.naturalWidth, img.naturalHeight); };
+        img.onerror = function () { msg(tx('badImg', { why: (f.type || '?') + ', ' + Math.round(f.size / 1024) + ' KB' }), true); };
+        img.src = r.result;
       };
-      img.onerror = function () { msg(T.net, true); };
-      img.src = src;
+      r.onerror = function () { msg(tx('badImg', { why: L === 'ru' ? 'файл не читается' : 'fayl o‘qilmadi' }), true); };
+      r.readAsDataURL(f);
     });
   };
+
+  // ── отправка ──
+  var busy = false;
   $('send').onclick = function () {
     if (busy) return;
     busy = true; $('send').disabled = true; msg(T.sending);
-    var img = $('cv').toDataURL('image/jpeg', 0.8);
-    fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ tgphoto: { init: init, key: key, img: img, ll: pos ? pos.ll : null, acc: pos ? pos.acc : null } }) })
-      .then(function (r) { return r.json(); })
+    post({ init: init, key: key, img: $('cv').toDataURL('image/jpeg', 0.8), ll: pos ? pos.ll : null, acc: pos ? pos.acc : null })
       .then(function (j) {
         if (!j.ok) throw new Error(j.error || T.net);
-        shots = j.n; $('preview').hidden = true; $('done').hidden = false; msg(tx('sent', { n: shots }));
+        show('preview', false); $('done').hidden = false; msg(tx('sent', { n: j.n }));
+        if (stream) show('live', true); else show('fallback', true);
         if (TW && TW.HapticFeedback) try { TW.HapticFeedback.notificationOccurred('success'); } catch (e) {}
       })
-      .catch(function (e) { msg((e && e.message) || T.net, true); })
+      .catch(function (e) { msg(e.message || T.net, true); })
       .then(function () { busy = false; $('send').disabled = false; });
   };
+
+  startCam();
 })();
 </script>
 </body>
