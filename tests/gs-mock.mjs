@@ -32,10 +32,10 @@ class Sheet {
 
 export function loadScript({ props = {}, sheets = {}, fetch } = {}) {
   const book = { name: 'Тест', sheets: Object.fromEntries(Object.entries(sheets).map(([n, s]) => [n, new Sheet(n, s.rows || [], s.maxCols || 26)])) };
-  const calls = [];
+  const calls = [], logs = [];
   const ctx = {
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] ?? null, getProperties: () => ({ ...props }) }) },
-    UrlFetchApp: { fetch: (url, opts) => { const req = JSON.parse(opts.payload); calls.push({ url, opts, req }); const r = fetch(req, opts, calls.length); if (r instanceof Error) throw r;
+    UrlFetchApp: { fetch: (url, opts) => { const req = opts.payload ? JSON.parse(opts.payload) : null; calls.push({ url, opts, req }); const r = fetch(req, opts, calls.length); if (r instanceof Error) throw r;
       return { getResponseCode: () => r.status ?? 200, getContentText: () => typeof r.body === 'string' ? r.body : JSON.stringify(r.body), getAllHeaders: () => ({}) }; } },
     SpreadsheetApp: {
       getActiveSpreadsheet: () => ({ getName: () => book.name, getSpreadsheetTimeZone: () => 'Asia/Tashkent', getSheetByName: n => book.sheets[n] || null,
@@ -46,11 +46,12 @@ export function loadScript({ props = {}, sheets = {}, fetch } = {}) {
     ContentService: { createTextOutput: s => ({ text: s, setMimeType() { return this; } }), MimeType: { JSON: 'json' } },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     Utilities: { formatDate: (d, tz, f) => d.toISOString().slice(0, 10) },
+    Logger: { log: m => logs.push(m) },
     Maps: {}, Date, JSON, Math, String, Number, Object, Array, isNaN, RegExp, Error
   };
   vm.createContext(ctx);
   vm.runInContext(readFileSync(new URL('../tools/gs/Code.gs', import.meta.url), 'utf8'), ctx);
   const post = body => JSON.parse(ctx.doPost({ postData: { contents: typeof body === 'string' ? body : JSON.stringify(body) } }).text);
   const get = (params = {}) => JSON.parse(ctx.doGet({ parameter: params }).text);
-  return { ctx, book, calls, post, get };
+  return { ctx, book, calls, logs, post, get };
 }

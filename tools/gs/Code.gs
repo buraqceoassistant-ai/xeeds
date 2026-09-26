@@ -4,6 +4,8 @@
  * 2) Развернуть → Новое развертывание → Тип: Веб-приложение.
  *    Выполнять как: Я. Доступ: Все (Anyone). → Развернуть → разрешите доступ.
  * 3) Скопируйте ссылку веб-приложения (…/exec) и вставьте её на сайте.
+ * Если сайт пишет про разрешение UrlFetchApp (script.external_request): выберите вверху функцию authorize →
+ * ▶ Выполнить → Проверить разрешения → ваш аккаунт → Дополнительные настройки → Перейти к проекту → Разрешить.
  * Пароль (необязательно): впишите его ниже в кавычки и тот же пароль на сайте.
  * Удобнее — в свойства скрипта: ⚙ Настройки проекта → Свойства скрипта → TOKEN.
  * Тогда при обновлении кода пароль вписывать заново не нужно.
@@ -68,6 +70,14 @@ function propNames_() {
   return n.length ? 'Скрипт видит свойства: ' + n.join(', ') + '.' : 'Скрипт не видит ни одного свойства: проверьте, что они сохранены в проекте этой таблицы (Расширения → Apps Script).';
 }
 function token_() { return String(props_().getProperty('TOKEN') || TOKEN || ''); }
+
+// Запустите один раз из редактора (▶ Выполнить): Google спросит разрешения скрипта, в том числе на внешние запросы
+// (Claude API, раскрытие ссылок на карту). Без этого веб-приложение не может вызвать UrlFetchApp.
+function authorize() {
+  SpreadsheetApp.getActiveSpreadsheet();
+  var code = UrlFetchApp.fetch('https://api.anthropic.com/v1/models', { muteHttpExceptions: true }).getResponseCode();
+  Logger.log('Разрешения выданы: таблица и внешние запросы работают (Claude API ответил ' + code + '). Теперь на сайте — «Проверить ИИ».');
+}
 
 function doGet(e) {
   var p = (e && e.parameter) || {}, tk = token_();
@@ -370,6 +380,7 @@ function aiSend_(key, req) {
 
 function aiError_(r, model) {
   var m = r.message || '';
+  if (!r.status && /external_request|UrlFetchApp/i.test(m)) return 'Скрипту не разрешены внешние запросы. В Apps Script этой таблицы выберите вверху функцию authorize → ▶ Выполнить → Проверить разрешения → ваш аккаунт → Дополнительные настройки → Перейти к проекту → Разрешить. Затем «Проверить ИИ»';
   if (!r.status) return /time/i.test(m) ? 'ИИ не ответил вовремя (Apps Script ждёт около минуты) — попробуйте ещё раз или разберите документ частями' : 'Нет связи с Claude API: ' + m;
   if (/credit balance/i.test(m)) return 'На счёте Claude API закончились деньги — пополните в Claude Console (Billing)';
   if (r.status === 401) return 'Ключ Claude API не подходит — проверьте ANTHROPIC_API_KEY в свойствах скрипта';

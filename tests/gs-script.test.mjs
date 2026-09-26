@@ -55,6 +55,16 @@ test('имя свойства в другом регистре или с про�
   assert.equal(r.editorSet, true); assert.equal(r.model, 'claude-opus-5-5');
 });
 
+test('нет разрешения на внешние запросы — подсказка про authorize; authorize() делает внешний запрос', () => {
+  const denied = new Error('У вас нет разрешения на вызов функции "UrlFetchApp.fetch". Требуемые разрешения: https://www.googleapis.com/auth/script.external_request');
+  const s = loadScript({ props: { ANTHROPIC_API_KEY: 'sk-ant-1' }, sheets: book(), fetch: () => denied });
+  const r = s.post(ping());
+  assert.equal(r.ok, undefined); assert.match(r.error, /функцию authorize → ▶ Выполнить/);
+  const a = loadScript({ sheets: book(), fetch: () => ({ status: 401, body: {} }) });
+  a.ctx.authorize();
+  assert.equal(a.calls[0].url, 'https://api.anthropic.com/v1/models'); assert.match(a.logs[0], /Разрешения выданы.*401/);
+});
+
 test('секрет редактора: без него и с неверным — отказ; с верным — вызов', () => {
   const s = loadScript({ props: { ANTHROPIC_API_KEY: 'k', EDITOR_TOKEN: 'ed-secret' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
   assert.equal(s.post(ping()).code, 'editor');
