@@ -73,6 +73,26 @@ test('ответ ИИ с числом объединённой ячейки в �
   assert.ok(r.blocking.some(b => /R8 — м³: в документе —, в строке 6/.test(b.text)), JSON.stringify(r.blocking));
 });
 
+test('несколько брендов у клиента через запятую — маркировка узнаётся по любому из них', () => {
+  const idx = L.clientIndex([{ bl: 'BL-908', brand: 'SPECIAL ORDER, DESIGN', name: 'Umar' }, { bl: 'BL-909', brand: 'NOVA; STAR', name: 'Ali' }]);
+  assert.deepEqual(L.matchMark('DESIGN', idx), { client: 'BL-908', by: 'brand', reason: 'бренд' });
+  assert.equal(L.matchMark('SPECIAL ORDER', idx).client, 'BL-908'); assert.equal(L.matchMark('star', idx).client, 'BL-909');
+  assert.equal(L.matchMark('ORDER', idx), null);
+});
+
+test('партия уже в журнале, но итог разошёлся из-за одной строки — предупреждение по клиентам', async () => {
+  const book = await X.readGrid(manifestXlsx()), d = await analyzeLocal({ kind: 'xlsx', book });
+  const g = C.groupsOf(d).filter(x => x.decision && x.decision.client);
+  const shipments = g.map(x => ({ date: DATE, bl: x.decision.client, places: x.places, cbm: x.cbm, kg: x.kg }));
+  shipments[1] = { ...shipments[1], places: 1, cbm: 0.1, kg: 5 };                // одна отгрузка внесена с ошибкой
+  const r = C.check(draftOf(d, 'xlsx'), { book, settings: S, shipments });
+  const w = r.warnings.find(x => x.code === 'duplicate');
+  assert.ok(w, JSON.stringify(r.warnings)); assert.match(w.text, new RegExp('у ' + (g.length - 1) + ' из ' + g.length + ' клиентов'));
+  assert.match(w.text, new RegExp('расходится: ' + shipments[1].bl + ' — в журнале 1 мест · 0,1 м³ · 5 кг, в манифесте'));
+  // другая дата — не дубликат
+  assert.ok(!C.check(draftOf(d, 'xlsx'), { book, settings: S, shipments: shipments.map(x => ({ ...x, date: '2026-09-21' })) }).warnings.some(x => x.code === 'duplicate'));
+});
+
 test('Excel без строки заголовков — строк нет, понятная заметка', () => {
   const x = Loc.localExtract({ kind: 'xlsx', book: [{ name: 'S', rows: { 1: { A: 'hello' }, 2: { A: 1, B: 2 } }, merges: [] }] });
   assert.equal(x.rows.length, 0); assert.match(x.notes[0], /Не найдена строка заголовков/);

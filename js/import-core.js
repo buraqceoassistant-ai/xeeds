@@ -257,7 +257,8 @@
     clients.forEach(c => {
       const cc = codeOf(c.bl); if (cc) add(code, cc, c);
       String(c.marks || '').split(/[,;\n]+/).map(x => x.trim()).filter(Boolean).forEach(m => { const mc = codeOf(m); if (mc) add(code, mc, c); variants(m).forEach(v => add(mark, v, c)); });
-      if (c.brand) variants(c.brand).forEach(v => add(brand, v, c));
+      // бренд целиком и каждый из нескольких через запятую («SPECIAL ORDER, DESIGN» → и DESIGN)
+      if (c.brand) [c.brand, ...String(c.brand).split(/[,;\n]+/).map(x => x.trim()).filter(Boolean)].forEach(b => variants(b).forEach(v => add(brand, v, c)));
     });
     return { code, mark, brand };
   }

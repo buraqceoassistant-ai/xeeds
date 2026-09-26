@@ -215,7 +215,19 @@
     const close = (a, b) => a && b && FIELDS.every(f => a[f] == null || b[f] == null || Math.abs(num(a[f]) - num(b[f])) <= TOL[f](num(b[f]) || 0) + 1e-9) && FIELDS.some(f => a[f] != null && b[f] != null);
     const dups = [];
     const jr = (ctx.shipments || []).filter(s => s.date === date);
-    if (jr.length) { const js = jr.reduce((a, s) => ({ places: a.places + (+s.places || 0), cbm: a.cbm + (+s.cbm || 0), kg: a.kg + (+s.kg || 0) }), { places: 0, cbm: 0, kg: 0 }); if (close(js, tot)) dups.push('в журнале за ' + date + ' уже ' + jr.length + ' отгрузок с теми же итогами'); }
+    if (jr.length) {
+      const add = (m, k, v) => { const x = m[k] = m[k] || { places: 0, cbm: 0, kg: 0 }; FIELDS.forEach(f => { x[f] += +v[f] || 0; }); };
+      const js = {}; jr.forEach(s => add(js, '*', s));
+      if (close(js['*'], tot)) dups.push('в журнале за ' + date + ' уже ' + jr.length + ' отгрузок с теми же итогами');
+      else {
+        // по клиентам: итог партии мог разойтись из-за одной строки, а остальные клиенты уже внесены с теми же цифрами
+        const J = {}, M = {}; jr.forEach(s => add(J, s.bl, s)); groups.forEach(g => { if (g.decision && g.decision.client) add(M, g.decision.client, g); });
+        const same = Object.keys(M).filter(c => J[c] && close(J[c], M[c])), n = Object.keys(M).length;
+        const odd = Object.keys(M).filter(c => J[c] && !close(J[c], M[c])), v3 = x => x.places + ' мест · ' + fmt(r3(x.cbm)) + ' м³ · ' + fmt(r3(x.kg)) + ' кг';
+        if (same.length >= 2 && same.length * 2 >= n) dups.push('в журнале за ' + date + ' у ' + same.length + ' из ' + n + ' клиентов этого манифеста уже есть отгрузки с теми же цифрами (' + same.slice(0, 6).join(', ') + (same.length > 6 ? '…' : '') + ')' +
+          (odd.length ? '; расходится: ' + odd.slice(0, 3).map(c => c + ' — в журнале ' + v3(J[c]) + ', в манифесте ' + v3(M[c])).join('; ') : ''));
+      }
+    }
     (ctx.imports || []).forEach(im => { if (im.date === date && close(im, tot) && (!route || !im.route || key(im.route) === route)) dups.push('этот манифест уже подтверждён' + (im.at ? ' (' + String(im.at).slice(0, 10) + ')' : '')); });
     (ctx.drafts || []).forEach(o => { if (o.id !== draft.id && o.status !== 'rejected' && o.journalDate === date && close(o.totals, tot) && (!route || !o.route || key(o.route) === route)) dups.push('есть другой черновик с тем же манифестом (' + (o.fileName || o.id) + ')'); });
     if (dups.length) warn('duplicate', 'Похоже на повторный импорт: ' + [...new Set(dups)].join('; '));
