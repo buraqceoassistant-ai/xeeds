@@ -251,6 +251,14 @@ test('правки на сайте: статус от бота не затира
   const m = t.tg.sent.length; t.s.post({ token: '', ops: [{ t: 'set', v: { speed: 30 } }] }); assert.equal(t.tg.sent.length, m);
 });
 
+test('дата с неполным годом («0001-01-01») не пишется в таблицу — иначе строка стала бы 1900 годом и пропала с сайта', () => {
+  const t = setup(); const n = t.s.book.sheets.Yuborishlar.rows.length;
+  const r = t.s.post({ token: '', ops: [{ t: 'ship.upsert', v: { date: '0001-01-01', bl: 'BL-908', cbm: 1, kg: 1, places: 1, truck: 'Belgilanmagan', route: '', status: 'Rejada', note: '' } }] });
+  assert.equal(r.results[0].error, 'bad date'); assert.equal(t.s.book.sheets.Yuborishlar.rows.length, n);
+  const ok = t.s.post({ token: '', ops: [{ t: 'ship.upsert', v: { date: '2026-09-26', bl: 'BL-908', cbm: 1, kg: 1, places: 1, truck: 'Belgilanmagan', route: '', status: 'Rejada', note: '' } }] });
+  assert.equal(ok.results[0].row, n + 1);
+});
+
 test('конец дня: геолокация → «Ish kuni» (конец, итоги), итог водителю и в группу; выгрузка для сайта — водители без состояния диалога', () => {
   const t = approved(), g = t.group.id;
   t.msg(501, '🏁 Закончить работу');

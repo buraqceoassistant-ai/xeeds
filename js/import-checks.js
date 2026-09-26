@@ -232,7 +232,7 @@
     (ctx.drafts || []).forEach(o => { if (o.id !== draft.id && o.status !== 'rejected' && o.journalDate === date && close(o.totals, tot) && (!route || !o.route || key(o.route) === route)) dups.push('есть другой черновик с тем же манифестом (' + (o.fileName || o.id) + ')'); });
     if (dups.length) warn('duplicate', 'Похоже на повторный импорт: ' + [...new Set(dups)].join('; '));
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.journalDate || '')) block('no-date', 'Укажите дату партии в журнале');
+    if (!/^20\d\d-\d{2}-\d{2}$/.test(draft.journalDate || '')) block('no-date', 'Укажите дату партии в журнале (год полностью: 2026)');
     return { ok: !blocking.length, blocking, warnings, flags, header, groups, sum, doc, diff, lists: { small, unknown, heavy } };
   }
 

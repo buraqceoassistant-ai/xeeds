@@ -792,7 +792,7 @@
         </div>
         <sc-if value="{{ impHasFileErr }}"><div class="imp-alert">{{ impFileErr }}</div></sc-if>
         <div class="imp-meta">
-          <div class="field"><label>Дата партии в журнале</label><input class="input" type="date" value="{{ impJournalDate }}" sc-camel-on-change="{{ onImpDate }}" disabled="{{ impLocked }}"></div>
+          <div class="field"><label>Дата партии в журнале</label><input class="input" type="date" min="2000-01-01" max="2099-12-31" value="{{ impJournalDate }}" sc-camel-on-change="{{ onImpDate }}" disabled="{{ impLocked }}"></div>
           <div><div class="imp-k">Дата в документе</div><div>{{ impDocDate }}</div></div>
           <div style="min-width:0"><div class="imp-k">Маршрут</div><div style="word-break:break-word">{{ impRoute }}</div></div>
           <div class="field"><label>Консолидатор (в примечание отгрузок)</label><input class="input" value="{{ impCons }}" sc-camel-on-change="{{ onImpCons }}" disabled="{{ impLocked }}"></div>
@@ -1177,7 +1177,7 @@
         <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
         <div class="dialog-title">{{ dialogTitle }}</div>
         <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div class="field"><label>Дата партии</label><input class="input" type="date" name="date" value="{{ draft.date }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Дата партии</label><input class="input" type="date" name="date" min="2000-01-01" max="2099-12-31" value="{{ draft.date }}" sc-camel-on-change="{{ onDraft }}"></div>
           <div class="field"><label>BL код клиента</label><input class="input" list="bl-list" name="bl" value="{{ draft.bl }}" sc-camel-on-change="{{ onDraft }}" placeholder="BL-000"><datalist id="bl-list"><sc-for list="{{ blOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></datalist></div>
           <div style="grid-column:1/-1;font-size:13px;color:var(--color-neutral-700);margin-top:-4px">{{ draftClientInfo }}</div>
           <div class="field"><label>CBM (м³)</label><input class="input" type="number" step="any" name="cbm" value="{{ draft.cbm }}" sc-camel-on-change="{{ onDraft }}"></div>
@@ -1345,6 +1345,8 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script="">
 const LS_KEY = 'logi-site-v2';
+// дата партии: ГГГГ-ММ-ДД с годом 2000–2099 (иначе таблица запишет её как 1900 год)
+const okDate = d => /^(20\d\d)-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(String(d || '')) && !isNaN(Date.parse(d));
 const ST = { 'Rejada': 'В плане', 'Yolda': 'В пути', 'Yetkazildi': 'Доставлено', 'Qolib ketgan': 'Осталось', 'Mijoz ozi oldi': 'Клиент забрал сам', 'Bekor qilindi': 'Отменено' };
 const TR = { 'Belgilanmagan': 'Не назначена', 'Mijoz ozi oladi': 'Клиент заберёт' };
 const PLAN_INFO = {
@@ -2366,7 +2368,7 @@ class Component extends DCLogic {
     ];
   }
 
-  openShipment(s) { this.setState({ dialog: { type: 'ship', mode: s ? 'edit' : 'new', id: s && s.id, draft: s ? { ...s, route: s.route ?? '' } : { date: this.state.jDate !== 'all' ? this.state.jDate : new Date().toISOString().slice(0, 10), bl: '', cbm: '', kg: '', places: '', truck: 'Belgilanmagan', route: '', status: 'Rejada', note: '' }, error: '' } }); }
+  openShipment(s) { this.setState({ dialog: { type: 'ship', mode: s ? 'edit' : 'new', id: s && s.id, draft: s ? { ...s, route: s.route ?? '' } : { date: okDate(this.state.jDate) ? this.state.jDate : new Date().toISOString().slice(0, 10), bl: '', cbm: '', kg: '', places: '', truck: 'Belgilanmagan', route: '', status: 'Rejada', note: '' }, error: '' } }); }
   openWh(w) { this.setState({ dialog: { type: 'wh', mode: w ? 'edit' : 'new', id: w && w.id, draft: w ? { ...w, lat: w.lat ?? '', lon: w.lon ?? '' } : { bl: '', brand: '', name: '', lat: '', lon: '' }, error: '' } }); }
   openClient(c) { this.setState({ dialog: { type: 'client', mode: c ? 'edit' : 'new', id: c && c.bl, draft: c ? { ...c, lat: c.lat ?? '', lon: c.lon ?? '', marks: c.marks || '' } : { bl: '', brand: '', name: '', tel1: '', tel2: '', receiver: '', receiverTel: '', district: '__auto', address: '', lat: '', lon: '', note: '', manualZone: '', marks: '' }, error: '' } }); }
   runAutoDistrict() {
@@ -2962,7 +2964,12 @@ class Component extends DCLogic {
         mk('Неполные карточки (< 67%)', low, 'Не хватает бренда, имени, телефона, получателя, адреса или координат.', 'info'),
         mk('Снаружи кольцевой', outC, 'Для них действует тариф точки снаружи кольца.', 'info'),
         mk('Повторяющиеся BL в справочнике', blDup.map(([bl]) => D.cmap[bl]), 'Один BL должен быть одной строкой.', 'warn'),
-        mk('Строки без даты — не видны на сайте', data.skipped || [], 'В листе Yuborishlar дата не распознана. Впишите дату в столбец A как ДД.ММ.ГГГГ.', 'warn', x => ({ label: 'стр. ' + x.row, sub: x.bl + (x.value ? ' «' + x.value + '»' : ' без даты'), go: () => {} })),
+        { ...mk('Строки без даты — не видны на сайте', data.skipped || [], 'В листе Yuborishlar дата не распознана. Впишите дату в столбец A как ДД.ММ.ГГГГ.', 'warn', x => ({ label: 'стр. ' + x.row, sub: x.bl + (x.value ? ' «' + x.value + '»' : ' без даты'), go: () => {} })),
+          // удалить такие строки из таблицы одной кнопкой (снизу вверх — номера строк выше не сдвигаются)
+          ...((sk => ({ act: sk.length && this.gsUrl && !this.readOnly ? 'Удалить из таблицы (' + sk.length + ')' : '', go: () => {
+            if (!confirm('Удалить из Google Таблицы ' + sk.length + ' ' + (sk.length === 1 ? 'строку' : 'строк') + ' без даты?\n\n' + sk.map(x => 'стр. ' + x.row + ' · ' + x.bl + (x.value ? ' «' + x.value + '»' : '')).join('\n'))) return;
+            this.gsEnqueue(sk.slice().sort((a, b) => b.row - a.row).map(x => ({ t: 'ship.delete', row: x.row, guard: { bl: x.bl, date: '' } })));
+          } }))(data.skipped || [])) },
         mk('Дата записана не датой', data.textDates || [], 'Ячейка с датой — текст или число (так бывает, если в таблице английская локаль). Сайт понял её как ДД.ММ; в Google Таблице: Файл → Настройки → Региональные настройки → Россия или Узбекистан.', 'info', x => ({ label: 'стр. ' + x.row + ' → ' + dLong(x.date), sub: x.bl + ' «' + x.value + '»', go: () => {} }))
       ];
       out.checks = out.checks.map(c => ({ act: '', go: () => {}, fix: '', ...c, hasAct: !!c.act, hasFix: !!c.fix }));
@@ -3235,6 +3242,8 @@ class Component extends DCLogic {
         out.draftClientInfo = !dr.bl ? 'Начните вводить BL — появится подсказка' : c ? [c.brand, c.name, distName(c.district), c.receiverTel].filter(Boolean).join(' · ') : 'Клиента с таким BL нет в справочнике — добавьте его во вкладке «Клиенты»';
         out.saveShipment = () => {
           if (!dr.date || !String(dr.bl).trim()) return this.setState({ dialog: { ...dl, error: 'Укажите дату и BL код' } });
+          // неполный год («0001», «0026») таблица запишет как 1900 год, и строка пропадёт с сайта
+          if (!okDate(dr.date)) return this.setState({ dialog: { ...dl, error: 'Проверьте дату партии: год ' + String(dr.date).slice(0, 4) + '. Выберите дату в календаре (значок в поле) или впишите её полностью: ДД.ММ.ГГГГ.' } });
           const rec = { ...dr, bl: String(dr.bl).trim(), cbm: +dr.cbm || 0, kg: +dr.kg || 0, places: +dr.places || 0, route: dr.route === '' || dr.route == null ? null : +dr.route };
           const list = dl.mode === 'new' ? [...data.shipments, { ...rec, id: 's' + Date.now() }] : data.shipments.map(s => s.id === dl.id ? { ...rec, id: dl.id } : s);
           this.commit({ ...data, shipments: list });

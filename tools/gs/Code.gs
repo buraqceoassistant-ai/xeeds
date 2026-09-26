@@ -257,6 +257,8 @@ function apply_(op) {
     row = op.row || op.guard ? findShip_(sh, op.row, op.guard) : 0;
     if (op.t === 'ship.delete') { if (row) shiftUp_(sh, row, [[1, 1], [3, 1], [10, 7]], 3, 5); return { row: row }; }
     var ch = function (k) { return !row || !op.was || String(op.was[k]) !== String(v[k]); };   // поля, которые сайт правда поменял
+    // дата с неполным годом («0001-01-01») записалась бы как 1900 год, и строка пропала бы с сайта — не пишем
+    if (ch('date') && !/^20\d\d-\d\d-\d\d$/.test(String(v.date || ''))) return { error: 'bad date', row: row };
     if (!row) row = lastRow_(sh, 3, 5) + 1;
     // только изменённые на сайте поля: статус, который поставил водитель в боте, не перезапишется старым значением сайта
     setRow_(sh, row, { 1: ch('date') ? date_(v.date) : undefined, 3: ch('bl') ? v.bl : undefined, 10: ch('cbm') ? num_(v.cbm) : undefined, 11: ch('kg') ? num_(v.kg) : undefined,
