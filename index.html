@@ -3237,7 +3237,12 @@ class Component extends DCLogic {
           if (!dr.date || !String(dr.bl).trim()) return this.setState({ dialog: { ...dl, error: 'Укажите дату и BL код' } });
           const rec = { ...dr, bl: String(dr.bl).trim(), cbm: +dr.cbm || 0, kg: +dr.kg || 0, places: +dr.places || 0, route: dr.route === '' || dr.route == null ? null : +dr.route };
           const list = dl.mode === 'new' ? [...data.shipments, { ...rec, id: 's' + Date.now() }] : data.shipments.map(s => s.id === dl.id ? { ...rec, id: dl.id } : s);
-          this.commit({ ...data, shipments: list }); this.setState({ dialog: null });
+          this.commit({ ...data, shipments: list });
+          // журнал открыт на другой партии или отфильтрован — переключаем на отгрузку, иначе она «пропадает» из виду
+          const js = st.jDate, q = String(st.jSearch || '').trim().toLowerCase();
+          this.setState({ dialog: null, ...(js && js !== 'all' && js !== rec.date ? { jDate: rec.date, jLimit: 60 } : {}),
+            ...(st.jStatus && st.jStatus !== 'all' && st.jStatus !== rec.status ? { jStatus: 'all' } : {}),
+            ...(q && !(rec.bl + ' ' + (rec.note || '')).toLowerCase().includes(q) ? { jSearch: '' } : {}) });
         };
         out.deleteItem = () => { if (confirm('Удалить отгрузку?')) { this.commit({ ...data, shipments: data.shipments.filter(s => s.id !== dl.id) }); this.setState({ dialog: null }); } };
       } else if (dl.type === 'gs') {
