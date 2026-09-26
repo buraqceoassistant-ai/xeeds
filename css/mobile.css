@@ -20,9 +20,13 @@
   .app-tabs > button { padding: 0 9px !important; letter-spacing: .04em !important; }
 }
 @media screen and (max-width: 1300px) { .ro-badge { display: none; } }
-/* 11 вкладок (с «Водители») на ноутбуке 1280–1366 px */
+/* Ноутбук 1280–1366 px: 11 вкладок в строку; журнал и клиенты — без прокрутки вбок */
 @media screen and (min-width: 1101px) and (max-width: 1380px) {
   .app-tabs > button { padding: 0 7px !important; letter-spacing: .02em !important; }
+  .table.tc th, .table.tc td { padding-left: 6px; padding-right: 6px; }
+  .table.tc { font-size: 13px; }
+  .table.tc td.c-actions > div { flex-direction: column; align-items: flex-end; gap: 0 !important; }
+  .table.tc td.o1[data-label="Адрес склада"] { min-width: 140px !important; }
 }
 
 @media screen and (max-width: 1100px) {
@@ -86,7 +90,7 @@
   /* Сетки показателей и колонки */
   .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; margin-bottom: 16px !important; }
   .kpi-strip > div { padding: 10px 12px !important; }
-  .kpi-strip > div > div:last-child { font-size: 22px !important; }
+  .kpi-strip > div > div:nth-child(2) { font-size: 22px !important; }   /* цифра; подпись под ней остаётся мелкой */
   .kpi-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
   .kpi-cards > div { padding: 12px !important; }
   .kpi-cards > div > div:nth-of-type(2) { font-size: 26px !important; }
@@ -116,6 +120,7 @@
   }
   .tc td.c-actions { grid-column: 1 / -1; order: 3; display: flex; justify-content: flex-end; }
   .tc td.c-actions > div { flex-wrap: wrap; justify-content: flex-end; }
+  .tc td.c-actions > .c-acts { flex-direction: row !important; align-items: center !important; }
   .tc td.c1 { grid-column: span 1; }
   .tc td.c2 { grid-column: span 2; }
   .tc td.c3 { grid-column: span 3; }
@@ -215,8 +220,6 @@
   .dv-seg { margin-left: 0 !important; width: 100%; display: grid !important; grid-template-columns: 1fr 1fr; border-radius: 12px; }
   .dv-seg > button { padding: 8px 10px !important; }
   .dv-page .tg-driver > div:first-child { flex: 1 1 100% !important; }
-  .dv-page .kpi-strip > div > div:nth-child(2) { font-size: 22px !important; }
-  .dv-page .kpi-strip > div > div:last-child { font-size: 12px !important; }
   .dv-trucks { grid-template-columns: minmax(0, 1fr); }
   .dv-page .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .dv-toolbar > * { flex: 1 1 100%; }

@@ -256,7 +256,6 @@ button.imp-check:hover { background: var(--color-surface); }
 .dv-truck-head { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
 .dv-truck-name { font-family: var(--font-heading); font-size: 22px; text-transform: uppercase; line-height: 1.1; }
 .dv-plate { display: inline-block; vertical-align: middle; font-family: var(--font-body, inherit); font-size: 12px; letter-spacing: .04em; text-transform: none; border: 1px solid var(--color-text); padding: 1px 6px; margin-left: 4px; }
-.dv-plate:empty { display: none; }
 .dv-driver { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 13px; }
 .dv-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; align-self: center; }
 .dv-progress { display: flex; height: 4px; background: var(--color-neutral-200); overflow: hidden; }
@@ -282,3 +281,7 @@ button.imp-check:hover { background: var(--color-surface); }
 .dv-plate-in::placeholder { text-transform: none; }
 .dv-truck-head > div:first-child { flex: 1 1 200px; }
 .tag-red { background: color-mix(in srgb, var(--color-red) 12%, transparent); color: var(--color-danger-ink); }
+
+/* «Тарифы»: текстовые поля (название склада, ссылка на склад) — на всю ширину под подписью, а не в узкой колонке чисел */
+.field:has(> div > input.set-input[type="text"]) { grid-template-columns: minmax(0, 1fr) !important; gap: 6px !important; }
+input.set-input[type="text"] { text-align: left !important; }

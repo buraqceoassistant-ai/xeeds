@@ -124,7 +124,7 @@
       </div>
 
       <div style="overflow-x:auto;border:1px solid var(--color-divider)">
-        <sc-raw-table class="table tc" style="min-width:1400px">
+        <sc-raw-table class="table tc" style="min-width:1180px">
           <sc-raw-thead><sc-raw-tr>
             <sc-raw-th>Дата</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">KG</sc-raw-th><sc-raw-th style="text-align:right">Мест</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Рейс №</sc-raw-th><sc-raw-th>Статус</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Доля, сум</sc-raw-th><sc-raw-th></sc-raw-th>
           </sc-raw-tr></sc-raw-thead>
@@ -146,8 +146,8 @@
                 </sc-if>
                 <sc-if value="{{ r.notEditing }}">
                   <sc-raw-td class="c2" data-label="Машина"><button class="ro-lock" sc-camel-on-click="{{ r.onStartEdit }}" title="Нажмите, чтобы изменить" style="background:none;border:1px dashed var(--color-divider);padding:4px 8px;font:inherit;font-size:13px;color:inherit;cursor:pointer;white-space:nowrap" style-hover="border-color:var(--color-accent)">{{ r.truckLabel }}</button></sc-raw-td>
-                  <sc-raw-td class="c2" data-label="Рейс №"><button class="ro-lock" sc-camel-on-click="{{ r.onStartEdit }}" style="background:none;border:1px dashed var(--color-divider);padding:4px 8px;font:inherit;font-size:13px;color:inherit;cursor:pointer;min-width:40px" style-hover="border-color:var(--color-accent)">{{ r.routeLabel }}</button></sc-raw-td>
-                  <sc-raw-td class="c2" data-label="Статус"><button class="ro-lock" sc-camel-on-click="{{ r.onStartEdit }}" style="background:none;border:1px dashed var(--color-divider);padding:4px 8px;font:inherit;font-size:13px;color:inherit;cursor:pointer;white-space:nowrap" style-hover="border-color:var(--color-accent)">{{ r.statusLabel }}</button></sc-raw-td>
+                  <sc-raw-td class="c1" data-label="Рейс №"><button class="ro-lock" sc-camel-on-click="{{ r.onStartEdit }}" style="background:none;border:1px dashed var(--color-divider);padding:4px 8px;font:inherit;font-size:13px;color:inherit;cursor:pointer;min-width:40px" style-hover="border-color:var(--color-accent)">{{ r.routeLabel }}</button></sc-raw-td>
+                  <sc-raw-td class="c3" data-label="Статус"><button class="ro-lock" sc-camel-on-click="{{ r.onStartEdit }}" style="background:none;border:1px dashed var(--color-divider);padding:4px 8px;font:inherit;font-size:13px;color:inherit;cursor:pointer;white-space:nowrap" style-hover="border-color:var(--color-accent)">{{ r.statusLabel }}</button></sc-raw-td>
                 </sc-if>
                 <sc-raw-td class="c2 o-1 c-end" style="white-space:nowrap">
                   <sc-if value="{{ r.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
@@ -158,7 +158,7 @@
                 </sc-raw-td>
                 <sc-raw-td data-label="Доля, сум" style="text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums"><div>{{ r.share }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ r.tripInfo }}</div></sc-raw-td>
                 <sc-raw-td class="c-actions c3" style="white-space:nowrap">
-                  <div style="display:flex;gap:4px">
+                  <div style="display:flex;gap:4px;justify-content:flex-end">
                     <sc-if value="{{ r.hasPoint }}"><a class="btn btn-ghost" href="{{ r.pointHref }}" target="_blank" title="Точка в Яндекс Картах" style="text-decoration:none">Карта</a></sc-if>
                     <button data-edit class="btn btn-ghost" sc-camel-on-click="{{ r.onEdit }}">Изменить</button>
                   </div>
@@ -197,7 +197,7 @@
         </div>
       </div>
       <div style="overflow-x:auto;border:1px solid var(--color-divider)">
-        <sc-raw-table class="table tc" style="min-width:1300px">
+        <sc-raw-table class="table tc" style="min-width:1200px">
           <sc-raw-thead><sc-raw-tr><sc-raw-th>BL</sc-raw-th><sc-raw-th>Бренд / имя</sc-raw-th><sc-raw-th>Телефоны</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Адрес склада</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Полнота</sc-raw-th><sc-raw-th style="text-align:right">Отгрузок</sc-raw-th><sc-raw-th style="text-align:right">CBM / KG всего</sc-raw-th><sc-raw-th>Посл. партия</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
           <sc-raw-tbody>
             <sc-for list="{{ cRows }}" as="r" hint-placeholder-count="12">
@@ -207,7 +207,7 @@
                 <sc-raw-td data-label="Телефоны" style="white-space:nowrap"><div><a href="{{ r.tel1Href }}">{{ r.tel1 }}</a></div><div style="font-size:12px"><a href="{{ r.tel2Href }}">{{ r.tel2 }}</a></div></sc-raw-td>
                 <sc-raw-td data-label="Получатель"><div>{{ r.receiver }}</div><a href="{{ r.rtelHref }}" style="font-size:12px;white-space:nowrap">{{ r.rtel }}</a></sc-raw-td>
                 <sc-raw-td data-label="Район" style="white-space:nowrap">{{ r.district }}</sc-raw-td>
-                <sc-raw-td class="cw o1" data-label="Адрес склада" style="min-width:220px;max-width:340px;font-size:12px;color:var(--color-neutral-800);text-wrap:pretty">
+                <sc-raw-td class="cw o1" data-label="Адрес склада" style="min-width:180px;max-width:320px;font-size:12px;color:var(--color-neutral-800);text-wrap:pretty">
                   <sc-if value="{{ r.addrShut }}"><div class="addr-clamp" title="{{ r.address }}">{{ r.address }}</div></sc-if>
                   <sc-if value="{{ r.addrOpen }}"><div>{{ r.address }}</div></sc-if>
                   <sc-if value="{{ r.addrLong }}"><button class="addr-more" sc-camel-on-click="{{ r.addrToggle }}">{{ r.addrMore }}</button></sc-if>
@@ -217,14 +217,14 @@
                   <sc-if value="{{ r.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
                   <sc-if value="{{ r.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
                   <sc-if value="{{ r.zNone }}"><span class="tag tag-neutral">Нет коорд.</span></sc-if>
-                  <div style="font-size:11px;color:var(--color-neutral-700);margin-top:2px">{{ r.zoneNote }}</div>
+                  <div style="font-size:11px;color:var(--color-neutral-700);margin-top:2px;white-space:normal;max-width:120px">{{ r.zoneNote }}</div>
                 </sc-raw-td>
                 <sc-raw-td data-label="Полнота" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><sc-if value="{{ r.complLow }}"><span class="tag tag-neutral">{{ r.compl }}</span></sc-if><sc-if value="{{ r.complOk }}">{{ r.compl }}</sc-if></sc-raw-td>
                 <sc-raw-td class="c2" data-label="Отгрузок" style="text-align:right;font-variant-numeric:tabular-nums">{{ r.count }}</sc-raw-td>
                 <sc-raw-td class="c2" data-label="Всего" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><div>{{ r.cbm }} м³</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ r.kg }} кг</div></sc-raw-td>
                 <sc-raw-td class="c2" data-label="Посл. партия" style="white-space:nowrap;color:var(--color-neutral-700)">{{ r.last }}</sc-raw-td>
-                <sc-raw-td class="c-actions o2" style="white-space:nowrap"><div style="display:flex;gap:4px">
-                  <sc-if value="{{ r.hasPoint }}"><a class="btn btn-ghost" href="{{ r.pointHref }}" target="_blank" style="text-decoration:none">Яндекс Карты</a></sc-if>
+                <sc-raw-td class="c-actions o2" style="white-space:nowrap"><div class="c-acts" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                  <sc-if value="{{ r.hasPoint }}"><a class="btn btn-ghost" href="{{ r.pointHref }}" target="_blank" title="Точка в Яндекс Картах" style="text-decoration:none">Карта</a></sc-if>
                   <sc-if value="{{ r.hasLink }}"><a class="btn btn-ghost" href="{{ r.link }}" target="_blank" title="Ссылка на локацию из Excel" style="text-decoration:none">Локация</a></sc-if>
                   <button data-edit class="btn btn-ghost" sc-camel-on-click="{{ r.onEdit }}">Изменить</button>
                 </div></sc-raw-td>
@@ -454,8 +454,8 @@
                     <sc-raw-td class="c2" data-label="Снаружи" style="text-align:right">{{ b.out }}</sc-raw-td>
                     <sc-raw-td class="c2" data-label="Без коорд." style="text-align:right">{{ b.noc }}</sc-raw-td>
                     <sc-raw-td class="c2" data-label="Без машины" style="text-align:right">{{ b.noTruck }}</sc-raw-td>
-                    <sc-raw-td class="c4" data-label="Стоимость (журнал)" style="text-align:right;white-space:nowrap"><div>{{ b.price }}</div><div style="font-size:11px;color:var(--color-neutral-700)">{{ b.ours }}</div></sc-raw-td>
-                    <sc-raw-td class="c-actions c3 o-1" style="white-space:nowrap"><div style="display:flex;gap:4px"><button class="btn btn-ghost" sc-camel-on-click="{{ b.openJ }}">Журнал</button><button class="btn btn-ghost" sc-camel-on-click="{{ b.openP }}">Планы</button></div></sc-raw-td>
+                    <sc-raw-td class="c4" data-label="Стоимость (журнал)" style="text-align:right"><div style="white-space:nowrap">{{ b.price }}</div><div style="font-size:11px;color:var(--color-neutral-700);min-width:110px">{{ b.ours }}</div></sc-raw-td>
+                    <sc-raw-td class="c-actions c3 o-1" style="white-space:nowrap"><div class="c-acts" style="display:flex;flex-direction:column;align-items:flex-end;gap:0"><button class="btn btn-ghost" sc-camel-on-click="{{ b.openJ }}">Журнал</button><button class="btn btn-ghost" sc-camel-on-click="{{ b.openP }}">Планы</button></div></sc-raw-td>
                   </sc-raw-tr>
                 </sc-for>
               </sc-raw-tbody>
@@ -943,7 +943,7 @@
           <sc-for list="{{ dvTrucks }}" as="t">
             <section class="dv-card">
               <div class="dv-truck-head">
-                <div style="min-width:0"><div class="dv-truck-name">{{ t.name }} <span class="dv-plate">{{ t.plate }}</span></div><div style="font-size:12px;color:var(--color-neutral-700)">{{ t.kindLine }}</div></div>
+                <div style="min-width:0"><div class="dv-truck-name">{{ t.name }} <sc-if value="{{ t.hasPlate }}"><span class="dv-plate">{{ t.plate }}</span></sc-if></div><div style="font-size:12px;color:var(--color-neutral-700)">{{ t.kindLine }}</div></div>
                 <sc-if value="{{ t.canSend }}"><div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-secondary" sc-camel-on-click="{{ t.send }}" disabled="{{ dvBusy }}">Отправить</button><sc-if value="{{ t.canWrite }}"><button class="btn btn-ghost" sc-camel-on-click="{{ t.write }}" disabled="{{ dvBusy }}">Написать</button></sc-if></div></sc-if>
               </div>
               <sc-for list="{{ t.drivers }}" as="d"><div class="dv-driver"><span class="dv-dot" style="background:{{ d.dot }}"></span><b style="font-weight:500">{{ d.name }}</b><span style="color:var(--color-neutral-700)">{{ d.state }}</span></div></sc-for>
@@ -1513,6 +1513,10 @@ const hhmm = m => { m = Math.round(m); return String(Math.floor(m / 60) % 24).pa
 const isoDay = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 // телеграм-бот: точка с таким статусом водителю больше не нужна; «машины», которые не ездят
 const TG_DONE = ['Yetkazildi', 'Qolib ketgan', 'Mijoz ozi oldi', 'Bekor qilindi'], TG_NOT_TRUCKS = ['Belgilanmagan', 'Mijoz ozi oladi'];
+// текст из таблицы в HTML подсказок карты — только экранированный
+const escHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// ссылка из таблицы — только http(s): «javascript:…» в ячейке не должен выполняться по клику
+const safeUrl = u => /^https?:\/\//i.test(String(u || '').trim()) ? String(u).trim() : '';
 const telHref = t => t ? 'tel:' + String(t).replace(/[^\d+]/g, '').replace(/^998/, '+998') : '';
 
 class Component extends DCLogic {
@@ -1546,6 +1550,8 @@ class Component extends DCLogic {
   }
   componentDidMount() {
     this.loadLeaflet();
+    // Esc закрывает открытое окно (отгрузка, клиент, склад, настройки связи) — как «Отмена»
+    window.addEventListener('keydown', e => { if (e.key === 'Escape' && this.state.dialog && !e.defaultPrevented) this.setState({ dialog: null }); });
     const tick = async () => {
       if (!(window.XlsxIO && window.LOGI_TEMPLATE_B64 && window.LogiEngine)) return setTimeout(tick, 60);
       try {
@@ -1711,6 +1717,7 @@ class Component extends DCLogic {
     }
     this.setState({ gsStatus: 'loading', gsMsg: '' });
     try { const pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); if (pend && !this.readOnly && !this.gsQueue.some(o => o.t === 'ring')) { this.gsOldScript = true; this.gsQueue.push({ t: 'ring', v: pend }); this.gsSaveQueue(); } } catch (e) {}
+    this._gsFirst = true;   // первый ответ таблицы (после записи очереди или чтения) — как первая загрузка: журнал и планы на последней партии
     return this.gsQueue.length ? this.gsFlush() : this.gsPull(true);
   }
   gsStop() {
@@ -1734,6 +1741,7 @@ class Component extends DCLogic {
   }
   gsApply(j, first) {
     if (!j || j.error || !j.data) throw new Error((j && j.error) || 'Пустой ответ');
+    if (this._gsFirst) { first = true; this._gsFirst = false; }
     const data = window.XlsxIO.fromSheets(j.data);
     this.staleNotes(data);
     // Старый скрипт в таблице не записывает новые настройки (B55–B58): оставляем значения сайта
@@ -2297,7 +2305,7 @@ class Component extends DCLogic {
             const ll = lg && lg.ll ? lg.ll.split(',').map(Number) : null;
             return { tag, tagCls, bl: x.bl, client: [c.brand, c.name].filter(Boolean).join(' — ') || (D.cmap[x.bl] ? '' : 'нет в справочнике'),
               sub: [c.district, f1(x.cbm, 2) + ' м³', f0(x.kg) + ' кг', x.places ? x.places + ' мест' : '', c.receiverTel || c.tel1 || '', lg ? (lg.ok ? 'отметка ' : 'не доставлено ') + String(lg.t).slice(11, 16) + (lg.reason ? ' · ' + lg.reason : '') : ''].filter(Boolean).join(' · '),
-              hasPhotos: !!(lg && (lg.photos.length || ll)), photos: lg ? lg.photos.map((u, i) => ({ u, n: 'фото ' + (i + 1) })) : [], hasLL: !!(ll && ll.length === 2 && !isNaN(ll[0])), ll: ll ? E.yPoint(ll[0], ll[1]) : '',
+              hasPhotos: !!(lg && (lg.photos.length || ll)), photos: lg ? lg.photos.map(safeUrl).filter(Boolean).map((u, i) => ({ u, n: 'фото ' + (i + 1) })) : [], hasLL: !!(ll && ll.length === 2 && !isNaN(ll[0])), ll: ll ? E.yPoint(ll[0], ll[1]) : '',
               canMove: !ro && x.open, moveOpts: fleetTrucks.filter(o => o !== t), move: e => { const to = e.target.value; e.target.value = ''; this.dvMove(date, t, x.bl, x.round, to); } };
           }) };
       });
@@ -2308,7 +2316,7 @@ class Component extends DCLogic {
           a && a.date === date ? 'задание отправлено ' + String(a.at || '').slice(11, 16) + ', ещё не начал' : a ? 'отправлена партия ' + dLong(a.date) : 'задание не отправлено';
         return { dot: on ? 'var(--color-red)' : w ? 'var(--color-accent)' : 'var(--color-neutral-400)', name: d.name, state: stTxt };
       }) : [{ dot: 'var(--color-neutral-300)', name: 'Нет водителя в боте', state: '' }];
-      return { name: t, plate: plateOf(t), kindLine: (kind ? VEH[kind] + (cap.capM3 ? ' · ' + f1(cap.capM3, 1) + ' м³ / ' + f0(cap.capKg) + ' кг' : '') : 'не из автопарка') + ' · ' + (list.length ? list.length + ' точ. · ' + rounds.length + ' ' + reys(rounds.length) : 'нет точек'),
+      return { name: t, plate: plateOf(t), hasPlate: !!plateOf(t), kindLine: (kind ? VEH[kind] + (cap.capM3 ? ' · ' + f1(cap.capM3, 1) + ' м³ / ' + f0(cap.capKg) + ' кг' : '') : 'не из автопарка') + ' · ' + (list.length ? list.length + ' точ. · ' + rounds.length + ' ' + reys(rounds.length) : 'нет точек'),
         canSend: can && !!drv.length && n.open > 0, send: () => this.dvDispatch(date, drv, [t]), canWrite: can && !!drv.length, write: () => this.dvWrite(drv.map(d => d.id), drv.map(d => d.name).join(', ')),
         drivers: dStates, pOk: n.stops ? Math.round(n.ok / n.stops * 100) : 0, pFail: n.stops ? Math.round(n.fail / n.stops * 100) : 0,
         progTitle: n.stops ? 'Доставлено ' + n.ok + ' из ' + n.stops + (n.fail ? ', не доставлено ' + n.fail : '') + (n.open ? ', осталось ' + n.open : '') : '', rounds, noStops: !list.length, _k: list.length ? 0 : 1, _o: order(t) };
@@ -2377,7 +2385,7 @@ class Component extends DCLogic {
       dvTruck: st.dvTruck, onDvTruck: e => set({ dvTruck: e.target.value }), dvRes: st.dvRes, onDvRes: e => set({ dvRes: e.target.value }),
       dvTruckOpts: [{ v: 'all', l: 'Все машины' }].concat([...new Set(fleetTrucks.concat(log.map(x => x.truck)))].map(v => ({ v, l: v }))),
       dvDeliv: feed.slice(0, 300).map(x => { const c = D.cmap[x.bl] || {}, p = llOf(x); return { time: dShort(String(x.t).slice(0, 10)) + ' ' + String(x.t).slice(11, 16), date: dShort(x.date), truck: x.truck, name: x.name, bl: x.bl, client: x.client || [c.brand, c.name].filter(Boolean).join(' — '),
-        tag: x.ok ? 'Доставлено' : 'Не доставлено', tagCls: x.ok ? 'tag-accent' : 'tag-red', reason: x.reason, photos: x.photos.map((u, i) => ({ u, n: String(i + 1) })), hasLL: !!p, ll: p ? E.yPoint(p[0], p[1]) : '' }; }),
+        tag: x.ok ? 'Доставлено' : 'Не доставлено', tagCls: x.ok ? 'tag-accent' : 'tag-red', reason: x.reason, photos: x.photos.map(safeUrl).filter(Boolean).map((u, i) => ({ u, n: String(i + 1) })), hasLL: !!p, ll: p ? E.yPoint(p[0], p[1]) : '' }; }),
       dvDelivSum: feed.length ? 'Отметок ' + feed.length + ': доставлено ' + feed.filter(x => x.ok).length + ', не доставлено ' + feed.filter(x => !x.ok).length + (feed.length > 300 ? ' · показаны последние 300' : '') : '',
       dvNoDeliv: !feed.length, dvNoDelivText: !T ? 'Отметки появятся, когда водители начнут работать в телеграм-боте.' : 'За выбранный период отметок нет.',
       dvDelivXlsx: () => this.dvXlsx('Dostavki_' + from + '_' + today, [{ name: 'Доставки', rows: [['Время', 'Партия', 'Машина', 'Госномер', 'Водитель', 'BL', 'Клиент', 'Итог', 'Причина', 'Рейс', 'Место (широта, долгота)', 'Фото']].concat(feed.map(x => [x.t, x.date, x.truck, plateOf(x.truck), x.name, x.bl, x.client, x.ok ? 'Доставлено' : 'Не доставлено', x.reason, x.round, x.ll, x.photos.join(' ')])) }])
@@ -2452,7 +2460,7 @@ class Component extends DCLogic {
     const now = new Date(), ds = D.dates, last = ds[ds.length - 1] || '';
     const out = { repIsBatch: kind === 'batch', repIsCost: kind === 'cost', repIsFleet: kind === 'fleet', repIsPeriod: kind !== 'batch',
       repKinds: [['batch', 'Партия на день'], ['cost', 'Расходы за период'], ['fleet', 'Автопарк и экономия']].map(([k, l]) => ({ l, go: () => this.setState({ repKind: k }), bg: kind === k ? 'var(--color-accent)' : 'transparent', fg: kind === k ? 'var(--color-bg)' : 'var(--color-text)' })),
-      repMade: dLong(now.toISOString().slice(0, 10)) + ' ' + hhmm(now.getHours() * 60 + now.getMinutes()),
+      repMade: dLong(isoDay(now)) + ' ' + hhmm(now.getHours() * 60 + now.getMinutes()),
       repDateOpts: ds.slice().reverse().map(v => ({ v, l: dLong(v) })), repDateAsc: ds.map(v => ({ v, l: dLong(v) })),
       repNote: '', repHasNote: false, repKpis: [], repCost: [], repHasCost: false, repEmpty: !ds.length,
       repPrint: () => this.reportPrint(), repXlsx: () => this.reportXlsx() };
@@ -2730,8 +2738,8 @@ class Component extends DCLogic {
       });
     } else this.map.doubleClickZoom.enable();
     const depot = [S.depotLat, S.depotLon];
-    L.marker(depot, { icon: L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border:2px solid ' + v('--color-text') + ';background:' + v('--color-bg') + ';transform:rotate(45deg)"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) }).bindTooltip('Склад: ' + S.depotName).addTo(lay);
-    const popup = (c, extra) => '<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.4"><b>' + c.bl + '</b> ' + (c.brand || '') + '<br>' + (c.name || '') + (c.district ? ' · ' + c.district : '') + (c.receiverTel || c.tel1 ? '<br><a href="' + telHref(c.receiverTel || c.tel1) + '">' + (c.receiverTel || c.tel1) + '</a>' : '') + (extra || '') + '<br><a target="_blank" href="' + E.yPoint(c.lat, c.lon) + '">Открыть в Яндекс Картах</a></div>';
+    L.marker(depot, { icon: L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border:2px solid ' + v('--color-text') + ';background:' + v('--color-bg') + ';transform:rotate(45deg)"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) }).bindTooltip('Склад: ' + escHtml(S.depotName)).addTo(lay);
+    const popup = (c, extra) => '<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.4"><b>' + escHtml(c.bl) + '</b> ' + escHtml(c.brand) + '<br>' + escHtml(c.name) + (c.district ? ' · ' + escHtml(c.district) : '') + (c.receiverTel || c.tel1 ? '<br><a href="' + escHtml(telHref(c.receiverTel || c.tel1)) + '">' + escHtml(c.receiverTel || c.tel1) + '</a>' : '') + (extra || '') + '<br><a target="_blank" href="' + E.yPoint(c.lat, c.lon) + '">Открыть в Яндекс Картах</a></div>';
     const dot = (c, extra) => {
       const z = (D.zones[c.bl] || {}).zone;
       L.circleMarker([c.lat, c.lon], { radius: 6, weight: 2, color: z === 'out' ? v('--color-accent-900') : v('--color-accent'), fillColor: z === 'out' ? v('--color-accent-900') : v('--color-bg'), fillOpacity: 1 }).bindPopup(popup(c, extra)).addTo(lay);
@@ -2739,7 +2747,7 @@ class Component extends DCLogic {
     (this.state.data.warehouses || []).forEach(w => {
       if (w.lat == null) return;
       L.marker([w.lat, w.lon], { icon: L.divIcon({ className: '', html: '<div style="width:10px;height:10px;border:2px solid ' + v('--color-accent-900') + ';background:' + v('--color-accent-200') + '"></div>', iconSize: [10, 10], iconAnchor: [5, 5] }) })
-        .bindPopup('<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.4"><b>' + w.bl + '</b> ' + (w.brand || '') + '<br>Доп. склад: ' + (w.name || '') + '<br><a target="_blank" href="' + E.yPoint(w.lat, w.lon) + '">Открыть в Яндекс Картах</a></div>').addTo(lay);
+        .bindPopup('<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.4"><b>' + escHtml(w.bl) + '</b> ' + escHtml(w.brand) + '<br>Доп. склад: ' + escHtml(w.name) + '<br><a target="_blank" href="' + E.yPoint(w.lat, w.lon) + '">Открыть в Яндекс Картах</a></div>').addTo(lay);
     });
     const pts = [];
     if (this.state.mapDate === 'all') {
@@ -2750,7 +2758,7 @@ class Component extends DCLogic {
       const dashes = [null, '8 5', null, '2 5', '10 4 2 4', null];
       if (this.state.mapPlan !== 'none') {
         P[this.state.mapPlan].trips.forEach((t, i) => {
-          L.polyline([depot].concat(t.stops.map(s => [s.lat, s.lon])), { color: v(shades[i % 6]), weight: 3, opacity: 0.9, dashArray: dashes[i % 6] }).bindTooltip(t.name).addTo(lay);
+          L.polyline([depot].concat(t.stops.map(s => [s.lat, s.lon])), { color: v(shades[i % 6]), weight: 3, opacity: 0.9, dashArray: dashes[i % 6] }).bindTooltip(escHtml(t.name)).addTo(lay);
           t.stops.forEach((s, j) => L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div style="font:500 11px Inter,sans-serif;color:' + v('--color-bg') + ';background:' + v(shades[i % 6]) + ';min-width:18px;height:18px;line-height:18px;text-align:center;padding:0 3px">' + (i + 1) + '.' + (j + 1) + '</div>', iconSize: [24, 18], iconAnchor: [12, 22] }) }).addTo(lay));
         });
       }
@@ -2793,7 +2801,7 @@ class Component extends DCLogic {
       });
     }
     const blob = E.xlsx(sheets);
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Логистика_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Логистика_' + isoDay() + '.xlsx';
     document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   };
 
@@ -2813,7 +2821,7 @@ class Component extends DCLogic {
     ];
   }
 
-  openShipment(s) { this.setState({ dialog: { type: 'ship', mode: s ? 'edit' : 'new', id: s && s.id, draft: s ? { ...s, route: s.route ?? '' } : { date: okDate(this.state.jDate) ? this.state.jDate : new Date().toISOString().slice(0, 10), bl: '', cbm: '', kg: '', places: '', truck: 'Belgilanmagan', route: '', status: 'Rejada', note: '' }, error: '' } }); }
+  openShipment(s) { this.setState({ dialog: { type: 'ship', mode: s ? 'edit' : 'new', id: s && s.id, draft: s ? { ...s, route: s.route ?? '' } : { date: okDate(this.state.jDate) ? this.state.jDate : isoDay(), bl: '', cbm: '', kg: '', places: '', truck: 'Belgilanmagan', route: '', status: 'Rejada', note: '' }, error: '' } }); }
   openWh(w) { this.setState({ dialog: { type: 'wh', mode: w ? 'edit' : 'new', id: w && w.id, draft: w ? { ...w, lat: w.lat ?? '', lon: w.lon ?? '' } : { bl: '', brand: '', name: '', lat: '', lon: '' }, error: '' } }); }
   openClient(c) { this.setState({ dialog: { type: 'client', mode: c ? 'edit' : 'new', id: c && c.bl, draft: c ? { ...c, lat: c.lat ?? '', lon: c.lon ?? '', marks: c.marks || '' } : { bl: '', brand: '', name: '', tel1: '', tel2: '', receiver: '', receiverTel: '', district: '__auto', address: '', lat: '', lon: '', note: '', manualZone: '', marks: '' }, error: '' } }); }
   runAutoDistrict() {
@@ -2943,7 +2951,7 @@ class Component extends DCLogic {
         }
       }
     } catch (e) { return fail(e.message || String(e)); }
-    const id = 'imp-' + Date.now().toString(36), today = new Date().toISOString().slice(0, 10);
+    const id = 'imp-' + Date.now().toString(36), today = isoDay();
     try {
       const res = await window.LogiImport.analyze({ doc, fileName: name, clients: this.state.data.clients, draftId: id, today,
         ...(useAi ? { ai: req => this.aiCall(req) } : { local: window.LogiImport.localExtract }),
@@ -3445,7 +3453,7 @@ class Component extends DCLogic {
           bl: c.bl, brand: c.brand || '—', name: c.name, tel1: c.tel1, tel1Href: telHref(c.tel1), tel2: c.tel2, tel2Href: telHref(c.tel2), receiver: c.receiver, rtel: c.receiverTel, rtelHref: telHref(c.receiverTel), district: distName(c.district), address: c.address || '—', ...zf(c.bl),
           zoneNote: z.manual ? 'вручную' : z.border ? 'у границы — проверьте' : (z.dist != null ? f1(z.dist, 1) + ' км до кольца' : ''), count: a.n, cbm: f1(a.cbm, 1), last: a.last ? dLong(a.last) : '—',
           hasPoint: c.lat != null, pointHref: c.lat != null ? E.yPoint(c.lat, c.lon) : '', onEdit: () => this.openClient(c),
-          hasLink: !!c.link, link: c.link, kg: f0(a.kg || 0), compl: Math.round(compl(c) * 100) + '%', complLow: compl(c) < 0.67, complOk: compl(c) >= 0.67,
+          hasLink: !!safeUrl(c.link), link: safeUrl(c.link), kg: f0(a.kg || 0), compl: Math.round(compl(c) * 100) + '%', complLow: compl(c) < 0.67, complOk: compl(c) >= 0.67,
           whNote: (whBy[c.bl] || []).length ? '+ доп. склады: ' + whBy[c.bl].map(w => w.name).join(', ') : '' }; });
       out.whRows = (data.warehouses || []).map(w => { const z = w.lat != null ? E.zoneOf({ lat: w.lat, lon: w.lon }, data.ring, S.ringBuffer) : {};
         return { bl: w.bl, brand: w.brand || (D.cmap[w.bl] || {}).brand || '—', name: w.name || '—', coord: w.lat != null ? w.lat.toFixed(6) + ', ' + w.lon.toFixed(6) : '—', zIn: z.zone === 'in', zOut: z.zone === 'out', zNone: !z.zone,
