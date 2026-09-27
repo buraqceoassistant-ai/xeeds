@@ -951,6 +951,12 @@
                 <label class="dv-check"><input type="checkbox" checked="{{ dvSetCam }}" sc-camel-on-change="{{ onDvSetCam }}"><span>Фото только с камеры<br><small>из галереи нельзя, место — со снимка</small></span></label>
                 <label class="dv-check"><input type="checkbox" checked="{{ dvSetCarry }}" sc-camel-on-change="{{ onDvSetCarry }}"><span>Недоставленные — на завтра<br><small>автоматически в 20:00</small></span></label>
               </div>
+              <sc-if value="{{ dvSet14 }}">
+                <div class="dv-set">
+                  <label class="field" style="margin:0"><span>План водителям утром</span><select class="input" value="{{ dvSetMorning }}" sc-camel-on-change="{{ onDvSetMorning }}"><sc-for list="{{ dvMorningOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></label>
+                  <label class="dv-check"><input type="checkbox" checked="{{ dvSetRemind }}" sc-camel-on-change="{{ onDvSetRemind }}"><span>Напоминания водителям<br><small>забыл нажать — бот напомнит, потом напишет в группу</small></span></label>
+                </div>
+              </sc-if>
               <div><button class="btn btn-secondary" sc-camel-on-click="{{ dvSetSave }}" disabled="{{ dvBusy }}">Сохранить</button></div>
             </sc-if>
             <sc-if value="{{ dvSetView }}"><div style="font-size:13px;text-wrap:pretty">{{ dvSetSummary }}</div></sc-if>
@@ -1789,7 +1795,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 13); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 14); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -2313,14 +2319,14 @@ class Component extends DCLogic {
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
     out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу в «Настройки связи».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 13. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 14. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
       !T ? 'Телеграм-бот не подключён: «Настройки связи» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (13): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (14): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота» в «Настройки связи».' :
       !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — в «Настройки связи».' :
       T.tz && (!UZ_TZ.includes(T.tz) || (T.scriptTz && !UZ_TZ.includes(T.scriptTz))) ? 'Часовой пояс ' + (!UZ_TZ.includes(T.tz) ? 'Google Таблицы — ' + T.tz : 'скрипта — ' + T.scriptTz) + ', а не Ташкент: время водителей («на линии с …»), «сегодня» и итог дня в 20:00 сдвинуты. ' +
         'Исправьте: в Google Таблице Файл → Настройки → Часовой пояс → «(GMT+05:00) Tashkent» → Сохранить; в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent». Затем «Настройки связи» → «Переподключить бота».' :
-      this.gsVersion < 13 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 13 — шаг «фото» у водителей станет проще («Готово» прямо под снимком и в камере), а сайт проверит часовой пояс таблицы: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      this.gsVersion < 14 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 14 — бот сам напомнит водителю, если тот забыл нажать кнопку, и утром сам отправит план дня' + (this.gsVersion < 13 ? '; шаг «фото» станет проще, а сайт проверит часовой пояс таблицы' : '') + ': «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       ro ? 'Только просмотр: отправлять задания, писать водителям и менять автопарк может руководитель.' : '';
     out.dvHasBanner = !!out.dvBanner;
     if (ro) out.dvCanSetup = false;
@@ -2401,23 +2407,31 @@ class Component extends DCLogic {
       dvMapNote: 'Точки партии: синие — доставлено, красные — не доставлено, тёмные — ещё везут; 🚚 — где водитель отметился последний раз.'
     });
     out.dvHasPending = out.dvPending.length > 0;
-    // настройки бота (скрипт версии 12): диспетчер, ожидание клиента, расстояние до клиента, фото только с камеры, перенос недоставленных
-    { const cfg = (T && T.settings) || {}, disp = (T && T.dispatcher) || {}, v12 = this.gsVersion >= 12;
-      const dd = st.dvSet || { name: disp.name || '', phone: disp.phone || '', waitMin: cfg.waitMin || 15, maxKm: cfg.maxKm || 1, camera: cfg.camera !== false, carry: cfg.carry !== false };
+    // настройки бота (скрипт версии 12): диспетчер, ожидание клиента, расстояние до клиента, фото только с камеры, перенос недоставленных;
+    // версии 14: план дня утром (время или «выкл») и напоминания водителям
+    { const cfg = (T && T.settings) || {}, disp = (T && T.dispatcher) || {}, v12 = this.gsVersion >= 12, v14 = this.gsVersion >= 14;
+      const dd = st.dvSet || { name: disp.name || '', phone: disp.phone || '', waitMin: cfg.waitMin || 15, maxKm: cfg.maxKm || 1, camera: cfg.camera !== false, carry: cfg.carry !== false,
+        remind: cfg.remind !== false, morning: cfg.morning == null ? '08:30' : cfg.morning || 'off' };
+      const mOpts = ['07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00'];
+      if (dd.morning !== 'off' && !mOpts.includes(dd.morning)) mOpts.push(dd.morning), mOpts.sort();
       const upd = patch => set({ dvSet: { ...dd, ...patch } });
       Object.assign(out, { dvHasSet: !!T, dvSetEdit: !ro && v12, dvSetView: ro || !v12,
         dvSetName: dd.name, dvSetPhone: dd.phone, dvSetWait: dd.waitMin, dvSetKm: dd.maxKm, dvSetCam: !!dd.camera, dvSetCarry: !!dd.carry,
+        dvSet14: v14, dvSetRemind: !!dd.remind, dvSetMorning: dd.morning, dvMorningOpts: [{ v: 'off', l: 'Выкл' }].concat(mOpts.map(m => ({ v: m, l: m }))),
+        onDvSetRemind: e => upd({ remind: e.target.checked }), onDvSetMorning: e => upd({ morning: e.target.value }),
         onDvSetName: e => upd({ name: e.target.value }), onDvSetPhone: e => upd({ phone: e.target.value }), onDvSetWait: e => upd({ waitMin: e.target.value }), onDvSetKm: e => upd({ maxKm: e.target.value }),
         onDvSetCam: e => upd({ camera: e.target.checked }), onDvSetCarry: e => upd({ carry: e.target.checked }),
-        dvSetSave: () => this.dvRun('Сохраняю настройки бота…', { action: 'settings', name: dd.name, phone: dd.phone, waitMin: +dd.waitMin, maxKm: +String(dd.maxKm).replace(',', '.'), camera: !!dd.camera, carry: !!dd.carry }, j => {
+        dvSetSave: () => this.dvRun('Сохраняю настройки бота…', { action: 'settings', name: dd.name, phone: dd.phone, waitMin: +dd.waitMin, maxKm: +String(dd.maxKm).replace(',', '.'), camera: !!dd.camera, carry: !!dd.carry, ...(v14 ? { remind: !!dd.remind, morning: dd.morning || 'off' } : {}) }, j => {
           const c = (j.tg && j.tg.settings) || {}; this.setState({ dvSet: null });
           return 'Настройки бота сохранены.' + (c.camera && !c.cameraReady ? ' Кнопка камеры включится, когда скрипт узнает адрес сайта — откройте сайт по его адресу в интернете (не с компьютера) и нажмите «Сохранить» ещё раз.' : '') +
             ' Кнопки «📞 Диспетчер» и «⚠️ Проблема» появятся у водителей со следующего сообщения бота.'; }),
         dvSetNote: !v12 ? 'Нужен код скрипта таблицы версии 12: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' :
-          'Водитель звонит диспетчеру кнопкой «📞 Диспетчер», а когда клиент не отвечает — бот предлагает позвонить и пишет в группу номера клиента. «⏳ Жду клиента» напоминает через заданное время.',
+          'Водитель звонит диспетчеру кнопкой «📞 Диспетчер», а когда клиент не отвечает — бот предлагает позвонить и пишет в группу номера клиента. «⏳ Жду клиента» напоминает через заданное время.' +
+          (v14 ? ' Утром бот сам отправляет водителям план дня, если в журнале на сегодня расписаны машины; забыл нажать кнопку — бот напомнит, не помогло — напишет в группу.' : ' План дня утром и напоминания водителям — с кодом скрипта версии 14.'),
         dvSetSummary: [disp.phone ? 'Диспетчер: ' + (disp.name ? disp.name + ' · ' : '') + disp.phone : 'Номер диспетчера не указан',
           'ждать клиента ' + (cfg.waitMin || 15) + ' мин', 'отметка дальше ' + f1(cfg.maxKm || 1, 1) + ' км — в группу',
-          cfg.camera === false ? 'фото из чата' : 'фото только с камеры', cfg.carry === false ? 'недоставленные не переносятся' : 'недоставленные — на завтра в 20:00'].join(' · ') }); }
+          cfg.camera === false ? 'фото из чата' : 'фото только с камеры', cfg.carry === false ? 'недоставленные не переносятся' : 'недоставленные — на завтра в 20:00']
+          .concat(v14 ? [cfg.morning ? 'план водителям утром в ' + cfg.morning : 'план утром — выкл', cfg.remind === false ? 'без напоминаний' : 'напоминания водителям'] : []).join(' · ') }); }
     this._dvMap = { date, cards, drivers: online.concat(ended) };
 
     // ── автопарк ──
@@ -3831,7 +3845,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 13 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 14 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :

@@ -65,7 +65,7 @@ const connect = t => t.s.post({ token: '', editor: '', tg: { action: 'setup', ur
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 13); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 14); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
@@ -159,8 +159,8 @@ test('повтор того же update_id не обрабатывается д�
   assert.equal(t.tg.sent.length, n);
 });
 
-function approved() {
-  const t = setup(); const r = connect(t);
+function approved(props) {
+  const t = setup(props); const r = connect(t);
   t.gmsg(900, '/ulash ' + r.tg.code);
   register(t);
   t.cb(900, 'allow:501', t.group);
@@ -387,7 +387,7 @@ test('итог дня в группу: по машинам — доставле�
   t.cb(501, 'ok:BL-901|1'); t.photo(501, 'P'); t.msg(501, '✅ Готово'); t.loc(501, [41.31, 69.21]);
   t.cb(501, 'fail:BL-902|1'); t.cb(501, 'why:0'); t.photo(501, 'F'); t.msg(501, '✅ Готово'); t.loc(501, DEPOT);
   const r = t.s.post({ token: '', tg: { action: 'summary' } });
-  assert.equal(r.ok, true);
+  assert.equal(r.ok, true, JSON.stringify(r));
   assert.match(r.text, /Итог дня 26\.09\.2026\n\n🚚 Gazel-2 · Akmal Karimov: доставлено 1, не доставлено 1, осталось 1 \(09:00–не закончил\)\n\nВсего: доставлено 1, не доставлено 1, осталось 1/);
   assert.equal(t.last('sendMessage', g).text, r.text);
   const n = t.tg.sent.length; t.s.ctx.tgDailySummary(); assert.equal(t.tg.sent.length, n + 1);
@@ -463,7 +463,7 @@ test('фото только с камеры: кнопка открывает dri
   assert.equal(up({}, initData({ id: 501 }, { token: 'чужой' })).code, 'auth', 'подпись другим токеном');
   assert.equal(up({}, initData({ id: 501 }, { at: Date.UTC(2026, 8, 24) / 1000 })).code, 'auth', 'подпись старше суток');
   assert.equal(up({ key: 'BL-902|1' }).code, 'stage', 'снимок не той точки');
-  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 13 }, 'проверка связи со страницы камеры');
+  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 14 }, 'проверка связи со страницы камеры');
   assert.equal(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-902|1', ping: 1 } }).code, 'stage');
   const r = up({ ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -497,7 +497,7 @@ test('фото только с камеры: кнопка открывает dri
 });
 
 test('карточка точки: маршрут в Яндекс и Google; «Жду клиента» — таймер, напоминание водителю и группе раз в 5 минут, минуты ожидания в журнале', () => {
-  const t = approved(), g = t.group.id;
+  const t = approved({ TG_MORNING: 'off' }), g = t.group.id;
   assert.match(t.s.post({ token: '', tg: { action: 'settings', waitMin: 3 } }).error, /от 5 до 120/);
   t.s.post({ token: '', tg: { action: 'settings', waitMin: 15 } });
   t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
@@ -674,4 +674,178 @@ test('«✅ Готово» в камере закрывает точку (без
   assert.deepEqual(t.s.triggers.map(x => x.fn).sort(), ['tgDailySummary', 'tgTick']);
   const info = t.s.get({}).data.tg;
   assert.deepEqual([info.tz, info.scriptTz], ['Asia/Tashkent', 'Asia/Tashkent']);
+});
+
+// ── версия 14: план дня утром и напоминания водителям (триггер tgTick) ──
+const at = (t, h, m, d = 26) => { t.now.value = new Date(Date.UTC(2026, 8, d, h - 5, m)); };   // время по Ташкенту
+const sentTo = (t, chat) => t.tg.sent.filter(x => String(x.chat_id) === String(chat)).length;
+const addShip = (t, bl, truck) => { const r = new Array(16).fill(''); r[0] = day(2026, 9, 26); r[2] = bl; r[9] = 1; r[10] = 100; r[11] = 3; r[12] = truck; r[14] = 'Rejada'; t.s.book.sheets.Yuborishlar.rows.push(r); };
+
+test('план дня утром: в 08:30 водителям — задание, в группу — кому ушло, машины без водителя и партии без машины; один раз в день', () => {
+  const t = approved(), g = t.group.id;
+  addShip(t, 'BL-906', 'Belgilanmagan');
+  at(t, 8, 25); let n = t.tg.sent.length; t.s.ctx.tgTick();
+  assert.equal(t.tg.sent.length, n, 'до 08:30 — тишина');
+  at(t, 8, 35); t.s.ctx.tgTick();
+  assert.match(t.last('sendMessage', 501).text, /Задание: партия 26\.09\.2026\n🚚 Gazel-2 · точек: 3/);
+  assert.equal(t.last('sendMessage', g).text, '🌅 План на 26.09.2026 отправлен водителям:\n🚚 Gazel-2 · Akmal Karimov — точек: 3\n\nНе отправлено: Gazel-3 — нет водителя в боте\n\n⚠️ Без машины: 1 (BL-906) — назначьте в «Планах» и нажмите «Отправить» на сайте.');
+  assert.equal(t.s.props.TG_MORNING_DAY, TODAY);
+  const info = t.s.get({}).data.tg;
+  assert.deepEqual([info.settings.morning, info.settings.morningDay, info.settings.remind], ['08:30', TODAY, true]);
+  assert.equal(info.drivers[0].assign.date, TODAY);
+  at(t, 8, 40); n = t.tg.sent.length; t.s.ctx.tgTick();
+  assert.equal(t.tg.sent.length, n, 'второй раз не отправляет');
+  // на следующий день плана нет — группа молчит
+  at(t, 8, 35, 27); n = sentTo(t, g); t.s.ctx.tgTick();
+  assert.equal(sentTo(t, g), n); assert.equal(t.s.props.TG_MORNING_DAY, '2026-09-27');
+});
+
+test('план дня утром: кто уже работает — не трогаем; «выкл» и позже 3 часов после времени — не отправляет', () => {
+  const t = approved(), g = t.group.id;
+  at(t, 8, 0); t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  at(t, 8, 35); t.s.ctx.tgTick();
+  assert.ok(!t.texts(501).some(x => /Задание/.test(x)), 'работающему задание не шлём');
+  assert.equal(t.last('sendMessage', g).text, '🌅 План на 26.09.2026: водителям ничего не отправлено.\n\nНе отправлено: Gazel-3 — нет водителя в боте');
+  const off = approved({ TG_MORNING: 'off' });
+  at(off, 8, 35); let n = off.tg.sent.length; off.s.ctx.tgTick();
+  assert.equal(off.tg.sent.length, n); assert.equal(off.s.props.TG_MORNING_DAY, undefined);
+  const late = approved();
+  at(late, 11, 35); n = late.tg.sent.length; late.s.ctx.tgTick();
+  assert.equal(late.tg.sent.length, n); assert.equal(late.s.props.TG_MORNING_DAY, undefined);
+});
+
+test('напоминание «не начал работу»: в 09:30 — кнопка «Начать работу», в 10:00 — ещё раз и в группу; без геолокации через 10 минут — снова', () => {
+  const t = approved(), g = t.group.id;
+  at(t, 8, 35); t.s.ctx.tgTick();
+  at(t, 9, 25); let n = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n);
+  at(t, 9, 30); t.s.ctx.tgTick();
+  const r = t.last('sendMessage', 501);
+  assert.equal(r.text, '⏰ Сегодня вас ждут точек: 3 👇');
+  assert.deepEqual(r.reply_markup.inline_keyboard, [[{ text: '🚚 Начать работу', callback_data: 'start' }]]);
+  at(t, 9, 35); n = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n);
+  at(t, 10, 0); t.s.ctx.tgTick();
+  assert.equal(t.last('sendMessage', g).text, '🚚 Gazel-2 · Akmal Karimov ещё не вышел на линию (партия 26.09.2026, точек: 3).');
+  assert.equal(t.last('sendMessage', 501).text, '⏰ Сегодня вас ждут точек: 3 👇');
+  at(t, 10, 30); n = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n, 'дальше — тишина');
+  t.cb(501, 'start');
+  const ask = t.last('sendMessage', 501);
+  assert.match(ask.text, /Чтобы начать работу, отправьте геолокацию/); assert.equal(ask.reply_markup.keyboard[0][0].request_location, true);
+  t.s.ctx.tgTick(); at(t, 10, 40); t.s.ctx.tgTick();
+  assert.match(t.last('sendMessage', 501).text, /^⏰ Чтобы начать работу, отправьте геолокацию/);
+  t.loc(501, DEPOT);
+  assert.match(t.texts(501).filter(x => /Точка/.test(x)).pop(), /Точка 1 из 2/);
+});
+
+test('напоминание «не отметил точку»: время пути + 30 мин (не меньше 45) — «доставили?» с кнопками, ещё через 30 — в группу с последней отметкой', () => {
+  const t = approved({ TG_MORNING: 'off' }), g = t.group.id;
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  t.s.ctx.tgTick();   // 09:00 — тик запомнил состояние
+  at(t, 9, 40); let n = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n, 'рано');
+  at(t, 9, 45); t.s.ctx.tgTick();
+  const r = t.last('sendMessage', 501);
+  assert.equal(r.text, '⏰ BL-901: доставили?');
+  assert.deepEqual(r.reply_markup.inline_keyboard.map(x => x.map(b => b.callback_data)), [['ok:BL-901|1', 'fail:BL-901|1'], ['wait:BL-901|1']]);
+  at(t, 10, 15); t.s.ctx.tgTick();
+  assert.equal(t.last('sendMessage', g).text, '⏰ Gazel-2 · Akmal Karimov: 75 мин без отметки у BL-901.\n🚚 Последняя отметка в 09:00: https://maps.google.com/?q=41.3,69.2');
+  at(t, 10, 45); n = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n, 'дальше — тишина');
+  t.cb(501, 'ok:BL-901|1');   // кнопка из напоминания работает
+  assert.match(t.last('sendMessage', 501).text, /Отправьте фото доставленного груза/);
+});
+
+test('напоминание «застрял на шаге»: через 10 минут — тот же шаг с кнопкой камеры, через 20 — в группу; снимок есть — «Готово»', () => {
+  const t = approved({ TG_MORNING: 'off' }), g = t.group.id;
+  t.s.post({ token: '', site: 'https://buraq.example/xeeds/', tg: { action: 'status' } });
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  t.cb(501, 'ok:BL-901|1'); t.s.ctx.tgTick();
+  at(t, 9, 10); t.s.ctx.tgTick();
+  let r = t.last('sendMessage', 501);
+  assert.equal(r.text, '⏰ 📷 Сфотографируйте груз 👇');
+  assert.match(r.reply_markup.inline_keyboard[0][0].web_app.url, /^https:\/\/buraq\.example\/xeeds\/driver\.html\?/);
+  at(t, 9, 20); t.s.ctx.tgTick();
+  assert.equal(t.last('sendMessage', g).text, '⏰ Gazel-2 · Akmal Karimov: 20 мин на шаге «фото» — BL-901. Позвоните водителю.');
+  at(t, 9, 22);
+  assert.equal(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', img: JPEG, ll: [41.3101, 69.2101] } }).ok, true);
+  t.s.ctx.tgTick(); at(t, 9, 32); t.s.ctx.tgTick();
+  r = t.last('sendMessage', 501);
+  assert.equal(r.text, '⏰ ✅ Фото принято (1). Нажмите «✅ Готово».');
+  assert.deepEqual(r.reply_markup.inline_keyboard[0], [{ text: '✅ Готово', callback_data: 'pdone' }]);
+  t.cb(501, 'pdone');
+  assert.deepEqual(t.status('BL-901'), ['Yetkazildi', 'Yetkazildi']);
+});
+
+test('напоминания: рейс закончен — через час снова кнопка рейса; все точки пройдены — через 30 минут «закончена?» с кнопкой; день закрыт — тишина', () => {
+  const t = approved({ TG_MORNING: 'off' });
+  const done = (key, ll) => { t.cb(501, 'ok:' + key); t.photo(501, 'P' + key); t.msg(501, '✅ Готово'); t.loc(501, ll); };
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  done('BL-901|1', [41.31, 69.21]); done('BL-902|1', [41.36, 69.28]);
+  assert.match(t.last('sendMessage', 501).text, /Рейс 1 закончен/);
+  t.s.ctx.tgTick(); at(t, 9, 55); let n = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n);
+  at(t, 10, 0); t.s.ctx.tgTick();
+  const r = t.last('sendMessage', 501);
+  assert.match(r.text, /^⏰ Рейс 1 закончен/); assert.deepEqual(r.reply_markup.inline_keyboard, [[{ text: '▶️ Начать рейс 2', callback_data: 'round:2' }]]);
+  t.cb(501, 'round:2'); done('BL-903|2', [41.22, 69.22]);
+  assert.match(t.last('sendMessage', 501).text, /Все точки на сегодня пройдены/);
+  t.s.ctx.tgTick(); at(t, 10, 30); t.s.ctx.tgTick();
+  const e = t.last('sendMessage', 501);
+  assert.equal(e.text, '⏰ Работа на сегодня закончена? 👇'); assert.deepEqual(e.reply_markup.inline_keyboard, [[{ text: '🏁 Закончить работу', callback_data: 'end' }]]);
+  t.cb(501, 'end');
+  assert.match(t.last('sendMessage', 501).text, /Чтобы закончить работу, отправьте геолокацию/);
+  t.loc(501, DEPOT);
+  assert.match(t.last('sendMessage', 501).text, /Рабочий день закончен\. Доставлено: 3/);
+  at(t, 11, 30); n = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n, 'день закончен — тишина');
+});
+
+test('напоминания выключаются настройкой; час после «Проблемы» — без напоминаний', () => {
+  const t = approved({ TG_MORNING: 'off' });
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT); t.s.ctx.tgTick();
+  t.msg(501, '⚠️ Проблема'); t.cb(501, 'pr:1'); t.loc(501, DEPOT);   // пробка в 09:00
+  assert.match(t.last('sendMessage', 501).text, /отправлено диспетчеру/);
+  at(t, 9, 55); let n = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n, 'после проблемы — тишина');
+  at(t, 10, 5); t.s.ctx.tgTick(); assert.equal(t.last('sendMessage', 501).text, '⏰ BL-901: доставили?');
+  const off = approved({ TG_MORNING: 'off' });
+  assert.equal(off.s.post({ token: '', tg: { action: 'settings', remind: false } }).tg.settings.remind, false);
+  off.msg(501, '🚚 Начать работу'); off.loc(501, DEPOT); off.s.ctx.tgTick();
+  at(off, 11, 0); n = off.tg.sent.length; off.s.ctx.tgTick(); assert.equal(off.tg.sent.length, n);
+});
+
+test('настройки v14 с сайта: план утром — время 05:00–11:00 или «выкл», напоминания вкл/выкл', () => {
+  const t = approved();
+  const set = x => t.s.post({ token: '', tg: { action: 'settings', ...x } });
+  const cfg = t.s.get({}).data.tg.settings;
+  assert.deepEqual([cfg.morning, cfg.remind, cfg.morningDay], ['08:30', true, '']);
+  assert.match(set({ morning: '12:00' }).error, /от 05:00 до 11:00/);
+  assert.match(set({ morning: '8:3' }).error, /от 05:00 до 11:00/);
+  assert.equal(set({ morning: '07:30' }).tg.settings.morning, '07:30');
+  assert.equal(set({ morning: 'off' }).tg.settings.morning, ''); assert.equal(t.s.props.TG_MORNING, 'off');
+  assert.equal(set({ morning: '' }).tg.settings.morning, '');
+  const r = set({ remind: false });
+  assert.equal(r.tg.settings.remind, false); assert.equal(t.s.props.TG_REMIND, '0');
+  assert.equal(set({ remind: true, morning: '11:00' }).tg.settings.morning, '11:00');
+});
+
+test('напоминания: не выбрал причину — через 10 минут снова причины; «клиент не отвечает» — через 30 минут снова то же меню, через 60 — в группу', () => {
+  const t = approved({ TG_MORNING: 'off' }), g = t.group.id;
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  t.cb(501, 'fail:BL-901|1'); t.s.ctx.tgTick();
+  at(t, 9, 10); t.s.ctx.tgTick();
+  const r = t.last('sendMessage', 501);
+  assert.equal(r.text, '⏰ Выберите причину:');
+  assert.deepEqual(r.reply_markup.inline_keyboard.map(x => x[0].callback_data), ['why:0', 'why:1', 'why:2', 'why:3']);
+  t.cb(501, 'why:1'); t.s.ctx.tgTick();
+  at(t, 9, 35); let n = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n);
+  at(t, 9, 40); t.s.ctx.tgTick();
+  const m = t.last('sendMessage', 501);
+  assert.equal(m.text, '⏰ 📵 Клиент не отвечает на телефон. Что делаем?');
+  assert.deepEqual(m.reply_markup.inline_keyboard.map(x => x[0].callback_data), ['na:call', 'na:tel', 'wait:BL-901|1', 'na:ok', 'na:fail']);
+  at(t, 10, 10); t.s.ctx.tgTick();
+  assert.equal(t.last('sendMessage', g).text, '⏰ Gazel-2 · Akmal Karimov: 60 мин на шаге «клиент не отвечает» — BL-901. Позвоните водителю.');
+});
+
+test('напоминание «не начал»: задание с сайта днём — не раньше чем через 30 минут', () => {
+  const t = approved({ TG_MORNING: 'off' });
+  at(t, 14, 0);
+  assert.equal(t.s.post({ token: '', tg: { action: 'dispatch', date: TODAY } }).sent.length, 1);
+  let n = t.tg.sent.length; t.s.ctx.tgTick(); at(t, 14, 25); t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n, 'сразу не напоминает');
+  at(t, 14, 30); t.s.ctx.tgTick();
+  assert.equal(t.last('sendMessage', 501).text, '⏰ Сегодня вас ждут точек: 3 👇');
 });

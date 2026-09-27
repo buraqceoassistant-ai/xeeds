@@ -38,7 +38,7 @@ class Sheet {
 
 export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
   // «сейчас» для скрипта: new Date() без аргументов — now.value (если задано)
-  class MockDate extends Date { constructor(...a) { if (!a.length && now && now.value) super(now.value.getTime()); else super(...a); } static [Symbol.hasInstance](x) { return x instanceof Date; } }
+  class MockDate extends Date { constructor(...a) { if (!a.length && now && now.value) super(now.value.getTime()); else super(...a); } static now() { return now && now.value ? now.value.getTime() : Date.now(); } static [Symbol.hasInstance](x) { return x instanceof Date; } }
   const book = { name: 'Тест', sheets: Object.fromEntries(Object.entries(sheets).map(([n, s]) => [n, new Sheet(n, s.rows || [], s.maxCols || 26)])) };
   const calls = [], logs = [], cache = new Map(), triggers = []; let uuid = 0;
   // Google Диск: папки и файлы в памяти
