@@ -68,8 +68,8 @@ var TX = {
     askLocStart: 'Ishni boshlash uchun joylashuvingizni yuboring 👇', askLocEnd: 'Ishni tugatish uchun joylashuvingizni yuboring 👇', askLoc: 'Joylashuvingizni yuboring 👇',
     needLoc: 'Pastdagi «📍 Joylashuvni yuborish» tugmasini bosing.',
     noStops: 'Bugun {truck} uchun manzillar yo‘q. Reja jurnalga yozilgach, «📍 Joriy manzil» tugmasini bosing.',
-    stop: '📦 {i}/{n} manzil · {round}-reys', client: 'Mijoz', addr: 'Manzil', recv: 'Qabul qiluvchi', tel: 'Tel', cargo: '{places} joy · {cbm} m³ · {kg} kg', note: 'Izoh', noCoords: 'Xaritada nuqta yo‘q — manzil bo‘yicha boring.',
-    bOk: '✅ Yetkazildi', bFail: '❌ Yetkazilmadi',
+    stop: '🏷 {i}/{n} · {bl}', roundTag: ' · {round}-reys', places: '📦 {places} joy', client: 'Mijoz', addr: 'Manzil', recv: 'Qabul qiluvchi', tel: 'Tel', cargo: '{places} joy · {cbm} m³ · {kg} kg', note: 'Izoh', noCoords: 'Xaritada nuqta yo‘q — manzil bo‘yicha boring.',
+    bOk: '✅ Yetkazildi', bFail: '❌ Yetkazilmadi', bOkCam: '📷 Yetkazildi', bRoute1: '🧭 Yo‘l', bExtra: '☰ Yana', more: 'Yana nima kerak? 👇', started: '✅ Ish boshlandi',
     askPhoto: '📷 Yukni suratga oling 👇',
     askPhotoChat: 'Yetkazilgan yukning rasmini yuboring (bir yoki bir nechta), keyin «✅ Tayyor» tugmasini bosing.',
     photoOk: '✅ Rasm qabul qilindi ({n}). «✅ Tayyor» tugmasini bosing.', needPhoto: '📷 Avval suratga oling 👇', photoCap: '✅ Rasm qabul qilindi', bCamMore: '📷 Yana rasm',
@@ -79,9 +79,9 @@ var TX = {
     askReason: 'Sababni tanlang:', askReasonText: 'Sababni qisqacha yozing.',
     askPhotoFail: '📷 Joyni suratga oling (eshik, manzil) 👇',
     askPhotoFailChat: 'Joyning rasmini yuboring (yopiq eshik, manzil), keyin «✅ Tayyor» tugmasini bosing.',
-    saved: 'Saqlandi ✅', next: 'Keyingi manzil 👇',
+    saved: '✅ Saqlandi', next: 'Keyingi manzil 👇',
     roundDone: '{round}-reys tugadi. Omborga qayting, {next}-reys yukini oling va tugmani bosing.', bRound: '▶️ {next}-reysni boshlash',
-    allDone: 'Bugungi barcha manzillar tugadi 👏 «🏁 Ishni tugatish» tugmasini bosing.',
+    allDone: 'Bugungi barcha manzillar tugadi 👏 Tugmani bosing 👇',
     endDay: 'Ish kuni tugadi. Yetkazildi: {ok}, yetkazilmadi: {fail}, qoldi: {left}. Rahmat!',
     notWorking: 'Avval «🚚 Ishni boshlash» tugmasini bosing.', already: 'Ish kuni allaqachon boshlangan.',
     stale: 'Bu tugma eskirgan — joriy manzil pastda.', changed: '⚠️ Bugungi reyslaringiz o‘zgardi.', busy: 'Avval joriy manzilni yakunlang.',
@@ -116,8 +116,8 @@ var TX = {
     askLocStart: 'Чтобы начать работу, отправьте геолокацию 👇', askLocEnd: 'Чтобы закончить работу, отправьте геолокацию 👇', askLoc: 'Отправьте геолокацию 👇',
     needLoc: 'Нажмите кнопку «📍 Отправить геолокацию» внизу.',
     noStops: 'На сегодня у {truck} точек нет. Когда план запишут в журнал, нажмите «📍 Текущая точка».',
-    stop: '📦 Точка {i} из {n} · рейс {round}', client: 'Клиент', addr: 'Адрес', recv: 'Получатель', tel: 'Тел', cargo: '{places} мест · {cbm} м³ · {kg} кг', note: 'Примечание', noCoords: 'Точки на карте нет — езжайте по адресу.',
-    bOk: '✅ Доставлено', bFail: '❌ Не доставлено',
+    stop: '🏷 {i}/{n} · {bl}', roundTag: ' · рейс {round}', places: '📦 {places} мест', client: 'Клиент', addr: 'Адрес', recv: 'Получатель', tel: 'Тел', cargo: '{places} мест · {cbm} м³ · {kg} кг', note: 'Примечание', noCoords: 'Точки на карте нет — езжайте по адресу.',
+    bOk: '✅ Доставлено', bFail: '❌ Не доставлено', bOkCam: '📷 Доставлено', bRoute1: '🧭 Маршрут', bExtra: '☰ Ещё', more: 'Что ещё? 👇', started: '✅ Работа начата',
     askPhoto: '📷 Сфотографируйте груз 👇',
     askPhotoChat: 'Отправьте фото доставленного груза (одно или несколько), затем нажмите «✅ Готово».',
     photoOk: '✅ Фото принято ({n}). Нажмите «✅ Готово».', needPhoto: '📷 Сначала сделайте фото 👇', photoCap: '✅ Фото принято', bCamMore: '📷 Ещё фото',
@@ -127,9 +127,9 @@ var TX = {
     askReason: 'Выберите причину:', askReasonText: 'Коротко напишите причину.',
     askPhotoFail: '📷 Сфотографируйте место (ворота, адрес) 👇',
     askPhotoFailChat: 'Отправьте фото места (закрытые ворота, адрес), затем нажмите «✅ Готово».',
-    saved: 'Сохранено ✅', next: 'Следующая точка 👇',
+    saved: '✅ Сохранено', next: 'Следующая точка 👇',
     roundDone: 'Рейс {round} закончен. Вернитесь на склад, загрузите рейс {next} и нажмите кнопку.', bRound: '▶️ Начать рейс {next}',
-    allDone: 'Все точки на сегодня пройдены 👏 Нажмите «🏁 Закончить работу».',
+    allDone: 'Все точки на сегодня пройдены 👏 Нажмите кнопку 👇',
     endDay: 'Рабочий день закончен. Доставлено: {ok}, не доставлено: {fail}, осталось: {left}. Спасибо!',
     notWorking: 'Сначала нажмите «🚚 Начать работу».', already: 'Рабочий день уже начат.',
     stale: 'Эта кнопка устарела — текущая точка ниже.', changed: '⚠️ Ваши рейсы на сегодня изменились.', busy: 'Сначала завершите текущую точку.',
@@ -169,9 +169,11 @@ function tg_(method, payload) {
   return j;
 }
 function tgSend_(chat, text, markup) { return tg_('sendMessage', { chat_id: chat, text: text, reply_markup: markup, disable_web_page_preview: true }); }
-function tgMenu_(lang) {
-  var kb = [[tx_(lang, 'bStart'), tx_(lang, 'bCur')], [tx_(lang, 'bEnd'), tx_(lang, 'bLang')], [tx_(lang, 'bProblem')]];
-  if (tgDispatcher_().phone) kb[2].push(tx_(lang, 'bCall'));
+// нижнее меню — одна большая кнопка по состоянию (начать работу / текущая точка), ниже «☰ Ещё» и «📞 Диспетчер»;
+// остальное (проблема, конец дня, язык, ожидание, номера клиента) — в «☰ Ещё». Старые кнопки меню тоже понимаются.
+function tgMenu_(lang, d) {
+  var on = !!(d && (tgWork_(d) || {}).started), kb = [[tx_(lang, on ? 'bCur' : 'bStart')], [tx_(lang, 'bExtra')]];
+  if (tgDispatcher_().phone) kb[1].push(tx_(lang, 'bCall'));
   return { keyboard: kb, resize_keyboard: true, is_persistent: true };
 }
 // диспетчер: имя и телефон — свойства скрипта TG_DISP_NAME / TG_DISP_PHONE, задаются на сайте («Водители»)
@@ -192,8 +194,9 @@ function tgClientTels_(c) {
 // ── фото только с камеры: мини-приложение сайта (driver.html) открывает камеру, ставит штамп и шлёт снимок в скрипт ──
 // TG_SITE — адрес сайта (…/xeeds/), TG_URL — ссылка веб-приложения скрипта; TG_CAMERA = 0 — принимать фото из чата
 function tgCamera_() { return prop_('TG_CAMERA') !== '0' && /^https:\/\//.test(prop_('TG_SITE')) && !!prop_('TG_URL'); }
-function tgCamUrl_(d, w) {
-  return prop_('TG_SITE') + 'driver.html?s=' + encodeURIComponent(prop_('TG_URL')) + '&k=' + encodeURIComponent(w.cur.key) + '&bl=' + encodeURIComponent(w.cur.bl) + '&l=' + d.lang + '&m=' + (w.result === 'ok' ? 'ok' : 'fail');
+function tgCamUrl_(d, w) { return tgCamUrlFor_(d, w.cur.key, w.cur.bl, w.result === 'ok' ? 'ok' : 'fail'); }
+function tgCamUrlFor_(d, key, bl, mode) {
+  return prop_('TG_SITE') + 'driver.html?s=' + encodeURIComponent(prop_('TG_URL')) + '&k=' + encodeURIComponent(key) + '&bl=' + encodeURIComponent(bl) + '&l=' + d.lang + '&m=' + mode;
 }
 function tgPhotoKb_(d, w) {
   var L = d.lang;
@@ -218,11 +221,37 @@ function tgPhotoDone_(d, w) {
   w.stage = 'loc'; tgSave_(d);
   return tgSend_(d.id, tx_(L, 'askLoc'), tgLocKb_(L));
 }
-// карточка точки: доставлено / не доставлено, жду клиента, маршрут в навигаторе
+// карточка точки — три большие кнопки: маршрут, «📷 Доставлено» (сразу камера), «❌ Не доставлено»; остальное — «☰ Ещё»
 function tgStopKb_(d, s) {
-  var L = d.lang, rows = [[{ text: tx_(L, 'bOk'), callback_data: 'ok:' + s.key }, { text: tx_(L, 'bFail'), callback_data: 'fail:' + s.key }], [{ text: tx_(L, 'bWait'), callback_data: 'wait:' + s.key }]];
-  if (s.c && s.c.lat && s.c.lon) rows.push([{ text: tx_(L, 'bRoute'), url: 'https://yandex.uz/maps/?rtext=~' + s.c.lat + ',' + s.c.lon + '&rtt=auto' }, { text: tx_(L, 'bRouteG'), url: 'https://www.google.com/maps/dir/?api=1&destination=' + s.c.lat + ',' + s.c.lon + '&travelmode=driving' }]);
+  var L = d.lang, rows = [];
+  if (s.c && s.c.lat && s.c.lon) rows.push([{ text: tx_(L, 'bRoute1'), url: tgYandex_(s.c) }]);
+  rows.push([tgCamera_() ? { text: tx_(L, 'bOkCam'), web_app: { url: tgCamUrlFor_(d, s.key, s.bl, 'ok') } } : { text: tx_(L, 'bOk'), callback_data: 'ok:' + s.key }]);
+  rows.push([{ text: tx_(L, 'bFail'), callback_data: 'fail:' + s.key }]);
+  rows.push([{ text: tx_(L, 'bExtra'), callback_data: 'more' }]);
   return tgInline_(rows);
+}
+function tgYandex_(c) { return 'https://yandex.uz/maps/?rtext=~' + c.lat + ',' + c.lon + '&rtt=auto'; }
+function tgGoogle_(c) { return 'https://www.google.com/maps/dir/?api=1&destination=' + c.lat + ',' + c.lon + '&travelmode=driving'; }
+// «☰ Ещё»: для открытой точки — ожидание, номера клиента, Google Maps; всегда — проблема, язык; в рабочий день — конец дня
+function tgMore_(d, w) {
+  var L = d.lang, rows = [], s = null;
+  if (w && w.started && w.cur && (!w.stage || w.stage === 'wait')) {
+    s = tgStops_(d.truck, w.date).filter(function (x) { return x.key === w.cur.key && x.open; })[0];
+    if (s) {
+      rows.push([{ text: tx_(L, 'bWait'), callback_data: 'wait:' + s.key }], [{ text: tx_(L, 'bClientTel'), callback_data: 'tels' }]);
+      if (s.c.lat && s.c.lon) rows.push([{ text: tx_(L, 'bRouteG'), url: tgGoogle_(s.c) }]);
+    }
+  }
+  rows.push([{ text: tx_(L, 'bProblem'), callback_data: 'prob' }]);
+  if (w && w.started) rows.push([{ text: tx_(L, 'bEnd'), callback_data: 'end' }]);
+  rows.push([{ text: tx_(L, 'bLang'), callback_data: 'lang' }]);
+  return tgSend_(d.id, tx_(L, 'more'), tgInline_(rows));
+}
+// номера клиента текущей точки
+function tgSendTels_(d, w) {
+  var L = d.lang, st = w && w.cur ? tgStops_(d.truck, w.date).filter(function (x) { return x.key === w.cur.key; })[0] : null, tels = st ? tgClientTels_(st.c) : [];
+  if (!st) return tgSend_(d.id, tx_(L, 'stale'), tgMenu_(L, d));
+  return tgSend_(d.id, tels.length ? tx_(L, 'clientTels', { bl: w.cur.bl, list: tels.map(function (x) { return x.t + (x.who ? ' — ' + x.who : ''); }).join('\n') }) : tx_(L, 'noClientTel'));
 }
 function tgOkFailKb_(d, key) { return tgInline_([[{ text: tx_(d.lang, 'bOk'), callback_data: 'ok:' + key }, { text: tx_(d.lang, 'bFail'), callback_data: 'fail:' + key }]]); }
 function tgWaitMin_() { var n = Math.round(Number(prop_('TG_WAIT_MIN'))); return n >= 5 && n <= 120 ? n : 15; }
@@ -358,44 +387,52 @@ function tgHandle_(u) {
   }
   // водитель с доступом
   var w = tgWork_(d), pr = d.st.pr;
-  if (tgIs_(text, 'bProblem') || /^\/muammo\b/.test(text)) {
-    d.st.pr = { stage: 'type' }; tgSave_(d);
-    return tgSend_(id, tx_(L, 'askProblem'), tgInline_(TG_PROBLEMS[L].map(function (x, i) { return [{ text: x, callback_data: 'pr:' + i }]; })));
-  }
+  if (tgIs_(text, 'bProblem') || /^\/muammo\b/.test(text)) return tgProblemAsk_(d);
   if (pr && pr.stage === 'info') {   // проблема: описание, фото (можно из галереи), затем геолокация
     if (m.location) return tgProblemDone_(d, w, [m.location.latitude, m.location.longitude]);
     if (m.photo && m.photo.length) { pr.photos = (pr.photos || []).concat([m.photo[m.photo.length - 1].file_id]).slice(0, 5); tgSave_(d); return tgSend_(id, tx_(L, 'probPhoto', { n: pr.photos.length }), tgLocKb_(L)); }
-    if (tgIs_(text, 'bCancel')) { delete d.st.pr; tgSave_(d); return tgSend_(id, tx_(L, 'menu'), tgMenu_(L)); }
-    if (text && text.charAt(0) !== '/' && !['bStart', 'bCur', 'bEnd', 'bLang', 'bCall'].some(function (k) { return tgIs_(text, k); })) { pr.text = ((pr.text ? pr.text + ' ' : '') + text).slice(0, 300); tgSave_(d); return tgSend_(id, tx_(L, 'probText'), tgLocKb_(L)); }
+    if (tgIs_(text, 'bCancel')) { delete d.st.pr; tgSave_(d); return tgSend_(id, tx_(L, 'menu'), tgMenu_(L, d)); }
+    if (text && text.charAt(0) !== '/' && !['bStart', 'bCur', 'bEnd', 'bLang', 'bCall', 'bExtra'].some(function (k) { return tgIs_(text, k); })) { pr.text = ((pr.text ? pr.text + ' ' : '') + text).slice(0, 300); tgSave_(d); return tgSend_(id, tx_(L, 'probText'), tgLocKb_(L)); }
   }
   if (m.location) return tgLocation_(d, w, [m.location.latitude, m.location.longitude]);
   if (m.photo && m.photo.length) return tgPhoto_(d, w, m.photo[m.photo.length - 1].file_id);
   if (tgIs_(text, 'bCall') || /^\/dispetcher\b/.test(text)) return tgSendDispatcher_(d);
-  if (tgIs_(text, 'bLang') || /^\/til\b|^\/lang\b/.test(text)) { d.lang = L === 'uz' ? 'ru' : 'uz'; tgSave_(d); return tgSend_(id, tx_(d.lang, 'langSet'), tgMenu_(d.lang)); }
+  if (tgIs_(text, 'bExtra')) return tgMore_(d, w);
+  if (tgIs_(text, 'bLang') || /^\/til\b|^\/lang\b/.test(text)) return tgLangToggle_(d);
   if (tgIs_(text, 'bStart') || /^\/ish\b/.test(text)) return tgStartAsk_(d, w);
   if (tgIs_(text, 'bEnd') || /^\/tugatish\b/.test(text)) return tgEndAsk_(d, w);
   if (tgIs_(text, 'bCur') || /^\/hozir\b/.test(text)) {
-    if (!w || !w.started) return tgSend_(id, tx_(L, 'notWorking'), tgMenu_(L));
+    if (!w || !w.started) return tgSend_(id, tx_(L, 'notWorking'), tgMenu_(L, d));
     return tgCurrent_(d, w);
   }
   if (tgIs_(text, 'bCancel')) return tgCancel_(d, w);
   if (w && (w.stage === 'photo' || w.stage === 'failPhoto') && tgIs_(text, 'bDone')) return tgPhotoDone_(d, w);
   if (w && w.stage === 'reasonText' && text) { w.reason = text.slice(0, 200); w.stage = 'failPhoto'; tgSave_(d); return tgPhotoAsk_(d, w, 'askPhotoFail'); }
   if (w && /Loc$|^loc$/.test(w.stage || '')) return tgSend_(id, tx_(L, 'needLoc'), tgLocKb_(L));
-  return tgSend_(id, tx_(L, 'unknown'), tgMenu_(L));
+  return tgSend_(id, tx_(L, 'unknown'), tgMenu_(L, d));
 }
 
+function tgProblemAsk_(d) {
+  d.st.pr = { stage: 'type' }; tgSave_(d);
+  return tgSend_(d.id, tx_(d.lang, 'askProblem'), tgInline_(TG_PROBLEMS[d.lang].map(function (x, i) { return [{ text: x, callback_data: 'pr:' + i }]; })));
+}
+function tgLangToggle_(d) { d.lang = d.lang === 'uz' ? 'ru' : 'uz'; tgSave_(d); return tgSend_(d.id, tx_(d.lang, 'langSet'), tgMenu_(d.lang, d)); }
+// «Доставлено»: кнопкой или первым снимком с карточки — минуты ожидания, шаг «фото»
+function tgBeginOk_(d, w) {
+  w.waited = w.wait && w.wait.key === w.cur.key ? Math.max(1, Math.round((new Date().getTime() - w.wait.since) / 60000)) : 0; w.wait = null;
+  w.result = 'ok'; w.photos = []; w.reason = ''; w.photoLL = null; w.stage = 'photo';
+}
 // «Начать работу» / «Закончить работу» — кнопкой меню, командой или кнопкой в напоминании
 function tgStartAsk_(d, w) {
   var L = d.lang;
-  if (w && w.started) return tgSend_(d.id, tx_(L, 'already'), tgMenu_(L)) && tgCurrent_(d, w);
+  if (w && w.started) return tgSend_(d.id, tx_(L, 'already'), tgMenu_(L, d)) && tgCurrent_(d, w);
   var a = tgAssigned_(d);
   d.st.work = { day: tgNow_('yyyy-MM-dd'), date: a ? a.date : tgNow_('yyyy-MM-dd'), stage: 'startLoc' }; tgSave_(d);
   return tgSend_(d.id, tx_(L, 'askLocStart'), tgLocKb_(L));
 }
 function tgEndAsk_(d, w) {
   var L = d.lang;
-  if (!w || !w.started) return tgSend_(d.id, tx_(L, 'notWorking'), tgMenu_(L));
+  if (!w || !w.started) return tgSend_(d.id, tx_(L, 'notWorking'), tgMenu_(L, d));
   w.stage = 'endLoc'; tgSave_(d);
   return tgSend_(d.id, tx_(L, 'askLocEnd'), tgLocKb_(L));
 }
@@ -487,7 +524,7 @@ function tgTravelMin_(pos, c) {
 function tgReasonUz_(reason) { var i = TG_REASONS.ru.indexOf(reason); return i >= 0 ? TG_REASONS.uz[i] : reason || TG_REASONS.uz[3]; }
 function tgCancel_(d, w) {
   if (w) { w.stage = w.started ? null : 'none'; w.wait = null; w.photoLL = null; if (!w.started) delete d.st.work; tgSave_(d); }
-  return tgSend_(d.id, tx_(d.lang, 'menu'), tgMenu_(d.lang));
+  return tgSend_(d.id, tx_(d.lang, 'menu'), tgMenu_(d.lang, d));
 }
 function tgAskTruck_(d) {
   var list = tgTrucks_(), rows = [];
@@ -531,20 +568,23 @@ function tgCallback_(q) {
   }
   if (d.status !== 'ruxsat') return;
   if (/^pr:\d$/.test(data)) {   // вид проблемы — и до начала рабочего дня
-    if (!d.st.pr || d.st.pr.stage !== 'type') return tgSend_(d.id, tx_(L, 'menu'), tgMenu_(L));
+    if (!d.st.pr || d.st.pr.stage !== 'type') return tgSend_(d.id, tx_(L, 'menu'), tgMenu_(L, d));
     d.st.pr = { stage: 'info', type: Number(data.slice(3)), text: '', photos: [] }; tgSave_(d);
     return tgSend_(d.id, TG_PROBLEMS[L][d.st.pr.type] + '\n' + tx_(L, 'probAsk'), tgLocKb_(L));
   }
   var w = tgWork_(d);
-  if (data === 'start') return tgStartAsk_(d, w);   // кнопки из напоминаний
+  if (data === 'start') return tgStartAsk_(d, w);   // кнопки из напоминаний и «☰ Ещё»
   if (data === 'end') return tgEndAsk_(d, w);
-  if (!w || !w.started) return tgSend_(d.id, tx_(L, 'notWorking'), tgMenu_(L));
+  if (data === 'more') return tgMore_(d, w);
+  if (data === 'prob') return tgProblemAsk_(d);
+  if (data === 'lang') return tgLangToggle_(d);
+  if (!w || !w.started) return tgSend_(d.id, tx_(L, 'notWorking'), tgMenu_(L, d));
   var m = data.match(/^(ok|fail):(.+)$/);
   if (m) {
     if (!w.cur || w.cur.key !== m[2] || (w.stage && w.stage !== 'wait')) return tgSend_(d.id, tx_(L, w.stage ? 'busy' : 'stale')) && tgCurrent_(d, w);
+    if (m[1] === 'ok') { tgBeginOk_(d, w); tgSave_(d); return tgPhotoAsk_(d, w, 'askPhoto'); }
     w.waited = w.wait && w.wait.key === m[2] ? Math.max(1, Math.round((new Date().getTime() - w.wait.since) / 60000)) : 0; w.wait = null;
-    w.result = m[1]; w.photos = []; w.reason = ''; w.photoLL = null;
-    if (m[1] === 'ok') { w.stage = 'photo'; tgSave_(d); return tgPhotoAsk_(d, w, 'askPhoto'); }
+    w.result = 'fail'; w.photos = []; w.reason = ''; w.photoLL = null;
     w.stage = 'reason'; tgSave_(d);
     return tgSend_(d.id, tx_(L, 'askReason'), tgReasonKb_(L));
   }
@@ -561,6 +601,7 @@ function tgCallback_(q) {
     if (w.stage !== 'photo' && w.stage !== 'failPhoto') return tgSend_(d.id, tx_(L, 'stale')) && tgCurrent_(d, w);
     return data === 'pdone' ? tgPhotoDone_(d, w) : tgCancel_(d, w);
   }
+  if (data === 'tels') return tgSendTels_(d, w);
   // «⏳ Жду клиента»: таймер (tgTick раз в 5 минут напомнит водителю и напишет в группу)
   if (/^wait:.+$/.test(data)) {
     var wk = data.slice(5);
@@ -574,10 +615,7 @@ function tgCallback_(q) {
     if (w.stage !== 'noAnswer' || !w.cur) return tgSend_(d.id, tx_(L, 'stale')) && tgCurrent_(d, w);
     var act = data.slice(3);
     if (act === 'call') return tgSendDispatcher_(d);
-    if (act === 'tel') {
-      var st = tgStops_(d.truck, w.date).filter(function (x) { return x.key === w.cur.key; })[0], tels = st ? tgClientTels_(st.c) : [];
-      return tgSend_(d.id, tels.length ? tx_(L, 'clientTels', { bl: w.cur.bl, list: tels.map(function (x) { return x.t + (x.who ? ' — ' + x.who : ''); }).join('\n') }) : tx_(L, 'noClientTel'));
-    }
+    if (act === 'tel') return tgSendTels_(d, w);
     if (act === 'ok') {
       w.result = 'ok'; w.reason = ''; w.photos = []; w.photoLL = null; w.stage = 'photo'; tgSave_(d);
       tgReport_('✅ ' + d.truck + ' · ' + d.name + ': клиент ' + w.cur.bl + ' ответил — водитель доставляет.');
@@ -599,7 +637,7 @@ function tgProblemDone_(d, w, ll) {
   var photos = pr.photos || [], links = tgSavePhotos_(photos, now.slice(0, 10), d.truck, 'muammo');
   tgHead_('problems').appendRow([now, d.name, d.truck, label, pr.text || '', links.join(' '), ll.join(','), d.id]);
   tgReport_('⚠️ ПРОБЛЕМА: ' + kind + ' — ' + d.truck + ' · ' + d.name + (pr.text ? '\n' + pr.text : '') + (w && w.cur ? '\nТекущая точка: ' + w.cur.bl : '') + '\n' + now.slice(11) + ' · 📍 ' + tgMap_(ll), photos);
-  return tgSend_(d.id, tx_(d.lang, 'probSent'), tgMenu_(d.lang));
+  return tgSend_(d.id, tx_(d.lang, 'probSent'), tgMenu_(d.lang, d));
 }
 
 // клиент не отвечает: водителю — меню, в группу — тревога с номерами клиента, чтобы диспетчер позвонил сам
@@ -658,7 +696,7 @@ function tgGroupCallback_(q, data) {
 function tgSetStatus_(d, status, who) {
   d.status = status; d.by = who + ' · ' + tgNow_(); if (status !== 'ruxsat') d.st = {};
   tgSave_(d);
-  if (status === 'ruxsat') tgSend_(d.id, tx_(d.lang, 'approved'), tgMenu_(d.lang));
+  if (status === 'ruxsat') tgSend_(d.id, tx_(d.lang, 'approved'), tgMenu_(d.lang, d));
   else tgSend_(d.id, tx_(d.lang, status === 'rad' ? 'rejected' : 'off'), { remove_keyboard: true });
 }
 
@@ -716,56 +754,67 @@ function tgPick_(stops, round, pos) {
 }
 function tgSig_(stops) { return stops.map(function (s) { return s.key + (s.open ? '' : '✓'); }).join(';'); }
 function tgFmt_(x) { return String(Math.round(x * 1000) / 1000).replace('.', ','); }
+// карточка — только нужное водителю: номер точки и BL, клиент, адрес, один телефон, места, примечание
 function tgCard_(d, s, stops) {
   var L = d.lang, inRound = stops.filter(function (x) { return x.round === s.round; }), done = inRound.filter(function (x) { return !x.open; }).length, c = s.c;
-  var lines = [tx_(L, 'stop', { i: done + 1, n: inRound.length, round: s.round }), '',
-    '🏷 ' + s.bl + (c.brand || c.name ? ' · ' + [c.brand, c.name].filter(Boolean).join(' — ') : '')];
+  var rounds = stops.map(function (x) { return x.round; }).filter(function (r, i, a) { return a.indexOf(r) === i; }).length;
+  var who = [c.brand, c.name].filter(Boolean).join(' — '), tel = tgClientTels_(c)[0];
+  var lines = [tx_(L, 'stop', { i: done + 1, n: inRound.length, bl: s.bl }) + (rounds > 1 ? tx_(L, 'roundTag', { round: s.round }) : '')];
+  if (who) lines.push('👤 ' + who);
   if (c.district || c.address) lines.push('📍 ' + [c.district, c.address].filter(Boolean).join(', '));
-  if (c.receiver || c.recvTel) lines.push('👤 ' + tx_(L, 'recv') + ': ' + [c.receiver, c.recvTel].filter(Boolean).join(' · '));
-  if (c.tel1 && c.tel1 !== c.recvTel) lines.push('☎️ ' + tx_(L, 'tel') + ': ' + c.tel1);
-  lines.push('📦 ' + tx_(L, 'cargo', { places: s.places, cbm: tgFmt_(s.cbm), kg: tgFmt_(s.kg) }));
+  if (tel) lines.push('☎️ ' + tel.t + (tel.who && tel.who !== c.name ? ' — ' + tel.who : ''));
+  lines.push(tx_(L, 'places', { places: s.places }));
   var notes = s.notes.concat(c.note ? [c.note] : []);
-  if (notes.length) lines.push('📝 ' + tx_(L, 'note') + ': ' + notes.join(' · '));
-  if (!(c.lat && c.lon)) lines.push('', tx_(L, 'noCoords'));
+  if (notes.length) lines.push('📝 ' + notes.join(' · '));
+  if (!(c.lat && c.lon)) lines.push(tx_(L, 'noCoords'));
   return lines.join('\n');
+}
+// карточка точки; у прошлой карточки кнопки снимаются — в чате активны только кнопки текущей точки
+function tgCardSend_(d, w, s, stops) {
+  tgUnCard_(d, w);
+  var r = tgSend_(d.id, tgCard_(d, s, stops), tgStopKb_(d, s));
+  w.cardId = r && r.ok && r.result ? r.result.message_id : null; tgSave_(d);
+}
+function tgUnCard_(d, w) {
+  if (!w.cardId) return;
+  tg_('editMessageReplyMarkup', { chat_id: d.id, message_id: w.cardId, reply_markup: { inline_keyboard: [] } });
+  w.cardId = null;
 }
 function tgNext_(d, w) {
   var L = d.lang, stops = tgStops_(d.truck, w.date);
-  w.sig = tgSig_(stops);
-  if (!stops.length) { w.cur = null; tgSave_(d); return tgSend_(d.id, tx_(L, 'noStops', { truck: d.truck }), tgMenu_(L)); }
+  w.sig = tgSig_(stops); tgUnCard_(d, w);
+  if (!stops.length) { w.cur = null; tgSave_(d); return tgSend_(d.id, tx_(L, 'noStops', { truck: d.truck }), tgMenu_(L, d)); }
   var round = w.round || Math.min.apply(null, stops.filter(function (s) { return s.open; }).map(function (s) { return s.round; }).concat([99]));
-  if (round === 99) { w.cur = null; tgSave_(d); return tgSend_(d.id, tx_(L, 'allDone'), tgMenu_(L)); }
+  if (round === 99) { w.cur = null; tgSave_(d); return tgSend_(d.id, tx_(L, 'allDone'), tgEndKb_(L)); }
   var s = tgPick_(stops, round, w.pos || tgDepot_());
   if (!s) {
     var later = stops.filter(function (x) { return x.open && x.round > round; }).map(function (x) { return x.round; });
-    if (!later.length) { w.cur = null; tgSave_(d); return tgSend_(d.id, tx_(L, 'allDone'), tgMenu_(L)); }
+    if (!later.length) { w.cur = null; tgSave_(d); return tgSend_(d.id, tx_(L, 'allDone'), tgEndKb_(L)); }
     var nx = Math.min.apply(null, later);
     w.cur = null; w.stage = 'roundWait'; tgSave_(d);
     return tgSend_(d.id, tx_(L, 'roundDone', { round: round, next: nx }), tgInline_([[{ text: tx_(L, 'bRound', { next: nx }), callback_data: 'round:' + nx }]]));
   }
-  w.round = round; w.cur = { key: s.key, bl: s.bl, round: s.round }; w.stage = null; tgSave_(d);
-  tgSend_(d.id, tgCard_(d, s, stops), tgStopKb_(d, s));
+  w.round = round; w.cur = { key: s.key, bl: s.bl, round: s.round }; w.stage = null;
+  tgCardSend_(d, w, s, stops);
   tgNotify_(s.bl, 'way:' + w.date + ':' + s.key, txc_('onWay', { eta: tgEta_(w.pos || tgDepot_(), s.c), truck: d.truck }));
-  if (s.c.lat && s.c.lon) tg_('sendLocation', { chat_id: d.id, latitude: s.c.lat, longitude: s.c.lon, reply_markup: tgMenu_(L) });
-  else tgSend_(d.id, tx_(L, 'menu'), tgMenu_(L));
 }
+function tgEndKb_(L) { return tgInline_([[{ text: tx_(L, 'bEnd'), callback_data: 'end' }]]); }
 function tgCurrent_(d, w) {
   if (w.stage === 'roundWait' || !w.cur) return tgNext_(d, w);
   var stops = tgStops_(d.truck, w.date), s = stops.filter(function (x) { return x.key === w.cur.key && x.open; })[0];
   if (!s) return tgNext_(d, w);
-  w.sig = tgSig_(stops); tgSave_(d);
-  tgSend_(d.id, tgCard_(d, s, stops), tgStopKb_(d, s));
-  if (s.c.lat && s.c.lon) tg_('sendLocation', { chat_id: d.id, latitude: s.c.lat, longitude: s.c.lon });
+  w.sig = tgSig_(stops);
+  tgCardSend_(d, w, s, stops);
 }
 function tgPhoto_(d, w, fileId) {
-  if (!w || (w.stage !== 'photo' && w.stage !== 'failPhoto')) return tgSend_(d.id, tx_(d.lang, w && w.started ? 'unknown' : 'notWorking'), tgMenu_(d.lang));
+  if (!w || (w.stage !== 'photo' && w.stage !== 'failPhoto')) return tgSend_(d.id, tx_(d.lang, w && w.started ? 'unknown' : 'notWorking'), tgMenu_(d.lang, d));
   if (tgCamera_()) return tgSend_(d.id, tx_(d.lang, 'camOnly'), tgPhotoKb_(d, w));   // из галереи или чата — нельзя, только камерой
   w.photos = (w.photos || []).concat([fileId]).slice(0, 10); tgSave_(d);
   return tgSend_(d.id, tx_(d.lang, 'photoOk', { n: w.photos.length }), { keyboard: [[tx_(d.lang, 'bDone')], [tx_(d.lang, 'bCancel')]], resize_keyboard: true });
 }
 function tgLocation_(d, w, ll) {
   var L = d.lang;
-  if (!w) return tgSend_(d.id, tx_(L, 'notWorking'), tgMenu_(L));
+  if (!w) return tgSend_(d.id, tx_(L, 'notWorking'), tgMenu_(L, d));
   if (w.stage === 'startLoc') {
     w.started = tgNow_('HH:mm'); w.stage = null; w.pos = ll; w.posAt = w.started; w.round = null; w.ok = 0; w.fail = 0;
     if (d.st.assign && !d.st.assign.used && d.st.assign.date === w.date) d.st.assign.used = w.day;
@@ -773,6 +822,7 @@ function tgLocation_(d, w, ll) {
     tgHead_('days').appendRow([w.day, d.name, d.truck, w.started, ll.join(','), '', '', '', '', d.id, w.date]);
     var stops = tgStops_(d.truck, w.date);
     tgReport_('🚚 ' + d.name + ' (' + d.truck + ') начал работу в ' + w.started + ' · ' + (w.date !== w.day ? 'партия ' + tgDmy_(w.date) + ' · ' : '') + 'точек: ' + stops.filter(function (s) { return s.open; }).length + ' · 📍 ' + tgMap_(ll));
+    tgSend_(d.id, tx_(L, 'started'), tgMenu_(L, d));   // вместо кнопки геолокации — меню
     return tgNext_(d, w);
   }
   if (w.stage === 'endLoc') {
@@ -780,11 +830,11 @@ function tgLocation_(d, w, ll) {
     w.ended = end; w.stage = null; w.pos = ll; w.posAt = end; tgSave_(d);
     tgDayEnd_(d, w, end, ll);
     tgReport_('🏁 ' + d.name + ' (' + d.truck + ') закончил работу в ' + end + ': доставлено ' + (w.ok || 0) + ', не доставлено ' + (w.fail || 0) + ', осталось ' + left + ' · 📍 ' + tgMap_(ll));
-    return tgSend_(d.id, tx_(L, 'endDay', { ok: w.ok || 0, fail: w.fail || 0, left: left }), tgMenu_(L));
+    return tgSend_(d.id, tx_(L, 'endDay', { ok: w.ok || 0, fail: w.fail || 0, left: left }), tgMenu_(L, d));
   }
   if (w.stage === 'loc' && w.cur) return tgFinish_(d, w, ll);
   w.pos = ll; w.posAt = tgNow_('HH:mm'); tgSave_(d);
-  return tgSend_(d.id, tx_(L, 'unknown'), tgMenu_(L));
+  return tgSend_(d.id, tx_(L, 'unknown'), tgMenu_(L, d));
 }
 function tgDayEnd_(d, w, end, ll) {
   var sh = tgSheet_('days'), last = sh.getLastRow();
@@ -814,7 +864,7 @@ function tgFinish_(d, w, ll) {
     (reason ? '\nПричина: ' + reason : '') + (waited ? '\n⏳ Ждал клиента ' + waited + ' мин' : '') + (far ? '\n⚠️ Отметка в ' + String(km).replace('.', ',') + ' км от точки клиента' : '') + '\n' + now.slice(11) + ' · 📍 ' + tgMap_(ll);
   tgReport_(cap, photos);
   tgNotify_(cur.bl, 'end:' + w.date + ':' + cur.key, ok ? txc_('delivered', { bl: cur.bl, places: s ? s.places : '' }) : txc_('failed', { bl: cur.bl, reason: tgReasonUz_(reason) }), ok ? photos[0] : null);
-  tgSend_(d.id, tx_(d.lang, 'saved') + '\n' + tx_(d.lang, 'next'), tgMenu_(d.lang));
+  tgSend_(d.id, tx_(d.lang, 'saved'), tgMenu_(d.lang, d));
   return tgNext_(d, w);
 }
 // фото — на Google Диск: «BURAQ yetkazish» / дата / «дата машина BL n.jpg»; ссылки — в «Yetkazish»
@@ -863,7 +913,7 @@ function tgAfterOps_(ops) {
       var st = tgStops_(d.truck, a.date), sg = tgSig_(st);
       if (sg === a.sig) return;
       a.sig = sg; tgSave_(d);
-      tgSend_(d.id, tx_(d.lang, 'assignChanged') + '\n\n' + tgAssignText_(d, a.date, st), tgMenu_(d.lang));
+      tgSend_(d.id, tx_(d.lang, 'assignChanged') + '\n\n' + tgAssignText_(d, a.date, st), tgMenu_(d.lang, d));
     }
   });
 }
@@ -897,7 +947,7 @@ function tgDispatch_(date, ids, auto) {
       tgNext_(d, w);
     } else {
       d.st.assign = { date: date, day: today, at: tgNow_(), sig: tgSig_(stops) }; tgSave_(d);
-      tgSend_(d.id, tgAssignText_(d, date, stops), tgMenu_(d.lang));
+      tgSend_(d.id, tgAssignText_(d, date, stops), tgMenu_(d.lang, d));
     }
     open.forEach(function (x) { tgNotify_(x.bl, 'today:' + date, txc_('today', { bl: x.bl, places: x.places })); });
     sent.push({ id: d.id, name: d.name, truck: d.truck, n: open.length });
@@ -1066,6 +1116,7 @@ function tgNudge_(d, w, t, today, hm, mo) {
   } else if (kind === 'card') {
     var s = tgStops_(d.truck, w.date).filter(function (y) { return y.key === w.cur.key && y.open; })[0];
     if (!s) return;
+    x.s = s;
     var tr = tgTravelMin_(w.pos || tgDepot_(), s.c), T1 = Math.max(45, Math.round(tr == null ? 30 : tr) + 30);
     due1 = mins >= T1; due2 = mins >= T1 + 30;
   } else if (kind === 'round') {
@@ -1090,7 +1141,7 @@ function tgNudgeSend_(d, w, kind, x) {
   var L = d.lang, id = d.id, pre = '⏰ ', sg = w ? w.stage : '';
   if (kind === 'start') return tgSend_(id, tx_(L, 'remindStart', { n: x.n }), tgInline_([[{ text: tx_(L, 'bStart'), callback_data: 'start' }]]));
   if (kind === 'done') return tgSend_(id, tx_(L, 'remindEnd'), tgInline_([[{ text: tx_(L, 'bEnd'), callback_data: 'end' }]]));
-  if (kind === 'card') return tgSend_(id, tx_(L, 'remindCard', { bl: w.cur.bl }), tgInline_([[{ text: tx_(L, 'bOk'), callback_data: 'ok:' + w.cur.key }, { text: tx_(L, 'bFail'), callback_data: 'fail:' + w.cur.key }], [{ text: tx_(L, 'bWait'), callback_data: 'wait:' + w.cur.key }]]));
+  if (kind === 'card') return tgSend_(id, tx_(L, 'remindCard', { bl: w.cur.bl }), tgStopKb_(d, x.s));   // те же кнопки, что на карточке
   if (kind === 'round') return tgSend_(id, pre + tx_(L, 'roundDone', { round: w.round, next: x.next }), tgInline_([[{ text: tx_(L, 'bRound', { next: x.next }), callback_data: 'round:' + x.next }]]));
   if (kind === 'na') return tgSend_(id, pre + tx_(L, 'noAnswer'), tgNoAnswerKb_(d, w));
   if (sg === 'photo' || sg === 'failPhoto') {
@@ -1133,8 +1184,11 @@ function tgPhotoUpload_(p) {
     TG_MEMO = null;
     var d = tgDriver_(u.id), w = d && d.status === 'ruxsat' ? tgWork_(d) : null;
     if (!w) return { error: 'Рабочий день не начат', code: 'stage', v: VERSION };
-    if ((w.stage !== 'photo' && w.stage !== 'failPhoto') || !w.cur || w.cur.key !== String(p.key || '')) return { error: tx_(d.lang, 'stale'), code: 'stage', v: VERSION };
-    if (p.ping) return { ok: true, ping: true, n: (w.photos || []).length, v: VERSION };   // страница камеры открылась: связь и шаг — в порядке
+    var card = !w.stage || w.stage === 'wait';   // «📷 Доставлено» на карточке открывает камеру сразу, до шага «фото»
+    if (!w.started || (w.stage !== 'photo' && w.stage !== 'failPhoto' && !card) || !w.cur || w.cur.key !== String(p.key || '')) return { error: tx_(d.lang, 'stale'), code: 'stage', v: VERSION };
+    if (p.ping) return { ok: true, ping: true, n: card ? 0 : (w.photos || []).length, v: VERSION };   // страница камеры открылась: связь и шаг — в порядке
+    if (card && p.done) return { error: tx_(d.lang, 'needPhoto'), code: 'nophoto', v: VERSION };
+    if (card) tgBeginOk_(d, w);   // первый снимок с карточки — как «Доставлено»
     if (p.done) {   // «✅ Готово» в мини-приложении: точка закрывается, как по кнопке в боте
       if (!(w.photos || []).length) return { error: tx_(d.lang, 'needPhoto'), code: 'nophoto', v: VERSION };
       var needLoc = !w.photoLL;

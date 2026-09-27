@@ -65,7 +65,7 @@ const connect = t => t.s.post({ token: '', editor: '', tg: { action: 'setup', ur
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 14); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 15); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
@@ -148,7 +148,7 @@ test('регистрация: язык, имя, машина кнопками (�
   t.cb(900, 'allow:501', t.group, { message_id: 55, text: ask.text, chat: t.group });
   assert.equal(t.s.book.sheets.Haydovchilar.rows[1][5], 'ruxsat');
   assert.match(t.last('sendMessage', 501).text, /Доступ открыт/);
-  assert.deepEqual(t.last('sendMessage', 501).reply_markup.keyboard, [['🚚 Начать работу', '📍 Текущая точка'], ['🏁 Закончить работу', '🌐 Язык'], ['⚠️ Проблема']]);
+  assert.deepEqual(t.last('sendMessage', 501).reply_markup.keyboard, [['🚚 Начать работу'], ['☰ Ещё']], 'меню: одна большая кнопка и «☰ Ещё»');
   assert.match(t.last('editMessageText').text, /✅ Разрешено — Boss/);
 });
 
@@ -177,10 +177,10 @@ test('рабочий день: геолокация → ближайшая то�
   const day = t.s.book.sheets['Ish kuni'].rows[1];
   assert.deepEqual([day[0], day[2], day[3], day[4]], [TODAY, 'Gazel-2', '09:00', DEPOT.join(',')]);
   // первая точка — ближайшая к складу: BL-901 (две строки журнала — одна точка, груз сложен)
-  const card = t.tg.sent.filter(x => x.method === 'sendMessage' && x.chat_id === '501').map(x => x.text).find(x => /Точка/.test(x));
-  assert.match(card, /📦 Точка 1 из 2 · рейс 1/); assert.match(card, /🏷 BL-901 · NOVA — Aziz/); assert.match(card, /📍 Chilonzor, Bunyodkor 1/);
-  assert.match(card, /👤 Получатель: Aziz · \+998900000001/); assert.match(card, /📦 12 мест · 1,5 м³ · 250 кг/);
-  assert.deepEqual([t.last('sendLocation', 501).latitude, t.last('sendLocation', 501).longitude], [41.31, 69.21]);
+  const card = t.tg.sent.filter(x => x.method === 'sendMessage' && x.chat_id === '501').map(x => x.text).find(x => /^🏷/.test(x));
+  assert.equal(card, '🏷 1/2 · BL-901 · рейс 1\n👤 NOVA — Aziz\n📍 Chilonzor, Bunyodkor 1\n☎️ +998900000001\n📦 12 мест\n📝 часть 2/2');
+  assert.equal(t.last('sendLocation', 501), undefined, 'без отдельной метки на карте');
+  assert.ok(t.texts(501).includes('✅ Работа начата'), 'после геолокации — меню вместо кнопки геолокации');
   // «Доставлено»: без фото нельзя
   t.cb(501, 'ok:BL-901|1');
   assert.match(t.last('sendMessage', 501).text, /Отправьте фото/);
@@ -202,7 +202,7 @@ test('рабочий день: геолокация → ближайшая то�
   assert.deepEqual(album.media.map(m => m.media), ['PH1', 'PH2']);
   assert.match(album.media[0].caption, /✅ Gazel-2 · Akmal Karimov — доставлено: BL-901 NOVA — Aziz\n09:00 · 📍 https:\/\/maps\.google\.com\/\?q=41\.311,69\.211/);
   // следующая точка — BL-902 (последняя в рейсе 1)
-  assert.match(t.texts(501).filter(x => /Точка/.test(x)).pop(), /Точка 2 из 2 · рейс 1[\s\S]*BL-902[\s\S]*Получатель: Omon[\s\S]*☎️ Тел: \+998900000002[\s\S]*Примечание: осторожно, стекло/);
+  assert.equal(t.texts(501).filter(x => /^🏷/.test(x)).pop(), '🏷 2/2 · BL-902 · рейс 1\n👤 Botir\n📍 Yunusobod, Amir Temur 2\n☎️ +998900000022 — Omon\n📦 12 мест\n📝 осторожно, стекло');
   // старая кнопка
   t.cb(501, 'ok:BL-901|1');
   assert.match(t.texts(501).slice(-2)[0], /кнопка устарела/);
@@ -225,7 +225,7 @@ test('«Не доставлено»: причина, фото места (обя
   const round = t.last('sendMessage', 501);
   assert.match(round.text, /Рейс 1 закончен/); assert.equal(round.reply_markup.inline_keyboard[0][0].callback_data, 'round:2');
   t.cb(501, 'round:2');
-  assert.match(t.texts(501).filter(x => /Точка/.test(x)).pop(), /Точка 1 из 1 · рейс 2[\s\S]*BL-903 · STAR — Dilshod/);
+  assert.match(t.texts(501).filter(x => /^🏷/.test(x)).pop(), /^🏷 1\/1 · BL-903 · рейс 2\n👤 STAR — Dilshod/);
   // «другая причина» — текстом
   const u = approved();
   u.msg(501, '🚚 Начать работу'); u.loc(501, DEPOT); u.cb(501, 'fail:BL-901|1'); u.cb(501, 'why:3');
@@ -339,15 +339,15 @@ test('«Отправить» партию с сайта: задание со с�
   assert.equal(r.tg.drivers[0].assign.date, '2026-09-25');
   t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
   assert.match(t.last('sendMessage', g).text, /партия 25\.09\.2026 · точек: 4/);
-  assert.match(t.texts(501).filter(x => /Точка/.test(x)).pop(), /BL-901/);
+  assert.match(t.texts(501).filter(x => /^🏷/.test(x)).pop(), /BL-901/);
   const dayRow = t.s.book.sheets['Ish kuni'].rows[1];
   assert.deepEqual([dayRow[0], dayRow[10]], [TODAY, '2026-09-25']);
   // водитель уже работает — новое задание сразу меняет партию и присылает первую точку
   t.s.book.sheets.Yuborishlar.rows.forEach(r => { if (r[2] === 'BL-904') r[12] = 'Gazel-2'; });
   const r2 = t.s.post({ token: '', tg: { action: 'dispatch', date: TODAY, ids: ['501'] } });
   assert.deepEqual(r2.sent.map(x => x.n), [1]);
-  const last3 = t.texts(501).slice(-3);
-  assert.match(last3[0], /Новое задание: партия 26\.09\.2026 — точек: 1/); assert.match(last3[1], /Точка 1 из 1 · рейс 1\n\n🏷 BL-904\n📦 5 мест/);
+  const last2 = t.texts(501).slice(-2);
+  assert.match(last2[0], /Новое задание: партия 26\.09\.2026 — точек: 1/); assert.match(last2[1], /^🏷 1\/1 · BL-904[^\n]*\n📦 5 мест/);
   // партия без водителя в боте — в пропущенных
   const r3 = t.s.post({ token: '', tg: { action: 'dispatch', date: '2026-09-25' } });
   assert.ok(r3.skipped.some(x => x.truck === 'Gazel-2' && x.why === 'нет точек') || r3.sent.length === 1);
@@ -400,8 +400,8 @@ test('«Не отвечает на телефон»: водителю меню (
   const r = t.s.post({ token: '', tg: { action: 'dispatcher', phone: '998 77 017 66 11', name: 'Jasur' } });
   assert.equal(r.ok, true); assert.deepEqual(r.tg.dispatcher, { name: 'Jasur', phone: '+998770176611' });
   t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
-  const kb = [...t.tg.sent].reverse().find(x => String(x.chat_id) === '501' && x.reply_markup && x.reply_markup.keyboard && JSON.stringify(x.reply_markup.keyboard).includes('Начать работу'));
-  assert.deepEqual(kb.reply_markup.keyboard.slice(-1)[0], ['⚠️ Проблема', '📞 Диспетчер'], 'кнопка «Диспетчер» в меню');
+  const kb = [...t.tg.sent].reverse().find(x => String(x.chat_id) === '501' && x.reply_markup && x.reply_markup.keyboard && JSON.stringify(x.reply_markup.keyboard).includes('Текущая точка'));
+  assert.deepEqual(kb.reply_markup.keyboard, [['📍 Текущая точка'], ['☰ Ещё', '📞 Диспетчер']], 'кнопка «Диспетчер» в меню');
   t.cb(501, 'fail:BL-901|1'); t.cb(501, 'why:1');
   const menu = t.last('sendMessage', 501);
   assert.match(menu.text, /Клиент не отвечает на телефон[\s\S]*Диспетчеру отправлено сообщение/);
@@ -463,7 +463,7 @@ test('фото только с камеры: кнопка открывает dri
   assert.equal(up({}, initData({ id: 501 }, { token: 'чужой' })).code, 'auth', 'подпись другим токеном');
   assert.equal(up({}, initData({ id: 501 }, { at: Date.UTC(2026, 8, 24) / 1000 })).code, 'auth', 'подпись старше суток');
   assert.equal(up({ key: 'BL-902|1' }).code, 'stage', 'снимок не той точки');
-  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 14 }, 'проверка связи со страницы камеры');
+  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 15 }, 'проверка связи со страницы камеры');
   assert.equal(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-902|1', ping: 1 } }).code, 'stage');
   const r = up({ ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -501,11 +501,10 @@ test('карточка точки: маршрут в Яндекс и Google; «�
   assert.match(t.s.post({ token: '', tg: { action: 'settings', waitMin: 3 } }).error, /от 5 до 120/);
   t.s.post({ token: '', tg: { action: 'settings', waitMin: 15 } });
   t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
-  const card = [...t.tg.sent].reverse().find(x => x.method === 'sendMessage' && /Точка 1 из/.test(x.text || ''));
+  const card = [...t.tg.sent].reverse().find(x => x.method === 'sendMessage' && /^🏷 1\//.test(x.text || ''));
   const kb = card.reply_markup.inline_keyboard;
-  assert.deepEqual(kb[1].map(b => b.callback_data), ['wait:BL-901|1']);
-  assert.equal(kb[2][0].url, 'https://yandex.uz/maps/?rtext=~41.31,69.21&rtt=auto');
-  assert.equal(kb[2][1].url, 'https://www.google.com/maps/dir/?api=1&destination=41.31,69.21&travelmode=driving');
+  assert.deepEqual(kb.map(r => r.map(b => b.callback_data || b.url)), [['https://yandex.uz/maps/?rtext=~41.31,69.21&rtt=auto'], ['ok:BL-901|1'], ['fail:BL-901|1'], ['more']]);
+  assert.deepEqual(kb.map(r => r[0].text), ['🧭 Маршрут', '✅ Доставлено', '❌ Не доставлено', '☰ Ещё'], 'без камеры — «Доставлено» кнопкой');
   t.cb(501, 'wait:BL-901|1');
   assert.match(t.last('sendMessage', 501).text, /Ждёте клиента до 09:15/);
   const n0 = t.tg.sent.length;
@@ -548,7 +547,7 @@ test('«⚠️ Проблема»: вид кнопкой, описание, фо
   assert.deepEqual(pr.map(x => [x.type, x.text, x.truck]), [['Поломка', 'пробило колесо', 'Gazel-2']]);
   // проблема не мешает доставке: текущая точка на месте
   t.msg(501, '📍 Текущая точка');
-  assert.match(t.texts(501).filter(x => /Точка/.test(x)).pop(), /BL-901/);
+  assert.match(t.texts(501).filter(x => /^🏷/.test(x)).pop(), /BL-901/);
   // отмена
   t.msg(501, '⚠️ Проблема'); t.cb(501, 'pr:1'); t.msg(501, '↩️ Отмена');
   assert.equal(t.s.book.sheets.Muammolar.rows.length, 2);
@@ -663,7 +662,7 @@ test('«✅ Готово» в камере закрывает точку (без
   assert.deepEqual([r.ok, r.done, r.needLoc], [true, true, false]);
   assert.deepEqual(t.status('BL-901'), ['Yetkazildi', 'Yetkazildi']);
   assert.match(t.last('sendPhoto', g).caption, /доставлено: BL-901/);
-  assert.match(t.texts(501).filter(x => /Точка/.test(x)).pop(), /BL-902/, 'следующая точка');
+  assert.match(t.texts(501).filter(x => /^🏷/.test(x)).pop(), /BL-902/, 'следующая точка');
   // без места на снимке — бот спросит геолокацию
   t.cb(501, 'ok:BL-902|1');
   cam({ key: 'BL-902|1', img: JPEG });
@@ -733,7 +732,7 @@ test('напоминание «не начал работу»: в 09:30 — кн
   t.s.ctx.tgTick(); at(t, 10, 40); t.s.ctx.tgTick();
   assert.match(t.last('sendMessage', 501).text, /^⏰ Чтобы начать работу, отправьте геолокацию/);
   t.loc(501, DEPOT);
-  assert.match(t.texts(501).filter(x => /Точка/.test(x)).pop(), /Точка 1 из 2/);
+  assert.match(t.texts(501).filter(x => /^🏷/.test(x)).pop(), /^🏷 1\/2 · BL-901/);
 });
 
 test('напоминание «не отметил точку»: время пути + 30 мин (не меньше 45) — «доставили?» с кнопками, ещё через 30 — в группу с последней отметкой', () => {
@@ -744,7 +743,7 @@ test('напоминание «не отметил точку»: время пу
   at(t, 9, 45); t.s.ctx.tgTick();
   const r = t.last('sendMessage', 501);
   assert.equal(r.text, '⏰ BL-901: доставили?');
-  assert.deepEqual(r.reply_markup.inline_keyboard.map(x => x.map(b => b.callback_data)), [['ok:BL-901|1', 'fail:BL-901|1'], ['wait:BL-901|1']]);
+  assert.deepEqual(r.reply_markup.inline_keyboard.map(x => x.map(b => b.callback_data || b.url)), [['https://yandex.uz/maps/?rtext=~41.31,69.21&rtt=auto'], ['ok:BL-901|1'], ['fail:BL-901|1'], ['more']], 'те же кнопки, что на карточке');
   at(t, 10, 15); t.s.ctx.tgTick();
   assert.equal(t.last('sendMessage', g).text, '⏰ Gazel-2 · Akmal Karimov: 75 мин без отметки у BL-901.\n🚚 Последняя отметка в 09:00: https://maps.google.com/?q=41.3,69.2');
   at(t, 10, 45); n = t.tg.sent.length; t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n, 'дальше — тишина');
@@ -848,4 +847,68 @@ test('напоминание «не начал»: задание с сайта �
   let n = t.tg.sent.length; t.s.ctx.tgTick(); at(t, 14, 25); t.s.ctx.tgTick(); assert.equal(t.tg.sent.length, n, 'сразу не напоминает');
   at(t, 14, 30); t.s.ctx.tgTick();
   assert.equal(t.last('sendMessage', 501).text, '⏰ Сегодня вас ждут точек: 3 👇');
+});
+
+// ── версия 15: «один экран» у водителя ──
+test('один экран: карточка с камерой — «📷 Доставлено» сразу открывает камеру; снимок с карточки — как «Доставлено»; у прошлой карточки кнопки снимаются', () => {
+  const t = approved({ TG_MORNING: 'off' }), g = t.group.id;
+  t.s.post({ token: '', site: 'https://buraq.example/xeeds/', tg: { action: 'status' } });
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  const card = t.last('sendMessage', 501), kb = card.reply_markup.inline_keyboard;
+  assert.match(card.text, /^🏷 1\/2 · BL-901/);
+  assert.deepEqual(kb.map(r => r[0].text), ['🧭 Маршрут', '📷 Доставлено', '❌ Не доставлено', '☰ Ещё']);
+  assert.equal(kb[1][0].web_app.url, 'https://buraq.example/xeeds/driver.html?s=' + encodeURIComponent('https://script.google.com/macros/s/AKfy-test_1/exec') + '&k=BL-901%7C1&bl=BL-901&l=ru&m=ok');
+  const cam = extra => t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ...extra } });
+  // камера открылась с карточки: связь в порядке, шаг ещё не меняется; «Готово» без снимка — нельзя; чужая точка — нет
+  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 15 });
+  assert.equal(cam({ done: 1 }).code, 'nophoto');
+  assert.equal(cam({ key: 'BL-902|1', img: JPEG }).code, 'stage');
+  // «⏳ Жду клиента» из «☰ Ещё», потом снимок с карточки — минуты ожидания учтены
+  t.cb(501, 'wait:BL-901|1');
+  t.now.value = new Date(Date.UTC(2026, 8, 26, 4, 7));
+  assert.equal(cam({ img: JPEG, ll: [41.3101, 69.2101] }).ok, true);
+  assert.match(t.last('sendPhoto', 501).caption, /Фото принято · BL-901/);
+  assert.deepEqual(cam({ done: 1 }).ok, true);
+  assert.deepEqual(t.status('BL-901'), ['Yetkazildi', 'Yetkazildi']);
+  assert.equal(t.s.book.sheets.Yetkazish.rows[1][12], 7, 'ждал 7 минут');
+  assert.match(t.last('sendPhoto', g).caption, /⏳ Ждал клиента 7 мин/);
+  // у карточки BL-901 кнопки сняты; новая карточка — BL-902
+  const un = t.last('editMessageReplyMarkup', 501);
+  assert.ok(un.message_id > 100); assert.deepEqual(un.reply_markup, { inline_keyboard: [] });
+  assert.match(t.texts(501).filter(x => /^🏷/.test(x)).pop(), /^🏷 2\/2 · BL-902/);
+  assert.ok(t.texts(501).includes('✅ Сохранено'));
+});
+
+test('один экран: нижнее меню — одна большая кнопка по состоянию и «☰ Ещё»; старые кнопки меню работают', () => {
+  const t = approved({ TG_MORNING: 'off' });
+  const menuOf = () => [...t.tg.sent].reverse().find(x => String(x.chat_id) === '501' && x.reply_markup && x.reply_markup.keyboard && !x.reply_markup.keyboard[0][0].request_location).reply_markup.keyboard;
+  assert.deepEqual(menuOf(), [['🚚 Начать работу'], ['☰ Ещё']]);
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  assert.deepEqual(menuOf(), [['📍 Текущая точка'], ['☰ Ещё']]);
+  t.msg(501, '🌐 Язык');   // старая кнопка
+  assert.equal(t.last('sendMessage', 501).text, 'Til: o‘zbekcha ✅');
+  assert.deepEqual(t.last('sendMessage', 501).reply_markup.keyboard, [['📍 Joriy manzil'], ['☰ Yana']]);
+  t.msg(501, '🏁 Закончить работу');   // старая кнопка на другом языке
+  assert.match(t.last('sendMessage', 501).text, /Ishni tugatish uchun joylashuvingizni yuboring/);
+});
+
+test('один экран: «☰ Ещё» — для открытой точки ожидание, номера клиента и Google Maps; всегда проблема и язык; в рабочий день — конец дня', () => {
+  const t = approved({ TG_MORNING: 'off' });
+  t.msg(501, '☰ Ещё');
+  let m = t.last('sendMessage', 501);
+  assert.equal(m.text, 'Что ещё? 👇');
+  assert.deepEqual(m.reply_markup.inline_keyboard.map(r => r[0].callback_data), ['prob', 'lang'], 'без рабочего дня — только проблема и язык');
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  t.cb(501, 'more');
+  m = t.last('sendMessage', 501);
+  assert.deepEqual(m.reply_markup.inline_keyboard.map(r => r[0].callback_data || r[0].url), ['wait:BL-901|1', 'tels', 'https://www.google.com/maps/dir/?api=1&destination=41.31,69.21&travelmode=driving', 'prob', 'end', 'lang']);
+  assert.deepEqual(m.reply_markup.inline_keyboard.map(r => r[0].text), ['⏳ Жду клиента', '☎️ Номера клиента', '🧭 Google Maps', '⚠️ Проблема', '🏁 Закончить работу', '🌐 Язык']);
+  t.cb(501, 'tels');
+  assert.equal(t.last('sendMessage', 501).text, '☎️ Номера BL-901:\n+998900000001 — Aziz');
+  t.cb(501, 'prob');
+  assert.equal(t.last('sendMessage', 501).text, 'Что случилось?');
+  t.cb(501, 'lang');
+  assert.equal(t.last('sendMessage', 501).text, 'Til: o‘zbekcha ✅');
+  t.cb(501, 'end');
+  assert.match(t.last('sendMessage', 501).text, /Ishni tugatish uchun/);
 });
