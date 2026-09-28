@@ -18,8 +18,8 @@ const call = (extra = {}) => ({ token: '', login: 'buraq', ai: { action: 'call',
 test('проверка связи: ключ из свойств, модель по умолчанию, инструмент strict и tool_choice на него, запись в журнал', () => {
   const s = loadScript({ props: { ANTHROPIC_API_KEY: 'sk-test' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
   const r = s.post(ping());
-  assert.equal(r.ok, true); assert.equal(r.v, 18); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
-  assert.equal(r.mode, 'tool'); assert.equal(r.editorSet, false); assert.deepEqual(r.usage, { in: 120, cache: 0, out: 30 });
+  assert.equal(r.ok, true); assert.equal(r.v, 19); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
+  assert.equal(r.mode, 'tool'); assert.equal(r.editorSet, true); assert.deepEqual(r.usage, { in: 120, cache: 0, out: 30 });
   const c = s.calls[0];
   assert.equal(c.url, 'https://api.anthropic.com/v1/messages');
   assert.equal(c.opts.headers['x-api-key'], 'sk-test'); assert.equal(c.opts.headers['anthropic-version'], '2023-06-01');
@@ -40,7 +40,8 @@ test('нет ключа — в ошибке имена свойств, кото�
   const r = s.post(ping({ editor: 'ed-secret' }));
   assert.equal(r.code, 'nokey'); assert.match(r.error, /Сохранить свойства скрипта/); assert.match(r.error, /видит свойства: EDITOR_TOKEN, AI_MODEL/);
   assert.doesNotMatch(r.error, /ed-secret/);
-  assert.match(loadScript({ sheets: book() }).post(ping()).error, /не видит ни одного свойства/);
+  const bare = loadScript({ sheets: book() }).post(ping()).error;   // TOKEN и EDITOR_TOKEN теперь есть всегда (версия 19)
+  assert.match(bare, /видит свойства: TOKEN, EDITOR_TOKEN\./); assert.doesNotMatch(bare, /pw-test|ed-test/);
 });
 
 test('имя свойства в другом регистре или с пробелами и ключ под другим именем — находятся', () => {
@@ -50,7 +51,7 @@ test('имя свойства в другом регистре или с про�
     assert.equal(r.ok, true, JSON.stringify(props)); assert.equal(s.calls[0].opts.headers['x-api-key'], 'sk-ant-1');
   }
   const s = loadScript({ props: { ANTHROPIC_API_KEY: 'k', ' editor_token': 'ed-secret\n', ai_model: ' claude-opus-5-5 ' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
-  assert.equal(s.post(ping()).code, 'editor');
+  assert.equal(s.post(ping({ editor: '' })).code, 'editor');
   const r = s.post(ping({ editor: 'ed-secret' }));
   assert.equal(r.editorSet, true); assert.equal(r.model, 'claude-opus-5-5');
 });
@@ -68,7 +69,7 @@ test('нет разрешения на внешние запросы — под�
 
 test('секрет редактора: без него и с неверным — отказ; с верным — вызов', () => {
   const s = loadScript({ props: { ANTHROPIC_API_KEY: 'k', EDITOR_TOKEN: 'ed-secret' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
-  assert.equal(s.post(ping()).code, 'editor');
+  assert.equal(s.post(ping({ editor: '' })).code, 'editor');
   assert.equal(s.post(ping({ editor: 'чужой' })).code, 'editor');
   assert.equal(s.calls.length, 0);
   const r = s.post(ping({ editor: 'ed-secret' }));
@@ -80,7 +81,7 @@ test('пароль скрипта из свойства TOKEN проверяет
   assert.equal(s.post(ping({ token: 'x' })).error, 'Неверный пароль');
   assert.equal(s.get({ token: 'x' }).error, 'Неверный пароль');
   assert.equal(s.post(ping({ token: 'pw' })).ok, true);
-  assert.equal(s.get({ token: 'pw' }).v, 18);
+  assert.equal(s.get({ token: 'pw' }).v, 19);
 });
 
 test('Opus 5.5 и Fable 5.1 не принимают принудительный tool_choice — схема уходит через output_config.format', () => {
@@ -196,4 +197,114 @@ test('даты, которые прежний код уже записал со 
   // второй раз не трогает: даже если кто-то вписал время руками
   s.book.sheets.Yuborishlar.rows[5][0] = tash(2026, 9, 28, 23);
   assert.ok(Math.abs(s.get({ token: 'pw' }).data.sheets.Yuborishlar[5][0] - (46293 + 23 / 24)) < 1e-6, 'повторно не исправляет');
+});
+
+// ── версия 19: без пароля скрипт закрыт ──
+import { TEST_TOKEN, TEST_EDITOR } from './gs-mock.mjs';
+const noFetch = () => { throw new Error('внешний запрос не должен уходить'); };
+
+test('версия 19: без свойства TOKEN скрипт никого не пускает — «Задайте TOKEN…», данные и ИИ не отдаются', () => {
+  const s = loadScript({ auth: false, props: { ANTHROPIC_API_KEY: 'k', EDITOR_TOKEN: 'ed' }, sheets: book(), fetch: noFetch });
+  for (const r of [s.rawGet({}), s.rawGet({ token: 'что-угодно' }), s.rawGet({ resolve: 'https://maps.app.goo.gl/x' }), s.rawPost({ ops: [] }), s.rawPost(ping({ token: '', editor: 'ed' })), s.rawPost({ token: 'x', tg: { action: 'setup' }, editor: 'ed' })]) {
+    assert.equal(r.code, 'nopass', JSON.stringify(r)); assert.match(r.error, /^Задайте TOKEN в свойствах скрипта/); assert.equal(r.v, 19);
+    assert.equal(r.data, undefined); assert.equal(r.ok, undefined);
+  }
+  assert.equal(s.calls.length, 0, 'ни ИИ, ни раскрытия ссылок');
+  assert.equal(s.book.sheets.Yuborishlar.rows.length, 4, 'запись в таблицу не прошла');
+  assert.equal(s.rawPost({ token: '', ops: [{ t: 'ship.upsert', v: { date: '2026-09-28', bl: 'BL-1', cbm: 1, kg: 1, places: 1, truck: 'Gazel-1', route: 1, status: 'Rejada', note: '' } }] }).code, 'nopass');
+  assert.equal(s.book.sheets.Yuborishlar.rows.length, 4);
+});
+
+test('версия 19: TOKEN задан — без пароля и с чужим «Неверный пароль» (code pass); свойство находится и в другом регистре', () => {
+  const s = loadScript({ auth: false, props: { ' token ': ' pw \n', EDITOR_TOKEN: 'ed' }, sheets: book(), fetch: noFetch });
+  for (const r of [s.rawGet({}), s.rawGet({ token: '' }), s.rawGet({ token: 'PW' }), s.rawPost({ ops: [] }), s.rawPost({ token: 'x', ops: [] })]) {
+    assert.deepEqual([r.error, r.code, r.v, r.data], ['Неверный пароль', 'pass', 19, undefined]);
+  }
+  const ok = s.rawGet({ token: 'pw' });
+  assert.equal(ok.ok, true); assert.ok(ok.data.sheets.Yuborishlar);
+  assert.equal(s.rawPost({ token: 'pw', ops: [] }).ok, true);
+});
+
+test('версия 19: обновления Telegram (?tg=) и фото с камеры водителя проверяются своей подписью, TOKEN им не нужен', () => {
+  const sent = [];
+  const s = loadScript({ auth: false, props: { TG_TOKEN: '123:ABC', TG_SECRET: 'hook-secret' }, sheets: book(), fetch: (req, o, n, url) => { sent.push(url); return { body: { ok: true, result: { message_id: 1 } } }; } });
+  const out = s.tgPost({ update_id: 1, message: { message_id: 1, from: { id: 501, first_name: 'Akmal' }, chat: { id: 501, type: 'private' }, text: '/start' } });
+  assert.deepEqual(out, { html: 'ok' }); assert.ok(sent.some(u => /sendMessage$/.test(u)), 'бот ответил без TOKEN');
+  const n = sent.length;
+  s.tgPost({ update_id: 2, message: { message_id: 2, from: { id: 501 }, chat: { id: 501, type: 'private' }, text: '/start' } }, 'чужой');
+  assert.equal(sent.length, n, 'с чужим секретом — не обрабатывается');
+  const ph = s.rawPost({ tgphoto: { init: 'испорчено', key: 'BL-1|1', ping: 1 } });
+  assert.notEqual(ph.code, 'nopass'); assert.ok(ph.error, 'фото: отказ по подписи Telegram, а не по TOKEN');
+});
+
+test('версия 19: без EDITOR_TOKEN — отказ ИИ и боту с сайта («Задайте EDITOR_TOKEN…»), а не доступ по паролю таблицы', () => {
+  const s = loadScript({ auth: false, props: { TOKEN: 'pw', ANTHROPIC_API_KEY: 'k', TG_TOKEN: '123:ABC' }, sheets: book(), fetch: noFetch });
+  for (const r of [s.rawPost(ping({ token: 'pw' })), s.rawPost(ping({ token: 'pw', editor: 'любой' })), s.rawPost({ token: 'pw', tg: { action: 'setup', url: 'https://script.google.com/macros/s/A/exec' } }),
+    s.rawPost({ token: 'pw', editor: '', tg: { action: 'dispatch', date: '2026-09-28' } })]) {
+    assert.equal(r.code, 'noeditor', JSON.stringify(r)); assert.match(r.error, /^Задайте EDITOR_TOKEN в свойствах скрипта/); assert.equal(r.v, 19);
+  }
+  assert.equal(s.calls.length, 0, 'ни Claude, ни Telegram');
+  assert.equal(s.book.sheets['ИИ-журнал'], undefined, 'в журнал ИИ ничего не записано');
+  // с EDITOR_TOKEN: пустой и чужой — «editor», свой — работает
+  const e = loadScript({ auth: false, props: { TOKEN: 'pw', EDITOR_TOKEN: 'ed', ANTHROPIC_API_KEY: 'k' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
+  assert.equal(e.rawPost(ping({ token: 'pw', editor: '' })).code, 'editor'); assert.equal(e.rawPost(ping({ token: 'pw', editor: 'ED' })).code, 'editor');
+  assert.equal(e.rawPost(ping({ token: 'pw', editor: 'ed' })).ok, true);
+});
+
+// ── раскрытие ссылок на карту: только Google Карты, goo.gl, Яндекс Карты, 2ГИС ──
+function mapScript(routes) {
+  const s = loadScript({ sheets: book(), fetch: (req, o, n, url) => { const r = routes[url]; if (!r) throw new Error('непредусмотренный запрос: ' + url); return r; } });
+  s.resolve = link => s.get({ resolve: link });
+  s.urls = () => s.calls.map(c => c.url);
+  return s;
+}
+const to = loc => ({ status: 302, headers: { Location: loc }, body: '' });
+
+test('версия 19: чужие адреса не открываются — ни исходная ссылка, ни с «логин@», портом или путём не /maps', () => {
+  const s = mapScript({});
+  for (const bad of ['https://evil.example/x', 'http://169.254.169.254/latest/meta-data', 'https://maps.google.com@evil.example/x', 'https://maps.google.com.evil.example/maps',
+    'https://www.google.com/search?q=1', 'https://yandex.ru/search?text=1', 'https://maps.google.com:8080/x', 'https://evil.example/?u=https://maps.google.com', 'ftp://maps.google.com/x',
+    'https://maps.google.com\\@evil.example/', 'https://docs.google.com/maps/x', 'javascript:alert(1)']) {
+    const r = s.resolve(bad);
+    assert.equal(r.code, 'host', bad + ' → ' + JSON.stringify(r)); assert.match(r.error, /не ссылка на карту/);
+  }
+  assert.equal(s.calls.length, 0, 'ни одного внешнего запроса');
+});
+
+test('версия 19: короткие ссылки Google, goo.gl, Яндекс и 2ГИС раскрываются, в том числе по относительной переадресации', () => {
+  const s = mapScript({
+    'https://maps.app.goo.gl/abc': to('https://www.google.com/maps/place/@41.311,69.279,17z'),
+    'https://www.google.com/maps/place/@41.311,69.279,17z': { body: '<html></html>' },
+    'https://goo.gl/maps/xyz': to('https://maps.app.goo.gl/abc2'),
+    'https://maps.app.goo.gl/abc2': to('/maps/place/@41.3,69.2,17z'),
+    'https://maps.app.goo.gl/maps/place/@41.3,69.2,17z': to('https://maps.google.com/?q=41.3,69.2'),
+    'https://maps.google.com/?q=41.3,69.2': { body: '' },
+    'https://yandex.uz/maps/-/CDabc': to('https://yandex.uz/maps/10335/tashkent/?ll=69.2%2C41.3&z=17'),
+    'https://yandex.uz/maps/10335/tashkent/?ll=69.2%2C41.3&z=17': { body: '"coordinates":[69.2,41.3]' },
+    'https://go.2gis.com/k1': to('https://2gis.uz/tashkent/geo/70000001/69.2,41.3'),
+    'https://2gis.uz/tashkent/geo/70000001/69.2,41.3': { body: '' }
+  });
+  let r = s.resolve('https://maps.app.goo.gl/abc');
+  assert.equal(r.ok, true); assert.deepEqual(r.hops, ['https://maps.app.goo.gl/abc', 'https://www.google.com/maps/place/@41.311,69.279,17z']);
+  r = s.resolve('https://goo.gl/maps/xyz');
+  assert.equal(r.ok, true); assert.equal(r.url, 'https://maps.google.com/?q=41.3,69.2'); assert.equal(r.hops.length, 4);
+  r = s.resolve('https://yandex.uz/maps/-/CDabc');
+  assert.equal(r.ok, true); assert.deepEqual(r.ll, [41.3, 69.2]);
+  r = s.resolve('https://go.2gis.com/k1');
+  assert.equal(r.ok, true); assert.equal(r.url, 'https://2gis.uz/tashkent/geo/70000001/69.2,41.3');
+});
+
+test('версия 19: переадресация на чужой адрес не открывается — ни полная, ни «//хост», ни на Яндекс не /maps', () => {
+  const s = mapScript({
+    'https://maps.app.goo.gl/a': to('https://evil.example/steal'),
+    'https://maps.app.goo.gl/b': to('//evil.example/steal'),
+    'https://goo.gl/c': to('https://maps.app.goo.gl/d'),
+    'https://maps.app.goo.gl/d': to('http://169.254.169.254/'),
+    'https://yandex.ru/maps/-/e': to('https://yandex.ru/showcaptcha?retpath=x')
+  });
+  for (const [link, host] of [['https://maps.app.goo.gl/a', 'evil.example'], ['https://maps.app.goo.gl/b', 'evil.example'], ['https://goo.gl/c', '169.254.169.254'], ['https://yandex.ru/maps/-/e', 'yandex.ru']]) {
+    const r = s.resolve(link);
+    assert.equal(r.code, 'host', link); assert.match(r.error, new RegExp('ведёт не на карту \\(' + host.replace(/\./g, '\\.') + '\\)'));
+  }
+  assert.ok(!s.urls().some(u => /evil|169\.254|showcaptcha/.test(u)), 'чужие адреса не запрашивались: ' + s.urls().join(' '));
 });

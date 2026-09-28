@@ -1228,8 +1228,10 @@ function tgSiteLocked_(body) {
   try { return tgSite_(body); } finally { lock.releaseLock(); }
 }
 function tgSite_(body) {
-  var editor = prop_('EDITOR_TOKEN'), a = body.tg || {};
-  if (editor && body.editor !== editor) return { error: 'Бот настраивает только руководитель: секрет редактора не подходит', code: 'editor', v: VERSION };
+  var a = body.tg || {};
+  // без EDITOR_TOKEN — отказ (версия 19; раньше бота с сайта мог настраивать любой, кто знает пароль таблицы)
+  var deny = editor_(body.editor, 'Бот настраивает только руководитель: секрет редактора не подходит');
+  if (deny) return deny;
   if (!prop_('TG_TOKEN')) return { error: 'В свойствах скрипта нет TG_TOKEN — впишите токен бота от @BotFather и нажмите «Сохранить свойства скрипта». ' + propNames_(), code: 'notoken', v: VERSION };
   var p = props_();
   // адрес сайта (кнопка камеры открывает его driver.html) и ссылка веб-приложения — с каждого запроса сайта

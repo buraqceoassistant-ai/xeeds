@@ -36,7 +36,16 @@ class Sheet {
   deleteRow(r) { this.rows.splice(r - 1, 1); }
 }
 
-export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
+// Пароль скрипта и секрет редактора обязательны (версия 19). Если тест их не задал, заглушка задаёт свои (TEST_TOKEN,
+// TEST_EDITOR), а post/get подставляют их в запрос: пароль — если он пустой или не указан, секрет — если поля editor нет.
+// Проверки «без пароля / без секрета» — через auth: false (свойств нет) и rawPost/rawGet (без подстановки).
+export const TEST_TOKEN = 'pw-test', TEST_EDITOR = 'ed-test';
+const norm = k => String(k).trim().toUpperCase().replace(/[\s-]+/g, '_');
+export function loadScript({ props = {}, sheets = {}, fetch, now, auth = true } = {}) {
+  const has = name => Object.keys(props).some(k => norm(k) === name && String(props[k]).trim());
+  if (auth && !has('TOKEN')) props.TOKEN = TEST_TOKEN;
+  if (auth && !has('EDITOR_TOKEN')) props.EDITOR_TOKEN = TEST_EDITOR;
+  const pv = name => { const k = Object.keys(props).find(x => norm(x) === name && String(props[x]).trim()); return k ? String(props[k]).trim() : ''; };
   // «сейчас» для скрипта: new Date() без аргументов — now.value (если задано)
   class MockDate extends Date { constructor(...a) { if (!a.length && now && now.value) super(now.value.getTime()); else super(...a); } static now() { return now && now.value ? now.value.getTime() : Date.now(); } static [Symbol.hasInstance](x) { return x instanceof Date; } }
   const book = { name: 'Тест', sheets: Object.fromEntries(Object.entries(sheets).map(([n, s]) => [n, new Sheet(n, s.rows || [], s.maxCols || 26)])) };
@@ -50,7 +59,7 @@ export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
   const ctx = {
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] ?? null, getProperties: () => ({ ...props }), setProperty: (k, v) => { props[k] = String(v); }, deleteProperty: k => { delete props[k]; } }) },
     UrlFetchApp: { fetch: (url, opts = {}) => { const req = typeof opts.payload === 'string' ? JSON.parse(opts.payload) : opts.payload || null; /* объект — multipart (фото) */ calls.push({ url, opts, req }); const r = fetch(req, opts, calls.length, url); if (r instanceof Error) throw r;
-      return { getResponseCode: () => r.status ?? 200, getContentText: () => typeof r.body === 'string' ? r.body : JSON.stringify(r.body), getAllHeaders: () => ({}),
+      return { getResponseCode: () => r.status ?? 200, getContentText: () => typeof r.body === 'string' ? r.body : JSON.stringify(r.body), getAllHeaders: () => r.headers || {},
         getBlob: () => { const b = { name: '', bytes: r.body, setName(n) { b.name = n; return b; } }; return b; } }; } },
     SpreadsheetApp: {
       getActiveSpreadsheet: () => ({ getName: () => book.name, getSpreadsheetTimeZone: () => 'Asia/Tashkent', getSheetByName: n => book.sheets[n] || null,
@@ -81,9 +90,12 @@ export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
   };
   vm.createContext(ctx);
   vm.runInContext(readFileSync(new URL('../tools/gs/Code.gs', import.meta.url), 'utf8') + '\n' + readFileSync(new URL('../tools/gs/Bot.gs', import.meta.url), 'utf8'), ctx);
-  const post = body => JSON.parse(ctx.doPost({ postData: { contents: typeof body === 'string' ? body : JSON.stringify(body) } }).text);
-  const get = (params = {}) => JSON.parse(ctx.doGet({ parameter: params }).text);
+  const rawPost = body => JSON.parse(ctx.doPost({ postData: { contents: typeof body === 'string' ? body : JSON.stringify(body) } }).text);
+  const rawGet = (params = {}) => JSON.parse(ctx.doGet({ parameter: params }).text);
+  const fill = b => ({ ...b, token: b.token === undefined || b.token === '' ? pv('TOKEN') : b.token, ...(b.editor === undefined && (b.ai || b.tg) ? { editor: pv('EDITOR_TOKEN') } : {}) });
+  const post = body => rawPost(typeof body === 'string' ? body : fill(body));
+  const get = (params = {}) => rawGet({ ...params, token: params.token === undefined || params.token === '' ? pv('TOKEN') : params.token });
   // обновление от Telegram: doPost с ?tg=<секрет>
   const tgPost = (update, secret = props.TG_SECRET) => ctx.doPost({ parameter: { tg: secret }, postData: { contents: JSON.stringify(update) } });
-  return { ctx, book, calls, logs, post, get, tgPost, files, props, cache, triggers };
+  return { ctx, book, calls, logs, post, get, rawPost, rawGet, tgPost, files, props, cache, triggers };
 }

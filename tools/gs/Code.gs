@@ -7,14 +7,14 @@
  * Если сайт пишет про разрешение UrlFetchApp (script.external_request): выберите вверху функцию authorize →
  * ▶ Выполнить → Проверить разрешения → ваш аккаунт → Дополнительные настройки → Перейти к проекту →
  * отметьте все галочки («Выбрать все») → Продолжить.
- * Пароль (необязательно): впишите его ниже в кавычки и тот же пароль на сайте.
- * Удобнее — в свойства скрипта: ⚙ Настройки проекта → Свойства скрипта → TOKEN.
- * Тогда при обновлении кода пароль вписывать заново не нужно.
+ * Пароль (обязательно с версии 19): ⚙ Настройки проекта → Свойства скрипта → TOKEN = пароль таблицы, тот же пароль —
+ * на сайте («Настройки» → «Связь» → «Пароль скрипта»). Без TOKEN скрипт никого не пускает. Можно и в код ниже, в кавычки,
+ * но тогда при каждом обновлении кода его придётся вписывать заново.
  *
  * ИИ-импорт манифестов (версия 8) — там же, в свойствах скрипта:
  *   ANTHROPIC_API_KEY — ключ Claude API (platform.claude.com → API keys); на сайт он не попадает;
  *   AI_MODEL          — модель, например claude-sonnet-5 (пусто — claude-sonnet-5);
- *   EDITOR_TOKEN      — секрет редактора: без него ИИ не вызвать (сайт хранит его только у руководителя).
+ *   EDITOR_TOKEN      — секрет редактора: без него ИИ и бот с сайта не работают (сайт хранит его только у руководителя).
  * Каждый вызов записывается в лист «ИИ-журнал».
  *
  * Телеграм-бот для водителей (версия 9) — свойство TG_TOKEN (токен от @BotFather), затем на сайте
@@ -38,9 +38,12 @@
  *   «задание изменилось» после последней порции, а перед «Отправить» — только само задание. «Отправить всем» не повторяет
  *   тот же план тому, кто его уже получил (в том числе утром) или уже везёт; кто везёт — не сбрасывается на начало.
  *   «Новое задание» и «Рейсы изменились» — одним сообщением с карточкой точки. Действия сайта с ботом — под блокировкой.
+ * Версия 19: без пароля скрипт закрыт. Свойство TOKEN обязательно (без него — ошибка «Задайте TOKEN…»), EDITOR_TOKEN —
+ *   для ИИ и бота с сайта; раскрытие ссылок на карту ходит только на Google Карты, goo.gl, Яндекс Карты и 2ГИС (и по
+ *   переадресациям тоже). Обновление Telegram (?tg=) и фото с камеры водителя проверяются, как раньше, своей подписью.
  */
 var TOKEN = '';
-var VERSION = 18; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 19; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 var COLS = { ship: 16, cli: 25, wh: 8, set: 4, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера машин
@@ -92,7 +95,21 @@ function propNames_() {
   var n = Object.keys(props_().getProperties());
   return n.length ? 'Скрипт видит свойства: ' + n.join(', ') + '.' : 'Скрипт не видит ни одного свойства: проверьте, что они сохранены в проекте этой таблицы (Расширения → Apps Script).';
 }
-function token_() { return String(props_().getProperty('TOKEN') || TOKEN || ''); }
+function token_() { return prop_('TOKEN') || String(TOKEN || '').trim(); }
+// Пароль скрипта обязателен (версия 19): без TOKEN — отказ всем, а не доступ всем. null — можно
+function access_(given) {
+  var tk = token_();
+  if (!tk) return { error: 'Задайте TOKEN в свойствах скрипта: Apps Script → ⚙ Настройки проекта → Свойства скрипта → TOKEN = пароль таблицы → «Сохранить свойства скрипта». Тот же пароль — на сайте: «Настройки» → «Связь» → «Пароль скрипта».', code: 'nopass', v: VERSION };
+  if (String(given == null ? '' : given) !== tk) return { error: 'Неверный пароль', code: 'pass', v: VERSION };
+  return null;
+}
+// Секрет редактора обязателен (версия 19) для ИИ и бота с сайта: без EDITOR_TOKEN — отказ. wrong — текст для неверного секрета
+function editor_(given, wrong) {
+  var ed = prop_('EDITOR_TOKEN');
+  if (!ed) return { error: 'Задайте EDITOR_TOKEN в свойствах скрипта: без секрета редактора ИИ-импорт и бот с сайта не работают. Секрет — на сайте: «Настройки» → «Связь» → «ИИ-импорт манифестов» → «Показать секрет» → «Скопировать».', code: 'noeditor', v: VERSION };
+  if (String(given == null ? '' : given) !== ed) return { error: wrong, code: 'editor', v: VERSION };
+  return null;
+}
 
 // Запустите один раз из редактора (▶ Выполнить): Google спросит разрешения скрипта, в том числе на внешние запросы
 // (Claude API, раскрытие ссылок на карту). Без этого веб-приложение не может вызвать UrlFetchApp.
@@ -106,18 +123,19 @@ function authorize() {
 }
 
 function doGet(e) {
-  var p = (e && e.parameter) || {}, tk = token_();
-  if (tk && p.token !== tk) return json_({ error: 'Неверный пароль' });
+  var p = (e && e.parameter) || {}, deny = access_(p.token);
+  if (deny) return json_(deny);
   if (p.resolve || p.geo) return json_(locate_(p));
   return json_({ ok: true, v: VERSION, data: dump_(p.tgdays) });
 }
 
 function doPost(e) {
   if (e && e.parameter && e.parameter.tg) return tgWebhook_(e);   // обновление от Telegram (ссылка с секретом бота)
-  var raw = (e && e.postData && e.postData.contents) || '{}', body = {}, tk = token_();
+  var raw = (e && e.postData && e.postData.contents) || '{}', body = {};
   try { body = JSON.parse(raw); } catch (err) { return json_({ error: 'Плохой запрос' }); }
   if (body.tgphoto) return json_(tgPhotoUpload_(body.tgphoto));   // фото с камеры водителя: вход по подписи Telegram
-  if (tk && body.token !== tk) return json_({ error: 'Неверный пароль' });
+  var deny = access_(body.token);
+  if (deny) return json_(deny);
   if (body.ai) return json_(ai_(body, raw.length));   // ИИ — без блокировки таблицы и без выгрузки данных
   if (body.tg) return json_(tgSiteLocked_(body));   // бот: подключить, водители, отправка
   var lock = LockService.getScriptLock();
@@ -131,20 +149,47 @@ function doPost(e) {
   return json_({ ok: true, v: VERSION, results: results, data: dump_(body.tgdays) });
 }
 
+// Ссылки на карту (версия 19): скрипт открывает только Google Карты, goo.gl, Яндекс Карты и 2ГИС — и исходную ссылку,
+// и каждый адрес переадресации. Иначе через «раскрыть ссылку» скрипт открывал бы любой адрес от имени владельца таблицы.
+// Хост — только буквы, цифры, точки и дефисы (без «логин@», обратных слэшей и чужих портов); у google.* и yandex.* — путь /maps.
+function mapUrlOk_(u) {
+  var m = String(u || '').match(/^https?:\/\/([a-z0-9.-]+?)\.?(?::(?:80|443))?(?=[\/?#]|$)(.*)$/i);
+  if (!m) return false;
+  var h = m[1].toLowerCase(), path = m[2] || '/', maps = /^\/maps(?:[\/?#]|$)/.test(path);
+  if (h === 'goo.gl' || h === 'maps.app.goo.gl') return true;
+  if (/^maps\.google\.[a-z]{2,3}(?:\.[a-z]{2})?$/.test(h)) return true;
+  if (/^(?:www\.)?google\.[a-z]{2,3}(?:\.[a-z]{2})?$/.test(h)) return maps;
+  if (/^maps\.yandex\.(?:ru|uz|com|kz|by)$/.test(h)) return true;
+  if (/^(?:www\.)?yandex\.(?:ru|uz|com|kz|by|com\.tr)$/.test(h)) return maps;
+  return /^(?:www\.)?2gis\.(?:ru|uz|kz|kg|com|ae)$/.test(h) || h === 'go.2gis.com';
+}
+// адрес из заголовка Location: полный, «//хост/…» или путь на том же хосте
+function mapNext_(from, loc) {
+  loc = String(loc || '').trim();
+  if (/^https?:\/\//i.test(loc)) return loc;
+  var base = from.match(/^(https?:)(\/\/[^\/?#]+)/i);
+  if (/^\/\//.test(loc)) return base[1] + loc;
+  return base[1] + base[2] + (loc.charAt(0) === '/' ? '' : '/') + loc;
+}
+
 // Ссылка на карту → куда она ведёт; координаты → адрес. Короткие ссылки (maps.app.goo.gl, yandex…/maps/-/…)
 // раскрываются здесь: браузер этого сделать не может. Адрес — геокодер Google Карт, на узбекском.
 function locate_(p) {
   var out = { ok: true, v: VERSION };
   if (p.resolve) {
     var u = String(p.resolve).trim(), hops = [], html = '';
-    if (!/^https?:\/\//i.test(u)) return { error: 'Это не ссылка' };
+    if (!mapUrlOk_(u)) return { error: 'Это не ссылка на карту: подходят только Google Карты, Яндекс Карты и 2ГИС', code: 'host', v: VERSION };
     for (var i = 0; i < 6; i++) {
       hops.push(u);
       var r = UrlFetchApp.fetch(u, { followRedirects: false, muteHttpExceptions: true,
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36', 'Accept-Language': 'ru,uz;q=0.9,en;q=0.5' } });
       var code = r.getResponseCode(), h = r.getAllHeaders(), loc = h.Location || h.location;
       if (loc && loc.join) loc = loc[0];
-      if (code >= 300 && code < 400 && loc) { u = /^https?:/i.test(loc) ? loc : u.replace(/^(https?:\/\/[^\/]+).*$/, '$1') + (loc.charAt(0) === '/' ? '' : '/') + loc; continue; }
+      if (code >= 300 && code < 400 && loc) {
+        var next = mapNext_(u, loc);
+        if (!mapUrlOk_(next)) return { error: 'Ссылка ведёт не на карту (' + (next.match(/^https?:\/\/([^\/?#]*)/i) || ['', next])[1].slice(0, 60) + ') — откройте её в браузере и вставьте полную ссылку на место', code: 'host', v: VERSION, hops: hops };
+        u = next; continue;
+      }
       if (code === 200) html = r.getContentText();
       break;
     }
@@ -399,9 +444,10 @@ var AI_LOG = 'ИИ-журнал';
 var AI_HEAD = ['Время', 'Пользователь', 'Файл', 'Черновик', 'Действие', 'Модель', 'Часть', 'Токены: вход', 'Токены: кэш', 'Токены: выход', 'Ответ, мс', 'Итог', 'Данные'];
 
 function ai_(body, size) {
-  var editor = prop_('EDITOR_TOKEN'), a = body.ai || {};
-  // без EDITOR_TOKEN ИИ доступен по обычному паролю скрипта; сайт предупредит, что его может вызвать и вход «только просмотр»
-  if (editor && body.editor !== editor) return { error: 'ИИ-импорт доступен только руководителю: секрет редактора не подходит', code: 'editor', v: VERSION };
+  var a = body.ai || {}, editor = prop_('EDITOR_TOKEN');
+  // без EDITOR_TOKEN — отказ (версия 19; раньше ИИ был доступен всем, кто знает пароль таблицы, в том числе «только просмотр»)
+  var deny = editor_(body.editor, 'ИИ-импорт доступен только руководителю: секрет редактора не подходит');
+  if (deny) return deny;
   var key = apiKey_(), model = prop_('AI_MODEL') || AI_DEFAULT_MODEL;
   var info = { v: VERSION, model: model, editorSet: !!editor, keySet: !!key };
   if (a.action === 'log') { aiLog_(body, a, model, null, 0); return merge_(info, { ok: true }); }
