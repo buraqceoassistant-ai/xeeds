@@ -53,7 +53,7 @@ Google Таблица	Google Jadval
 Google Таблица:	Google Jadval:
 Загружаю данные из таблицы…	Jadvaldan ma’lumotlarni yuklayapman…
 Записываю изменения в таблицу…	O‘zgarishlarni jadvalga yozyapman…
-Обновите код скрипта в таблице: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → Управление развертываниями → ✎ → Версия: новая. Без этого часть настроек не записывается в таблицу	Jadvaldagi skript kodini yangilang: «Ulanish sozlamalari» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → Manage deployments → ✎ → Version: New. Busiz sozlamalarning bir qismi jadvalga yozilmaydi
+Обновите код скрипта в таблице: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → Управление развертываниями → ✎ → Версия: новая. Без этого часть настроек не записывается в таблицу	Jadvaldagi skript kodini yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → Manage deployments → ✎ → Version: New. Busiz sozlamalarning bir qismi jadvalga yozilmaydi
 Синхронизировано	Sinxronlandi
 Синхронизировано {s}	Sinxronlandi {s}
 · одна таблица на всех устройствах	· barcha qurilmalarda bitta jadval
@@ -192,8 +192,8 @@ BL код	BL kod
 необязательно	ixtiyoriy
 из справочника	ma’lumotnomadan
 Или откройте ссылку в браузере и вставьте полную ссылку из адресной строки.	Yoki havolani brauzerda oching va manzil qatoridagi to‘liq havolani qo‘ying.
-Короткую ссылку раскрывает скрипт Google Таблицы — подключите таблицу («Настройки связи»).	Qisqa havolani Google Jadval skripti ochadi — jadvalni ulang («Ulanish sozlamalari»).
-Короткую ссылку раскрывает скрипт Google Таблицы — обновите его код: «Настройки связи» → «Скопировать код».	Qisqa havolani Google Jadval skripti ochadi — uning kodini yangilang: «Ulanish sozlamalari» → «Kodni nusxalash».
+Короткую ссылку раскрывает скрипт Google Таблицы — подключите таблицу («Настройки» → «Связь»).	Qisqa havolani Google Jadval skripti ochadi — jadvalni ulang («Sozlamalar» → «Ulanish»).
+Короткую ссылку раскрывает скрипт Google Таблицы — обновите его код: «Настройки» → «Связь» → «Скопировать код».	Qisqa havolani Google Jadval skripti ochadi — uning kodini yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash».
 Не удалось открыть ссылку:	Havolani ochib bo‘lmadi:
 , по короткой ссылке	, qisqa havola bo‘yicha
 со страницы карты	xarita sahifasidan
@@ -816,10 +816,10 @@ Gazel (тяжёлый)	Gazel (og‘ir)
 Claude разбирает любой формат, в том числе сканы, и предлагает клиентов для незнакомых маркировок. Нужен ключ Claude API — платно, центы за манифест.	Claude har qanday formatni, jumladan skanlarni ham tahlil qiladi va notanish markirovkalar uchun mijozlarni taklif qiladi. Claude API kaliti kerak — pullik, manifest uchun sentlar.
 Excel (.xlsx) или PDF с текстом · до 10 МБ, PDF — до 30 страниц	Excel (.xlsx) yoki matnli PDF · 10 MB gacha, PDF — 30 sahifagacha
 Excel (.xlsx) или PDF, в том числе скан · до 10 МБ, PDF — до 30 страниц	Excel (.xlsx) yoki PDF, jumladan skan · 10 MB gacha, PDF — 30 sahifagacha
-Подключите Google Таблицу (полоса над журналом → «Настройки связи»): ИИ работает через её скрипт.	Google Jadvalni ulang (jurnal ustidagi chiziq → «Ulanish sozlamalari»): SI uning skripti orqali ishlaydi.
-Обновите код скрипта таблицы до версии 8 и впишите ключ Claude API в свойства скрипта: «Настройки связи» → «ИИ-импорт манифестов».	Jadval skripti kodini 8-versiyagacha yangilang va Claude API kalitini skript xususiyatlariga yozing: «Ulanish sozlamalari» → «Manifestlarni SI orqali import».
-Секрет редактора закрыт на этом устройстве: «Настройки связи» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».	Muharrir kaliti shu qurilmada yopiq: «Ulanish sozlamalari» → «Manifestlarni SI orqali import» → kirish paroli → «Kalitni ochish».
-Секрет редактора не задан: «Настройки связи» → «ИИ-импорт манифестов» → «Новый секрет редактора».	Muharrir kaliti berilmagan: «Ulanish sozlamalari» → «Manifestlarni SI orqali import» → «Yangi muharrir kaliti».
+Подключите Google Таблицу («Настройки» → «Связь»): ИИ работает через её скрипт.	Google Jadvalni ulang («Sozlamalar» → «Ulanish»): SI uning skripti orqali ishlaydi.
+Обновите код скрипта таблицы до версии 8 и впишите ключ Claude API в свойства скрипта: «Настройки» → «Связь» → «ИИ-импорт манифестов».	Jadval skripti kodini 8-versiyagacha yangilang va Claude API kalitini skript xususiyatlariga yozing: «Sozlamalar» → «Ulanish» → «Manifestlarni SI orqali import».
+Секрет редактора закрыт на этом устройстве: «Настройки» → «Связь» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».	Muharrir kaliti shu qurilmada yopiq: «Sozlamalar» → «Ulanish» → «Manifestlarni SI orqali import» → kirish paroli → «Kalitni ochish».
+Секрет редактора не задан: «Настройки» → «Связь» → «ИИ-импорт манифестов» → «Новый секрет редактора».	Muharrir kaliti berilmagan: «Sozlamalar» → «Ulanish» → «Manifestlarni SI orqali import» → «Yangi muharrir kaliti».
 Черновик	Qoralama
 Подтверждён	Tasdiqlangan
 Отклонён	Rad etilgan
@@ -917,7 +917,7 @@ IndexedDB недоступна	IndexedDB mavjud emas
 Старый формат .xls: откройте файл в Excel и сохраните как «Книга Excel (.xlsx)».	Eski .xls formati: faylni Excel’da oching va «Excel kitobi (.xlsx)» sifatida saqlang.
 Нужен манифест в Excel (.xlsx) или PDF.	Excel (.xlsx) yoki PDF formatidagi manifest kerak.
 Сначала подключите Google Таблицу — ИИ работает через её скрипт.	Avval Google Jadvalni ulang — SI uning skripti orqali ishlaydi.
-Обновите код скрипта таблицы до версии 8: «Настройки связи» → «Скопировать код».	Jadval skripti kodini 8-versiyagacha yangilang: «Ulanish sozlamalari» → «Kodni nusxalash».
+Обновите код скрипта таблицы до версии 8: «Настройки» → «Связь» → «Скопировать код».	Jadval skripti kodini 8-versiyagacha yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash».
 Читаю файл	Faylni o‘qiyapman
 В книге нет данных	Kitobda ma’lumot yo‘q
 В PDF	PDF’da
@@ -1122,15 +1122,15 @@ BL · клиент	BL · mijoz
 Лента доставок	Yetkazishlar lentasi
 Отправка партии водителям в Telegram, кто на линии, доставки с фото, машины и отчёты.	Partiyani haydovchilarga Telegram’da yuborish, kim liniyada, rasmli yetkazishlar, mashinalar va hisobotlar.
 Только просмотр.	Faqat ko‘rish.
-Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу в «Настройки связи».	Haydovchilar Google Jadval va Telegram bot orqali ishlaydi. Jadvalni «Ulanish sozlamalari»da ulang.
+Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу: «Настройки» → «Связь».	Haydovchilar Google Jadval va Telegram bot orqali ishlaydi. Jadvalni ulang: «Sozlamalar» → «Ulanish».
 Скрипт таблицы версии	Jadval skripti versiyasi
 Скрипт таблицы версии {n}.	Jadval skripti versiyasi {n}.
-Скрипт таблицы версии {n}: для бота нужна версия 16. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 16-versiya kerak. «Ulanish sozlamalari» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi deploy versiyasi.
-Скрипт таблицы версии ?: для бота нужна версия 16. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 16-versiya kerak. «Ulanish sozlamalari» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi deploy versiyasi.
-Телеграм-бот не подключён: «Настройки связи» → «Телеграм-бот для водителей».	Telegram bot ulanmagan: «Ulanish sozlamalari» → «Haydovchilar uchun Telegram bot».
-Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (16): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Partiyalarni haydovchilarga yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (16) yangilang: «Ulanish sozlamalari» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
-Токен бота есть, но бот не подключён — нажмите «Подключить бота» в «Настройки связи».	Bot tokeni bor, lekin bot ulanmagan — «Ulanish sozlamalari»da «Botni ulash»ni bosing.
-Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — в «Настройки связи».	Hisobotlar guruhi bog‘lanmagan: haydovchilar hisobotlari va kun yakunini yuboradigan joy yo‘q. Guruh uchun kod — «Ulanish sozlamalari»da.
+Скрипт таблицы версии {n}: для бота нужна версия 16. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 16-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi deploy versiyasi.
+Скрипт таблицы версии ?: для бота нужна версия 16. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 16-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi deploy versiyasi.
+Телеграм-бот не подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».	Telegram bot ulanmagan: «Sozlamalar» → «Ulanish» → «Haydovchilar uchun Telegram bot».
+Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (16): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Partiyalarni haydovchilarga yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (16) yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Токен бота есть, но бот не подключён — нажмите «Подключить бота»: «Настройки» → «Связь».	Bot tokeni bor, lekin bot ulanmagan — «Botni ulash»ni bosing: «Sozlamalar» → «Ulanish».
+Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — «Настройки» → «Связь».	Hisobotlar guruhi bog‘lanmagan: haydovchilar hisobotlari va kun yakunini yuboradigan joy yo‘q. Guruh uchun kod — «Sozlamalar» → «Ulanish».
 Часовой пояс Google Таблицы — {w}, а не Ташкент: время водителей («на линии с …»), «сегодня» и итог дня в 20:00 сдвинуты.	Google Jadval vaqt mintaqasi — {w}, Toshkent emas: haydovchilar vaqti («… dan liniyada»), «bugun» va 20:00 dagi kun yakuni siljigan.
 Часовой пояс скрипта — {w}, а не Ташкент: даты партий могут сдвигаться на день назад (04.05.2006 → 03.05.2006).	Skript vaqt mintaqasi — {w}, Toshkent emas: partiya sanalari bir kun orqaga siljishi mumkin (04.05.2006 → 03.05.2006).
 Только просмотр: отправлять задания, писать водителям и менять автопарк может руководитель.	Faqat ko‘rish: topshiriq yuborish, haydovchilarga yozish va avtoparkni o‘zgartirish rahbarning ishi.
@@ -1193,7 +1193,7 @@ BL · клиент	BL · mijoz
 Настройки бота сохранены.	Bot sozlamalari saqlandi.
 Кнопка камеры включится, когда скрипт узнает адрес сайта — откройте сайт по его адресу в интернете (не с компьютера) и нажмите «Сохранить» ещё раз.	Skript sayt manzilini bilganda kamera tugmasi yoqiladi — saytni internetdagi manzili bo‘yicha oching (kompyuterdan emas) va «Saqlash»ni yana bosing.
 Кнопки «📞 Диспетчер» и «⚠️ Проблема» появятся у водителей со следующего сообщения бота.	«📞 Dispetcher» va «⚠️ Muammo» tugmalari haydovchilarda botning keyingi xabaridan paydo bo‘ladi.
-Нужен код скрипта таблицы версии 12: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».	Jadval skriptining 12-versiyasi kerak: «Ulanish sozlamalari» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya; keyin «Botni qayta ulash».
+Нужен код скрипта таблицы версии 12: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».	Jadval skriptining 12-versiyasi kerak: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya; keyin «Botni qayta ulash».
 Водитель звонит диспетчеру кнопкой «📞 Диспетчер», а когда клиент не отвечает — бот предлагает позвонить и пишет в группу номера клиента. «⏳ Жду клиента» напоминает через заданное время.	Haydovchi dispetcherga «📞 Dispetcher» tugmasi bilan qo‘ng‘iroq qiladi, mijoz javob bermasa — bot qo‘ng‘iroq qilishni taklif qiladi va guruhga mijoz raqamlarini yozadi. «⏳ Mijozni kutyapman» belgilangan vaqtdan keyin eslatadi.
 Утром бот сам отправляет водителям план дня, если в журнале на сегодня расписаны машины; забыл нажать кнопку — бот напомнит, не помогло — напишет в группу.	Jurnalda bugunga mashinalar belgilangan bo‘lsa, ertalab bot haydovchilarga kun rejasini o‘zi yuboradi; tugmani bosishni unutsa — bot eslatadi, foyda bermasa — guruhga yozadi.
 План дня утром и напоминания водителям — с кодом скрипта версии 14.	Ertalabki kun rejasi va haydovchilarga eslatmalar — skriptning 14-versiyasi bilan.
@@ -1337,7 +1337,7 @@ GitHub-токен — чтобы таблица подключилась на в
 Новый секрет редактора	Yangi muharrir kaliti
 Сначала подключите Google Таблицу	Avval Google Jadvalni ulang
 ИИ-импорт — только для руководителя	SI import — faqat rahbar uchun
-Для ИИ нужен код скрипта таблицы версии 8: «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания	SI uchun jadval skriptining 8-versiyasi kerak: «Ulanish sozlamalari» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi deploy versiyasi
+Для ИИ нужен код скрипта таблицы версии 8: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания	SI uchun jadval skriptining 8-versiyasi kerak: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi deploy versiyasi
 Скрипту таблицы не разрешены внешние запросы.	Jadval skriptiga tashqi so‘rovlar ruxsat etilmagan.
 В Google Таблице: Расширения → Apps Script (тем же аккаунтом Google, от имени которого развёрнуто веб-приложение) → вверху выберите функцию authorize (в старом коде — doGet) → ▶ Выполнить →	Google Jadvalda: Kengaytmalar → Apps Script (web app qaysi Google akkaunti nomidan deploy qilingan bo‘lsa, o‘sha akkaunt bilan) → yuqorida authorize funksiyasini tanlang (eski kodda — doGet) → ▶ Run →
 Проверить разрешения → ваш аккаунт → Дополнительные настройки → Перейти к проекту → отметьте все галочки («Выбрать все») → Продолжить. Затем снова «Проверить ИИ».	Review permissions → akkauntingiz → Advanced → Go to project → barcha belgilarni qo‘ying («Select all») → Continue. Keyin yana «SI’ni tekshirish».
@@ -1345,7 +1345,7 @@ GitHub-токен — чтобы таблица подключилась на в
 Для этого нужен код скрипта таблицы версии	Buning uchun jadval skriptining versiyasi kerak:
 (сейчас	(hozir
 старее 8	8 dan eski
-): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия развертывания	): «Ulanish sozlamalari» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi deploy versiyasi
+): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия развертывания	): «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi deploy versiyasi
 Скрипту таблицы не разрешены внешние запросы: в Apps Script выберите функцию authorize → ▶ Выполнить → отметьте все галочки → Продолжить.	Jadval skriptiga tashqi so‘rovlar ruxsat etilmagan: Apps Script’da authorize funksiyasini tanlang → ▶ Run → barcha belgilarni qo‘ying → Continue.
 Проверяю…	Tekshiryapman…
 Проверьте, что секрет ниже совпадает со свойством EDITOR_TOKEN.	Quyidagi kalit EDITOR_TOKEN xususiyati bilan mos kelishini tekshiring.
@@ -1978,10 +1978,10 @@ R{n} — [места|м³|кг]: в документе {n2}, в строке {n3
 Сегодня: с {t} до {t2}	Bugun: {t} dan {t2} gacha
 Сегодня: с {t}, в работе	Bugun: {t} dan, ishda
 Исправьте: в Google Таблице Файл → Настройки → Часовой пояс → «(GMT+05:00) Tashkent» → Сохранить; в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».	Tuzating: Google Jadvalda Fayl → Sozlamalar → Vaqt mintaqasi → «(GMT+05:00) Tashkent» → Saqlash; Apps Script’da ⚙ Loyiha sozlamalari → Vaqt mintaqasi → «(GMT+05:00) Tashkent».
-Затем «Настройки связи» → «Переподключить бота».	Keyin «Ulanish sozlamalari» → «Botni qayta ulash».
-Обновите код скрипта до 16 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 16 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Ulanish sozlamalari» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Затем «Настройки» → «Связь» → «Переподключить бота».	Keyin «Sozlamalar» → «Ulanish» → «Botni qayta ulash».
+Обновите код скрипта до 16 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 16 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
 Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».	Yoki Apps Script’da ⚙ Loyiha sozlamalari → Vaqt mintaqasi → «(GMT+05:00) Tashkent».
-Обновите код до 16 — даты партий больше не сдвигаются на день (04.05.2006 не станет 03.05.2006), уже сдвинутые исправятся сами[|; у водителей станет один экран: короткая карточка точки с тремя большими кнопками (маршрут, «📷 Доставлено» сразу открывает камеру, «❌ Не доставлено»), остальное — в «☰ Ещё»][|; бот сам напомнит водителю, если тот забыл нажать кнопку, и утром сам отправит план дня][|; сайт проверит часовой пояс таблицы]: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».	Kodni 16 gacha yangilang — partiya sanalari endi bir kunga siljimaydi (04.05.2006 03.05.2006 bo‘lib qolmaydi), siljiganlari o‘zi tuzaladi[|; haydovchilarda bitta ekran bo‘ladi: uchta katta tugmali qisqa manzil kartochkasi (marshrut, «📷 Yetkazildi» darhol kamerani ochadi, «❌ Yetkazilmadi»), qolgani — «☰ Yana»da][|; haydovchi tugmani bosishni unutsa, bot o‘zi eslatadi va ertalab kun rejasini o‘zi yuboradi][|; sayt jadval vaqt mintaqasini tekshiradi]: «Ulanish sozlamalari» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya; keyin «Botni qayta ulash».
+Обновите код до 16 — даты партий больше не сдвигаются на день (04.05.2006 не станет 03.05.2006), уже сдвинутые исправятся сами[|; у водителей станет один экран: короткая карточка точки с тремя большими кнопками (маршрут, «📷 Доставлено» сразу открывает камеру, «❌ Не доставлено»), остальное — в «☰ Ещё»][|; бот сам напомнит водителю, если тот забыл нажать кнопку, и утром сам отправит план дня][|; сайт проверит часовой пояс таблицы]: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».	Kodni 16 gacha yangilang — partiya sanalari endi bir kunga siljimaydi (04.05.2006 03.05.2006 bo‘lib qolmaydi), siljiganlari o‘zi tuzaladi[|; haydovchilarda bitta ekran bo‘ladi: uchta katta tugmali qisqa manzil kartochkasi (marshrut, «📷 Yetkazildi» darhol kamerani ochadi, «❌ Yetkazilmadi»), qolgani — «☰ Yana»da][|; haydovchi tugmani bosishni unutsa, bot o‘zi eslatadi va ertalab kun rejasini o‘zi yuboradi][|; sayt jadval vaqt mintaqasini tekshiradi]: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya; keyin «Botni qayta ulash».
 Бот @{w} работает ✅ Группа отчётов: «{s}».	Bot @{w} ishlayapti ✅ Hisobotlar guruhi: «{s}».
 Заявки водителей подтверждают администраторы группы.	Haydovchilar arizalarini guruh administratorlari tasdiqlaydi.
 строка {n} · {s}	{n}-qator · {s}
@@ -2015,3 +2015,64 @@ R{n} — [места|м³|кг]: в документе {n2}, в строке {n3
 Всего	Jami
 Не платим, мелкий	To‘lamaymiz, kichik
 За кольцом	Halqadan tashqarida
+
+# ── вкладки после объединения: «Журнал» с импортом, «Отчёты» с дашбордом, «Настройки», новая «Водители» ──
+Подвкладки	Bo‘limlar
+Связь	Ulanish
+Тарифы и планы	Tariflar va rejalar
+Водители и автопарк	Haydovchilar va avtopark
+Расходы	Xarajatlar
+⇧ Импорт манифеста	⇧ Manifest importi
+Проверить	Tekshirish
+← Журнал	← Jurnal
+Настройки → Связь	Sozlamalar → Ulanish
+Черновиков импорта ждут проверки: {n} ({s}). Партии появятся в журнале после подтверждения.	Tekshiruvni kutayotgan import qoralamalari: {n} ({s}). Partiyalar tasdiqlangandan keyin jurnalda paydo bo‘ladi.
+Черновиков импорта ждут проверки: {n} ({s}).	Tekshiruvni kutayotgan import qoralamalari: {n} ({s}).
+Партии появятся в журнале после подтверждения.	Partiyalar tasdiqlangandan keyin jurnalda paydo bo‘ladi.
+Отчёт по водителям	Haydovchilar bo‘yicha hisobot
+По отметкам водителей в Telegram-боте	Telegram botdagi haydovchilar belgilari bo‘yicha
+Отчёт по водителям · {s}	Haydovchilar bo‘yicha hisobot · {s}
+По журналу (машина и рейс у отгрузки) и отметкам водителей в боте. Стоимость и экономия — подвкладка «Автопарк».	Jurnal (jo‘natmadagi mashina va reys) va botdagi haydovchilar belgilari bo‘yicha. Narx va tejash — «Avtopark» bo‘limida.
+Бот и диспетчер, машины и госномера. Отправить груз водителям — во вкладке «Водители».	Bot va dispetcher, mashinalar va davlat raqamlari. Haydovchilarga yuk yuborish — «Haydovchilar» bo‘limida.
+Бот и диспетчер	Bot va dispetcher
+Число машин и вместимость — те же настройки, что в «Тарифах и планах»: по ним строятся планы.	Mashinalar soni va sig‘imi — «Tariflar va rejalar»dagi sozlamalarning o‘zi: rejalar shular bo‘yicha tuziladi.
+Подключить заново	Qayta ulash
+Водители в боте: {s} — список, заявки и отключение во вкладке «Водители».	Botdagi haydovchilar: {s} — ro‘yxat, arizalar va o‘chirish «Haydovchilar» bo‘limida.
+с доступом {n}[|, ждут подтверждения {n2}][|, отключены {n3}]	ruxsat bilan {n}[|, tasdiqlashni kutmoqda {n2}][|, o‘chirilgan {n3}]
+Для бота нужен код скрипта таблицы версии 17 (не ниже 9).	Bot uchun jadval skripti kodining 17-versiyasi kerak (9 dan past emas).
+Обновите код скрипта до 17 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 17 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Скрипт таблицы версии {n}: для бота нужна версия 17. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 17-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
+Скрипт таблицы версии ?: для бота нужна версия 17. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 17-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
+Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (17): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Haydovchilarga partiya yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (17) yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Обновите код до 17: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».	Kodni 17 gacha yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya; keyin «Botni qayta ulash».
+У водителей снова будет прежняя карточка точки: все кнопки под точкой и полное меню внизу.	Haydovchilarda yana avvalgi manzil kartochkasi bo‘ladi: barcha tugmalar manzil ostida va pastda to‘liq menyu.
+Даты партий больше не будут сдвигаться на день (04.05.2006 не станет 03.05.2006), уже сдвинутые исправятся сами.	Partiya sanalari endi bir kunga siljimaydi (04.05.2006 03.05.2006 bo‘lib qolmaydi), siljiganlari o‘zi tuzaladi.
+Бот сам напомнит водителю, если тот забыл нажать кнопку, и утром сам отправит план дня.	Haydovchi tugmani bosishni unutsa, bot o‘zi eslatadi va ertalab kun rejasini o‘zi yuboradi.
+Сайт проверит часовой пояс таблицы.	Sayt jadval vaqt mintaqasini tekshiradi.
+Отправка груза водителям в Telegram, кто на линии и что везёт, доставки с фото. Бот, диспетчер и машины — «Настройки» → «Водители и автопарк».	Haydovchilarga Telegram orqali yuk yuborish, kim liniyada va nima olib ketyapti, fotoli yetkazishlar. Bot, dispetcher va mashinalar — «Sozlamalar» → «Haydovchilar va avtopark».
+Только просмотр.	Faqat ko‘rish.
+🚚 Отправить груз водителям	🚚 Haydovchilarga yuk yuborish
+Отправить груз водителям	Haydovchilarga yuk yuborish
+В партии {d} нет точек с машинами.	{d} partiyasida mashinali manzillar yo‘q.
+Партия {d}: {n} [точка|точки|точек] у {n2} [машины|машин].	{d} partiyasi: {n2} ta mashinada {n} ta manzil.
+Партия {d}: {n} [точка|точки|точек] у {n2} [машины|машин], осталось {n3}.	{d} partiyasi: {n2} ta mashinada {n} ta manzil, qoldi {n3}.
+Без водителя в боте: {s}.	Botda haydovchisi yo‘q: {s}.
+Без машины: {n} отгр.	Mashinasiz: {n} jo‘n.
+Отправка откроется, когда бот будет подключён (плашка выше).	Yuborish bot ulanganda ochiladi (yuqoridagi xabar).
+Сейчас	Hozir
+Точек в партии	Partiyadagi manzillar
+{n} из {n2}, не доставлено {n3}	{n2} tadan {n}, yetkazilmadi {n3}
+Отключены:	O‘chirilganlar:
+отклонён	rad etilgan
+отключён	o‘chirilgan
+Кто что везёт	Kim nima olib ketyapti
+Водители появятся здесь, когда бот будет подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».	Haydovchilar bot ulanganda shu yerda paydo bo‘ladi: «Sozlamalar» → «Ulanish» → «Haydovchilar uchun Telegram bot».
+В боте пока нет водителей с доступом. Ссылка для водителей — «Настройки» → «Связь»: водитель открывает её, нажимает «Старт» и регистрируется, заявка появится здесь.	Botda hozircha ruxsatli haydovchilar yo‘q. Haydovchilar uchun havola — «Sozlamalar» → «Ulanish»: haydovchi uni ochadi, «Start»ni bosadi va ro‘yxatdan o‘tadi, ariza shu yerda paydo bo‘ladi.
+Отправить водителям сейчас?	Haydovchilarga hozir yuborilsinmi?
+🚚 Да, отправить	🚚 Ha, yuborish
+Позже	Keyinroq
+Водители →	Haydovchilar →
+Отправляю задание водителям…	Haydovchilarga topshiriq yuboryapman…
+Водители с точками в партии {d} получат задание в Telegram. «Позже» — отправите во вкладке «Водители» кнопкой «Отправить груз водителям».	{d} partiyasida manzili bor haydovchilar Telegram’da topshiriq oladi. «Keyinroq» — «Haydovchilar» bo‘limida «Haydovchilarga yuk yuborish» tugmasi bilan yuborasiz.
+Водители с точками в партии {d} получат задание в Telegram.	{d} partiyasida manzili bor haydovchilar Telegram’da topshiriq oladi.
+«Позже» — отправите во вкладке «Водители» кнопкой «Отправить груз водителям».	«Keyinroq» — «Haydovchilar» bo‘limida «Haydovchilarga yuk yuborish» tugmasi bilan yuborasiz.

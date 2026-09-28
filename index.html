@@ -92,6 +92,10 @@
       </div></div>
     </sc-if>
   </header>
+  <!-- подвкладки раздела («Отчёты», «Настройки») -->
+  <sc-if value="{{ hasSubtabs }}" hint-placeholder-val="{{ false }}">
+    <nav class="subtabs no-print" aria-label="Подвкладки"><div class="subtabs-in"><sc-for list="{{ subtabs }}" as="s"><button type="button" class="{{ s.cls }}" sc-camel-on-click="{{ s.go }}">{{ s.l }}</button></sc-for></div></nav>
+  </sc-if>
   <sc-if value="{{ hasLoadError }}"><div style="padding:40px;text-align:center;color:var(--color-accent-900)">{{ loadError }}</div></sc-if>
 
   <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
@@ -114,9 +118,11 @@
             <sc-for list="{{ statusOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
           </sc-raw-select>
           <input class="input" style="width:240px" placeholder="Поиск: BL, клиент, телефон…" value="{{ jSearch }}" sc-camel-on-change="{{ onJSearch }}">
+          <button data-edit class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ goImport }}">⇧ Импорт манифеста</button>
           <button data-edit class="btn btn-primary blueprint" style="white-space:nowrap" sc-camel-on-click="{{ newShipment }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>+ Добавить отгрузку</button>
         </div>
       </div>
+      <sc-if value="{{ jHasDrafts }}"><div class="imp-alert" style="margin-bottom:20px"><div style="flex:1;text-wrap:pretty">{{ jDraftsNote }}</div><button class="btn btn-secondary" sc-camel-on-click="{{ goImport }}">Проверить</button></div></sc-if>
 
       <div class="kpi-strip" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--color-divider);margin-bottom:20px">
         <sc-for list="{{ jStats }}" as="k" hint-placeholder-count="6">
@@ -501,9 +507,6 @@
           <div class="rep-sub" style="font-size:13px;color:var(--color-neutral-700);margin-top:4px">{{ repSub }}</div>
         </div>
         <div class="page-tools no-print" style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-          <div class="viz-seg rep-seg" style="display:flex;border:1px solid var(--color-divider)">
-            <sc-for list="{{ repKinds }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:500;cursor:pointer;white-space:nowrap;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for>
-          </div>
           <sc-if value="{{ repIsBatch }}">
             <sc-raw-select class="input" style="width:190px" value="{{ repDate }}" sc-camel-on-change="{{ onRepDate }}"><sc-for list="{{ repDateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for></sc-raw-select>
           </sc-if>
@@ -515,10 +518,11 @@
             <sc-raw-select class="input" style="width:150px" value="{{ repTo }}" sc-camel-on-change="{{ onRepTo }}" aria-label="По"><sc-for list="{{ repDateAsc }}" as="o"><option value="{{ o.v }}">по {{ o.l }}</option></sc-for></sc-raw-select>
           </sc-if>
           <button class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ repPrint }}">Печать / PDF</button>
-          <button class="btn btn-primary blueprint" style="white-space:nowrap" sc-camel-on-click="{{ repXlsx }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Скачать Excel</button>
+          <sc-if value="{{ repNotDrivers }}"><button class="btn btn-primary blueprint" style="white-space:nowrap" sc-camel-on-click="{{ repXlsx }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Скачать Excel</button></sc-if>
         </div>
       </div>
 
+      <sc-if value="{{ repNotDrivers }}">
       <sc-if value="{{ repHasNote }}"><div class="rep-note" style="border-left:2px solid var(--color-red);padding:8px 14px;background:var(--color-surface);font-size:13px">{{ repNote }}</div></sc-if>
 
       <div class="kpi-strip" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--color-divider)">
@@ -716,6 +720,32 @@
           </ul>
         </section>
       </sc-if>
+      </sc-if>
+
+      <sc-if value="{{ repIsDrivers }}">
+        <div class="dv-toolbar">
+          <select class="input" value="{{ dvPeriod }}" sc-camel-on-change="{{ onDvPeriod }}" style="width:auto"><sc-for list="{{ dvPeriodOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+          <span style="font-size:13px;color:var(--color-neutral-700)">{{ dvRepSum }}</span>
+          <button class="btn btn-ghost" style="margin-left:auto" sc-camel-on-click="{{ dvRepXlsx }}">Скачать Excel</button>
+        </div>
+        <section class="dv-card" style="padding:0">
+          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Водитель</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Дней</sc-raw-th><sc-raw-th>Начало (в среднем)</sc-raw-th><sc-raw-th>Конец (в среднем)</sc-raw-th><sc-raw-th>Доставлено</sc-raw-th><sc-raw-th>Не доставлено</sc-raw-th><sc-raw-th>Точек в день</sc-raw-th><sc-raw-th>Причины недоставки</sc-raw-th></sc-raw-tr></sc-raw-thead>
+            <sc-raw-tbody><sc-for list="{{ dvRep }}" as="r"><sc-raw-tr><sc-raw-td><b style="font-weight:500">{{ r.name }}</b></sc-raw-td><sc-raw-td>{{ r.trucks }}</sc-raw-td><sc-raw-td>{{ r.days }}</sc-raw-td><sc-raw-td>{{ r.start }}</sc-raw-td><sc-raw-td>{{ r.end }}</sc-raw-td><sc-raw-td>{{ r.ok }}</sc-raw-td><sc-raw-td>{{ r.fail }}</sc-raw-td><sc-raw-td>{{ r.perDay }}</sc-raw-td><sc-raw-td>{{ r.reasons }}</sc-raw-td></sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
+          <sc-if value="{{ dvNoRep }}"><div style="padding:16px;font-size:13px;color:var(--color-neutral-700)">За период водители в боте не работали.</div></sc-if>
+        </section>
+        <section class="dv-card">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px"><h3 style="margin:0">Машины</h3>
+            <button class="btn btn-ghost" style="margin-left:auto" sc-camel-on-click="{{ dvFleetXlsx }}">Скачать Excel</button></div>
+          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Дней с рейсами</sc-raw-th><sc-raw-th>Рейсов</sc-raw-th><sc-raw-th>Точек</sc-raw-th><sc-raw-th>CBM</sc-raw-th><sc-raw-th>KG</sc-raw-th><sc-raw-th>Загрузка м³</sc-raw-th><sc-raw-th>Доставлено / не доставлено</sc-raw-th></sc-raw-tr></sc-raw-thead>
+            <sc-raw-tbody><sc-for list="{{ dvFleetStats }}" as="f"><sc-raw-tr><sc-raw-td><b style="font-weight:500">{{ f.name }}</b></sc-raw-td><sc-raw-td>{{ f.days }}</sc-raw-td><sc-raw-td>{{ f.trips }}</sc-raw-td><sc-raw-td>{{ f.stops }}</sc-raw-td><sc-raw-td>{{ f.cbm }}</sc-raw-td><sc-raw-td>{{ f.kg }}</sc-raw-td><sc-raw-td>{{ f.load }}</sc-raw-td><sc-raw-td>{{ f.okFail }}</sc-raw-td></sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
+          <div style="font-size:12px;color:var(--color-neutral-700);margin-top:6px">По журналу (машина и рейс у отгрузки) и отметкам водителей в боте. Стоимость и экономия — подвкладка «Автопарк».</div>
+        </section>
+        <section class="dv-card" style="padding:0">
+          <h3 style="margin:14px 16px 6px">Рабочие дни</h3>
+          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>День</sc-raw-th><sc-raw-th>Водитель</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Партия</sc-raw-th><sc-raw-th>Начал</sc-raw-th><sc-raw-th>Закончил</sc-raw-th><sc-raw-th>Доставлено</sc-raw-th><sc-raw-th>Не доставлено</sc-raw-th></sc-raw-tr></sc-raw-thead>
+            <sc-raw-tbody><sc-for list="{{ dvDays }}" as="x"><sc-raw-tr><sc-raw-td>{{ x.day }}</sc-raw-td><sc-raw-td>{{ x.name }}</sc-raw-td><sc-raw-td>{{ x.truck }}</sc-raw-td><sc-raw-td>{{ x.date }}</sc-raw-td><sc-raw-td>{{ x.start }}</sc-raw-td><sc-raw-td>{{ x.end }}</sc-raw-td><sc-raw-td>{{ x.ok }}</sc-raw-td><sc-raw-td>{{ x.fail }}</sc-raw-td></sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
+        </section>
+      </sc-if>
     </main>
   </sc-if>
 
@@ -736,13 +766,14 @@
             <h1 style="margin:2px 0 0;font-size:38px">Импорт манифеста</h1>
             <div style="font-size:13px;color:var(--color-neutral-700);margin-top:4px;max-width:760px;text-wrap:pretty">Сайт разбирает манифест партии и создаёт черновик. Вы проверяете и правите его — и только после подтверждения партия появится в журнале и Google Таблице.</div>
           </div>
+          <div class="page-tools" style="margin-left:auto"><button class="btn btn-ghost" sc-camel-on-click="{{ impToJournal }}">← Журнал</button></div>
         </div>
         <div class="imp-mode">
           <div class="viz-seg" style="border:1px solid var(--color-divider)"><sc-for list="{{ impModes }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:500;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for></div>
           <div style="font-size:13px;color:var(--color-neutral-700);flex:1;min-width:240px;text-wrap:pretty">{{ impModeNote }}</div>
         </div>
         <sc-if value="{{ impHasSetup }}">
-          <div class="imp-alert"><div style="flex:1;text-wrap:pretty">{{ impSetup }}</div><button class="btn btn-secondary" sc-camel-on-click="{{ impOpenGs }}">Настройки связи</button></div>
+          <div class="imp-alert"><div style="flex:1;text-wrap:pretty">{{ impSetup }}</div><button class="btn btn-secondary" sc-camel-on-click="{{ impOpenGs }}">Настройки → Связь</button></div>
         </sc-if>
         <div class="imp-drop blueprint" sc-camel-on-drop="{{ onImpDrop }}" sc-camel-on-drag-over="{{ onImpDragOver }}">
           <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
@@ -913,60 +944,61 @@
       <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
         <div>
           <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Haydovchilar</div>
-          <h1 style="margin:2px 0 0;font-size:38px">Водители и автопарк</h1>
+          <h1 style="margin:2px 0 0;font-size:38px">Водители</h1>
           <div style="font-size:13px;color:var(--color-neutral-700);margin-top:4px;max-width:760px;text-wrap:pretty">{{ dvSub }}</div>
         </div>
-        <div class="viz-seg dv-seg" style="margin-left:auto;display:flex;border:1px solid var(--color-divider)">
-          <sc-for list="{{ dvTabs }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:500;cursor:pointer;white-space:nowrap;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for>
-        </div>
       </div>
-      <sc-if value="{{ dvHasBanner }}"><div class="imp-alert"><div style="flex:1;text-wrap:pretty">{{ dvBanner }}</div><sc-if value="{{ dvCanSetup }}"><button class="btn btn-secondary" sc-camel-on-click="{{ dvOpenGs }}">Настройки связи</button></sc-if></div></sc-if>
+      <sc-if value="{{ dvHasBanner }}"><div class="imp-alert"><div style="flex:1;text-wrap:pretty">{{ dvBanner }}</div><sc-if value="{{ dvCanSetup }}"><button class="btn btn-secondary" sc-camel-on-click="{{ dvOpenGs }}">Настройки → Связь</button></sc-if></div></sc-if>
       <sc-if value="{{ dvHasMsg }}"><div class="dv-msg" style="border-left-color:{{ dvMsgColor }}"><div style="flex:1;white-space:pre-line;text-wrap:pretty">{{ dvMsg }}</div><button class="btn btn-ghost" sc-camel-on-click="{{ dvMsgClose }}">Закрыть</button></div></sc-if>
 
-      <sc-if value="{{ dvIsDay }}">
-        <div class="dv-toolbar">
-          <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Партия</span>
-            <select class="input" value="{{ dvDate }}" sc-camel-on-change="{{ onDvDate }}" style="min-width:170px"><sc-for list="{{ dvDateOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></label>
-          <sc-if value="{{ dvCan }}">
-            <button class="btn btn-primary" sc-camel-on-click="{{ dvSendAll }}" disabled="{{ dvBusy }}">Отправить всем</button>
+      <!-- главное: партия и одна большая кнопка -->
+      <section class="dv-send">
+        <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Партия</span>
+          <select class="input" value="{{ dvDate }}" sc-camel-on-change="{{ onDvDate }}" style="min-width:190px"><sc-for list="{{ dvDateOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></label>
+        <sc-if value="{{ dvShowSend }}"><button class="btn btn-primary dv-send-btn" sc-camel-on-click="{{ dvSendAll }}" disabled="{{ dvSendOff }}">🚚 Отправить груз водителям</button></sc-if>
+        <div class="dv-send-note">{{ dvSendNote }}</div>
+        <sc-if value="{{ dvCan }}">
+          <div class="dv-send-more">
             <button class="btn btn-secondary" sc-camel-on-click="{{ dvWriteOnline }}" disabled="{{ dvBusy }}">Написать всем на линии</button>
             <button class="btn btn-ghost" sc-camel-on-click="{{ dvSummary }}" disabled="{{ dvBusy }}">Итог дня в группу</button>
             <sc-if value="{{ dvHasCarry }}">
               <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Недоставленные ({{ dvCarryN }}) — на дату</span><input class="input" type="date" value="{{ dvCarryTo }}" sc-camel-on-change="{{ onDvCarryTo }}"></label>
               <button class="btn btn-secondary" sc-camel-on-click="{{ dvCarry }}" disabled="{{ dvBusy }}">↪️ Перенести</button>
             </sc-if>
-          </sc-if>
-        </div>
-        <sc-if value="{{ dvHasPending }}">
-          <section class="dv-card" style="border-color:var(--color-accent-2)">
-            <h3 style="margin:0 0 8px">Новые водители — ждут подтверждения</h3>
-            <sc-for list="{{ dvPending }}" as="d"><div class="tg-driver"><div style="flex:1;min-width:0"><b style="font-weight:500">{{ d.name }}</b> · {{ d.truck }} · {{ d.plate }}<div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></div>
-              <sc-if value="{{ dvCanDrv }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.allow }}" disabled="{{ dvBusy }}">Разрешить</button><button class="btn btn-ghost" sc-camel-on-click="{{ d.deny }}" disabled="{{ dvBusy }}">Отклонить</button></sc-if></div></sc-for>
-          </section>
+          </div>
         </sc-if>
-        <sc-if value="{{ dvHasSet }}">
-          <section class="dv-card">
-            <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h3 style="margin:0">Настройки бота</h3><span style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty;flex:1 1 320px">{{ dvSetNote }}</span></div>
-            <sc-if value="{{ dvSetEdit }}">
-              <div class="dv-set">
-                <label class="field" style="margin:0"><span>Диспетчер — имя</span><input class="input" value="{{ dvSetName }}" sc-camel-on-change="{{ onDvSetName }}" placeholder="Имя диспетчера" maxlength="40"></label>
-                <label class="field" style="margin:0"><span>Телефон диспетчера</span><input class="input" type="tel" value="{{ dvSetPhone }}" sc-camel-on-change="{{ onDvSetPhone }}" placeholder="+998 __ ___ __ __"></label>
-                <label class="field" style="margin:0"><span>Ждать клиента, мин</span><input class="input" type="number" min="5" max="120" step="5" value="{{ dvSetWait }}" sc-camel-on-change="{{ onDvSetWait }}"></label>
-                <label class="field" style="margin:0"><span>Отметка дальше от клиента, км</span><input class="input" type="number" min="0.1" max="50" step="0.1" value="{{ dvSetKm }}" sc-camel-on-change="{{ onDvSetKm }}"></label>
-                <label class="dv-check"><input type="checkbox" checked="{{ dvSetCam }}" sc-camel-on-change="{{ onDvSetCam }}"><span>Фото только с камеры<br><small>из галереи нельзя, место — со снимка</small></span></label>
-                <label class="dv-check"><input type="checkbox" checked="{{ dvSetCarry }}" sc-camel-on-change="{{ onDvSetCarry }}"><span>Недоставленные — на завтра<br><small>автоматически в 20:00</small></span></label>
-              </div>
-              <sc-if value="{{ dvSet14 }}">
-                <div class="dv-set">
-                  <label class="field" style="margin:0"><span>План водителям утром</span><select class="input" value="{{ dvSetMorning }}" sc-camel-on-change="{{ onDvSetMorning }}"><sc-for list="{{ dvMorningOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></label>
-                  <label class="dv-check"><input type="checkbox" checked="{{ dvSetRemind }}" sc-camel-on-change="{{ onDvSetRemind }}"><span>Напоминания водителям<br><small>забыл нажать — бот напомнит, потом напишет в группу</small></span></label>
-                </div>
-              </sc-if>
-              <div><button class="btn btn-secondary" sc-camel-on-click="{{ dvSetSave }}" disabled="{{ dvBusy }}">Сохранить</button></div>
-            </sc-if>
-            <sc-if value="{{ dvSetView }}"><div style="font-size:13px;text-wrap:pretty">{{ dvSetSummary }}</div></sc-if>
-          </section>
+      </section>
+      <sc-if value="{{ dvHasPending }}">
+        <section class="dv-card" style="border-color:var(--color-accent-2)">
+          <h3 style="margin:0 0 8px">Новые водители — ждут подтверждения</h3>
+          <sc-for list="{{ dvPending }}" as="d"><div class="tg-driver"><div style="flex:1;min-width:0"><b style="font-weight:500">{{ d.name }}</b> · {{ d.truck }} · {{ d.plate }}<div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></div>
+            <sc-if value="{{ dvCanDrv }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.allow }}" disabled="{{ dvBusy }}">Разрешить</button><button class="btn btn-ghost" sc-camel-on-click="{{ d.deny }}" disabled="{{ dvBusy }}">Отклонить</button></sc-if></div></sc-for>
+        </section>
+      </sc-if>
+
+      <!-- список водителей -->
+      <section class="dv-card dv-list-card">
+        <h3 style="margin:0 0 8px">Водители</h3>
+        <sc-if value="{{ dvHasList }}">
+          <sc-raw-table class="dv-table dv-list"><sc-raw-thead><sc-raw-tr><sc-raw-th>Водитель</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Сейчас</sc-raw-th><sc-raw-th>Точек в партии</sc-raw-th><sc-raw-th>Доставлено</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
+            <sc-raw-tbody><sc-for list="{{ dvList }}" as="d"><sc-raw-tr>
+              <sc-raw-td class="dv-l-name"><div class="dv-driver"><span class="dv-dot" style="background:{{ d.dot }}"></span><b style="font-weight:500">{{ d.name }}</b></div><div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></sc-raw-td>
+              <sc-raw-td data-label="Машина">{{ d.truck }}<sc-if value="{{ d.hasPlate }}"> <span class="dv-plate">{{ d.plate }}</span></sc-if></sc-raw-td>
+              <sc-raw-td data-label="Сейчас">{{ d.state }}</sc-raw-td>
+              <sc-raw-td data-label="Точек в партии">{{ d.pts }}</sc-raw-td>
+              <sc-raw-td data-label="Доставлено">{{ d.done }}</sc-raw-td>
+              <sc-raw-td class="dv-list-acts"><sc-if value="{{ d.canSend }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.send }}" disabled="{{ dvBusy }}">Отправить</button></sc-if><sc-if value="{{ d.canWrite }}"><button class="btn btn-ghost" sc-camel-on-click="{{ d.write }}" disabled="{{ dvBusy }}">Написать</button></sc-if><sc-if value="{{ d.canOff }}"><button class="btn btn-ghost" sc-camel-on-click="{{ d.off }}" disabled="{{ dvBusy }}">Отключить</button></sc-if></sc-raw-td>
+            </sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
         </sc-if>
+        <sc-if value="{{ dvNoList }}"><div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">{{ dvNoListText }}</div></sc-if>
+        <sc-if value="{{ dvHasOff }}"><div class="dv-off"><span style="color:var(--color-neutral-700)">Отключены:</span><sc-for list="{{ dvOff }}" as="d"><span class="dv-off-item">{{ d.name }} · {{ d.truck }} ({{ d.label }})<sc-if value="{{ dvCanDrv }}"> <button class="btn btn-ghost" sc-camel-on-click="{{ d.allow }}" disabled="{{ dvBusy }}">Разрешить</button></sc-if></span></sc-for></div></sc-if>
+      </section>
+
+      <div class="viz-seg dv-seg" style="display:flex;border:1px solid var(--color-divider);align-self:flex-start">
+        <sc-for list="{{ dvTabs }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 16px;font:inherit;font-weight:500;cursor:pointer;white-space:nowrap;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for>
+      </div>
+
+      <sc-if value="{{ dvIsDay }}">
         <div class="kpi-strip dv-kpis" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--color-divider)">
           <sc-for list="{{ dvKpis }}" as="k"><div style="padding:14px 16px;border-right:1px solid var(--color-divider)"><div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-neutral-700)">{{ k.label }}</div><div style="font-size:28px;font-family:var(--font-heading);margin-top:4px">{{ k.value }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ k.sub }}</div></div></sc-for>
         </div>
@@ -1005,40 +1037,6 @@
         </section>
       </sc-if>
 
-      <sc-if value="{{ dvIsFleet }}">
-        <section class="dv-card">
-          <h3 style="margin:0 0 4px">Машины по видам</h3>
-          <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:8px">Число машин и вместимость — те же настройки, что во «Тарифах»: по ним строятся планы.</div>
-          <div class="dv-kinds">
-            <sc-for list="{{ dvKinds }}" as="k">
-              <div class="dv-kind">
-                <div style="font-weight:500">{{ k.label }}</div>
-                <div class="dv-count"><sc-if value="{{ dvCanFleet }}"><button class="btn btn-ghost" sc-camel-on-click="{{ k.dec }}" aria-label="Меньше">−</button></sc-if><span>{{ k.count }}</span><sc-if value="{{ dvCanFleet }}"><button class="btn btn-ghost" sc-camel-on-click="{{ k.inc }}" aria-label="Больше">+</button></sc-if></div>
-                <label class="field" style="margin:0"><span style="font-size:12px">м³</span><input class="input" type="number" step="0.1" min="0" value="{{ k.m3 }}" sc-camel-on-change="{{ k.onM3 }}" disabled="{{ dvRo }}"></label>
-                <label class="field" style="margin:0"><span style="font-size:12px">кг</span><input class="input" type="number" step="10" min="0" value="{{ k.kg }}" sc-camel-on-change="{{ k.onKg }}" disabled="{{ dvRo }}"></label>
-              </div>
-            </sc-for>
-          </div>
-        </section>
-        <section class="dv-card">
-          <h3 style="margin:0 0 4px">Машины</h3>
-          <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:8px;text-wrap:pretty">{{ dvPlateNote }}</div>
-          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Госномер</sc-raw-th><sc-raw-th>Вместимость</sc-raw-th><sc-raw-th>Водители</sc-raw-th><sc-raw-th>{{ dvVehHead }}</sc-raw-th><sc-raw-th>{{ dvStatHead }}</sc-raw-th></sc-raw-tr></sc-raw-thead>
-            <sc-raw-tbody><sc-for list="{{ dvVehicles }}" as="v"><sc-raw-tr>
-              <sc-raw-td><b style="font-weight:500">{{ v.name }}</b></sc-raw-td>
-              <sc-raw-td><input class="input dv-plate-in" value="{{ v.plate }}" placeholder="{{ v.platePh }}" sc-camel-on-change="{{ v.onPlate }}" disabled="{{ dvPlateRo }}" aria-label="Госномер {{ v.name }}"></sc-raw-td>
-              <sc-raw-td>{{ v.cap }}</sc-raw-td><sc-raw-td>{{ v.drivers }}</sc-raw-td><sc-raw-td><span class="tag {{ v.todayCls }}">{{ v.today }}</span></sc-raw-td><sc-raw-td>{{ v.stat }}</sc-raw-td>
-            </sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
-        </section>
-        <section class="dv-card">
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px"><h3 style="margin:0">Статистика автопарка</h3>
-            <select class="input" value="{{ dvPeriod }}" sc-camel-on-change="{{ onDvPeriod }}" style="width:auto"><sc-for list="{{ dvPeriodOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
-            <button class="btn btn-ghost" style="margin-left:auto" sc-camel-on-click="{{ dvFleetXlsx }}">Скачать Excel</button></div>
-          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Дней с рейсами</sc-raw-th><sc-raw-th>Рейсов</sc-raw-th><sc-raw-th>Точек</sc-raw-th><sc-raw-th>CBM</sc-raw-th><sc-raw-th>KG</sc-raw-th><sc-raw-th>Загрузка м³</sc-raw-th><sc-raw-th>Доставлено / не доставлено</sc-raw-th></sc-raw-tr></sc-raw-thead>
-            <sc-raw-tbody><sc-for list="{{ dvFleetStats }}" as="f"><sc-raw-tr><sc-raw-td><b style="font-weight:500">{{ f.name }}</b></sc-raw-td><sc-raw-td>{{ f.days }}</sc-raw-td><sc-raw-td>{{ f.trips }}</sc-raw-td><sc-raw-td>{{ f.stops }}</sc-raw-td><sc-raw-td>{{ f.cbm }}</sc-raw-td><sc-raw-td>{{ f.kg }}</sc-raw-td><sc-raw-td>{{ f.load }}</sc-raw-td><sc-raw-td>{{ f.okFail }}</sc-raw-td></sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
-          <div style="font-size:12px;color:var(--color-neutral-700);margin-top:6px">По журналу (машина и рейс у отгрузки) и отметкам водителей в боте. Подробно о стоимости и экономии — «Отчёты» → «Автопарк и экономия».</div>
-        </section>
-      </sc-if>
 
       <sc-if value="{{ dvIsDeliv }}">
         <div class="dv-toolbar">
@@ -1069,23 +1067,6 @@
         </sc-if>
       </sc-if>
 
-      <sc-if value="{{ dvIsReport }}">
-        <div class="dv-toolbar">
-          <select class="input" value="{{ dvPeriod }}" sc-camel-on-change="{{ onDvPeriod }}" style="width:auto"><sc-for list="{{ dvPeriodOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
-          <span style="font-size:13px;color:var(--color-neutral-700)">{{ dvRepSum }}</span>
-          <button class="btn btn-ghost" style="margin-left:auto" sc-camel-on-click="{{ dvRepXlsx }}">Скачать Excel</button>
-        </div>
-        <section class="dv-card" style="padding:0">
-          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Водитель</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Дней</sc-raw-th><sc-raw-th>Начало (в среднем)</sc-raw-th><sc-raw-th>Конец (в среднем)</sc-raw-th><sc-raw-th>Доставлено</sc-raw-th><sc-raw-th>Не доставлено</sc-raw-th><sc-raw-th>Точек в день</sc-raw-th><sc-raw-th>Причины недоставки</sc-raw-th></sc-raw-tr></sc-raw-thead>
-            <sc-raw-tbody><sc-for list="{{ dvRep }}" as="r"><sc-raw-tr><sc-raw-td><b style="font-weight:500">{{ r.name }}</b></sc-raw-td><sc-raw-td>{{ r.trucks }}</sc-raw-td><sc-raw-td>{{ r.days }}</sc-raw-td><sc-raw-td>{{ r.start }}</sc-raw-td><sc-raw-td>{{ r.end }}</sc-raw-td><sc-raw-td>{{ r.ok }}</sc-raw-td><sc-raw-td>{{ r.fail }}</sc-raw-td><sc-raw-td>{{ r.perDay }}</sc-raw-td><sc-raw-td>{{ r.reasons }}</sc-raw-td></sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
-          <sc-if value="{{ dvNoRep }}"><div style="padding:16px;font-size:13px;color:var(--color-neutral-700)">За период водители в боте не работали.</div></sc-if>
-        </section>
-        <section class="dv-card" style="padding:0">
-          <h3 style="margin:14px 16px 6px">Рабочие дни</h3>
-          <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>День</sc-raw-th><sc-raw-th>Водитель</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Партия</sc-raw-th><sc-raw-th>Начал</sc-raw-th><sc-raw-th>Закончил</sc-raw-th><sc-raw-th>Доставлено</sc-raw-th><sc-raw-th>Не доставлено</sc-raw-th></sc-raw-tr></sc-raw-thead>
-            <sc-raw-tbody><sc-for list="{{ dvDays }}" as="x"><sc-raw-tr><sc-raw-td>{{ x.day }}</sc-raw-td><sc-raw-td>{{ x.name }}</sc-raw-td><sc-raw-td>{{ x.truck }}</sc-raw-td><sc-raw-td>{{ x.date }}</sc-raw-td><sc-raw-td>{{ x.start }}</sc-raw-td><sc-raw-td>{{ x.end }}</sc-raw-td><sc-raw-td>{{ x.ok }}</sc-raw-td><sc-raw-td>{{ x.fail }}</sc-raw-td></sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
-        </section>
-      </sc-if>
     </main>
   </sc-if>
   <sc-if value="{{ isPlans }}" hint-placeholder-val="{{ false }}">
@@ -1147,6 +1128,14 @@
           <button data-edit class="btn {{ acceptBtnClass }}" sc-camel-on-click="{{ acceptPlan }}">{{ acceptLabel }}</button>
         </div>
       </sc-if>
+      <sc-if value="{{ sendAskShow }}">
+        <div class="plan-send-ask">
+          <div style="flex:1;min-width:220px"><div style="font-weight:500">Отправить водителям сейчас?</div><div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">{{ sendAskNote }}</div></div>
+          <button class="btn btn-primary" sc-camel-on-click="{{ sendAskYes }}" disabled="{{ dvBusy }}">🚚 Да, отправить</button>
+          <button class="btn btn-ghost" sc-camel-on-click="{{ sendAskNo }}">Позже</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{ planHasMsg }}"><div class="dv-msg" style="border-left-color:{{ planMsgColor }}"><div style="flex:1;white-space:pre-line;text-wrap:pretty">{{ planMsg }}</div><sc-if value="{{ planMsgSent }}"><button class="btn btn-ghost" sc-camel-on-click="{{ planGoDrivers }}">Водители →</button></sc-if><button class="btn btn-ghost" sc-camel-on-click="{{ planMsgClose }}">Закрыть</button></div></sc-if>
       <sc-if value="{{ planHasNotes }}">
         <div class="plan-notes" style="border:1px solid var(--color-divider);background:var(--color-surface);padding:12px 16px;display:flex;flex-direction:column;gap:6px;font-size:13px">
           <sc-for list="{{ planNotes }}" as="n"><div style="text-wrap:pretty">{{ n.text }}</div></sc-for>
@@ -1356,6 +1345,67 @@
     </main>
   </sc-if>
 
+  <sc-if value="{{ isFleetSet }}" hint-placeholder-val="{{ false }}">
+    <main class="page dv-page" style="max-width:1560px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:20px">
+      <div class="page-head" style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div>
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Sozlamalar</div>
+          <h1 style="margin:2px 0 0;font-size:38px">Водители и автопарк</h1>
+          <div style="font-size:13px;color:var(--color-neutral-700);margin-top:4px;max-width:760px;text-wrap:pretty">Бот и диспетчер, машины и госномера. Отправить груз водителям — во вкладке «Водители».</div>
+        </div>
+      </div>
+      <sc-if value="{{ dvHasBanner }}"><div class="imp-alert"><div style="flex:1;text-wrap:pretty">{{ dvBanner }}</div><sc-if value="{{ dvCanSetup }}"><button class="btn btn-secondary" sc-camel-on-click="{{ dvOpenGs }}">Настройки → Связь</button></sc-if></div></sc-if>
+      <sc-if value="{{ dvHasMsg }}"><div class="dv-msg" style="border-left-color:{{ dvMsgColor }}"><div style="flex:1;white-space:pre-line;text-wrap:pretty">{{ dvMsg }}</div><button class="btn btn-ghost" sc-camel-on-click="{{ dvMsgClose }}">Закрыть</button></div></sc-if>
+      <sc-if value="{{ dvHasSet }}">
+        <section class="dv-card">
+          <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h3 style="margin:0">Бот и диспетчер</h3><span style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty;flex:1 1 320px">{{ dvSetNote }}</span></div>
+          <sc-if value="{{ dvSetEdit }}">
+            <div class="dv-set">
+              <label class="field" style="margin:0"><span>Диспетчер — имя</span><input class="input" value="{{ dvSetName }}" sc-camel-on-change="{{ onDvSetName }}" placeholder="Имя диспетчера" maxlength="40"></label>
+              <label class="field" style="margin:0"><span>Телефон диспетчера</span><input class="input" type="tel" value="{{ dvSetPhone }}" sc-camel-on-change="{{ onDvSetPhone }}" placeholder="+998 __ ___ __ __"></label>
+              <label class="field" style="margin:0"><span>Ждать клиента, мин</span><input class="input" type="number" min="5" max="120" step="5" value="{{ dvSetWait }}" sc-camel-on-change="{{ onDvSetWait }}"></label>
+              <label class="field" style="margin:0"><span>Отметка дальше от клиента, км</span><input class="input" type="number" min="0.1" max="50" step="0.1" value="{{ dvSetKm }}" sc-camel-on-change="{{ onDvSetKm }}"></label>
+              <label class="dv-check"><input type="checkbox" checked="{{ dvSetCam }}" sc-camel-on-change="{{ onDvSetCam }}"><span>Фото только с камеры<br><small>из галереи нельзя, место — со снимка</small></span></label>
+              <label class="dv-check"><input type="checkbox" checked="{{ dvSetCarry }}" sc-camel-on-change="{{ onDvSetCarry }}"><span>Недоставленные — на завтра<br><small>автоматически в 20:00</small></span></label>
+            </div>
+            <sc-if value="{{ dvSet14 }}">
+              <div class="dv-set">
+                <label class="field" style="margin:0"><span>План водителям утром</span><select class="input" value="{{ dvSetMorning }}" sc-camel-on-change="{{ onDvSetMorning }}"><sc-for list="{{ dvMorningOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></label>
+                <label class="dv-check"><input type="checkbox" checked="{{ dvSetRemind }}" sc-camel-on-change="{{ onDvSetRemind }}"><span>Напоминания водителям<br><small>забыл нажать — бот напомнит, потом напишет в группу</small></span></label>
+              </div>
+            </sc-if>
+            <div><button class="btn btn-secondary" sc-camel-on-click="{{ dvSetSave }}" disabled="{{ dvBusy }}">Сохранить</button></div>
+          </sc-if>
+          <sc-if value="{{ dvSetView }}"><div style="font-size:13px;text-wrap:pretty">{{ dvSetSummary }}</div></sc-if>
+        </section>
+      </sc-if>
+      <section class="dv-card">
+        <h3 style="margin:0 0 4px">Машины по видам</h3>
+        <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:8px">Число машин и вместимость — те же настройки, что в «Тарифах и планах»: по ним строятся планы.</div>
+        <div class="dv-kinds">
+          <sc-for list="{{ dvKinds }}" as="k">
+            <div class="dv-kind">
+              <div style="font-weight:500">{{ k.label }}</div>
+              <div class="dv-count"><sc-if value="{{ dvCanFleet }}"><button class="btn btn-ghost" sc-camel-on-click="{{ k.dec }}" aria-label="Меньше">−</button></sc-if><span>{{ k.count }}</span><sc-if value="{{ dvCanFleet }}"><button class="btn btn-ghost" sc-camel-on-click="{{ k.inc }}" aria-label="Больше">+</button></sc-if></div>
+              <label class="field" style="margin:0"><span style="font-size:12px">м³</span><input class="input" type="number" step="0.1" min="0" value="{{ k.m3 }}" sc-camel-on-change="{{ k.onM3 }}" disabled="{{ dvRo }}"></label>
+              <label class="field" style="margin:0"><span style="font-size:12px">кг</span><input class="input" type="number" step="10" min="0" value="{{ k.kg }}" sc-camel-on-change="{{ k.onKg }}" disabled="{{ dvRo }}"></label>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+      <section class="dv-card">
+        <h3 style="margin:0 0 4px">Машины</h3>
+        <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:8px;text-wrap:pretty">{{ dvPlateNote }}</div>
+        <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Госномер</sc-raw-th><sc-raw-th>Вместимость</sc-raw-th><sc-raw-th>Водители</sc-raw-th><sc-raw-th>{{ dvVehHead }}</sc-raw-th><sc-raw-th>{{ dvStatHead }}</sc-raw-th></sc-raw-tr></sc-raw-thead>
+          <sc-raw-tbody><sc-for list="{{ dvVehicles }}" as="v"><sc-raw-tr>
+            <sc-raw-td><b style="font-weight:500">{{ v.name }}</b></sc-raw-td>
+            <sc-raw-td><input class="input dv-plate-in" value="{{ v.plate }}" placeholder="{{ v.platePh }}" sc-camel-on-change="{{ v.onPlate }}" disabled="{{ dvPlateRo }}" aria-label="Госномер {{ v.name }}"></sc-raw-td>
+            <sc-raw-td>{{ v.cap }}</sc-raw-td><sc-raw-td>{{ v.drivers }}</sc-raw-td><sc-raw-td><span class="tag {{ v.todayCls }}">{{ v.today }}</span></sc-raw-td><sc-raw-td>{{ v.stat }}</sc-raw-td>
+          </sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
+      </section>
+    </main>
+  </sc-if>
+
   <sc-if value="{{ isShipDialog }}" hint-placeholder-val="{{ false }}">
     <div class="dialog-backdrop" style="z-index:3000" sc-camel-on-click="{{ closeDialogBg }}">
       <div class="dialog blueprint" style="width:min(680px,100%);background:var(--color-bg)">
@@ -1383,11 +1433,14 @@
     </div>
   </sc-if>
 
+  <!-- «Настройки» → «Связь»: Google Таблица, ИИ-импорт, телеграм-бот (прежде — окно «Настройки связи») -->
   <sc-if value="{{ isGsDialog }}" hint-placeholder-val="{{ false }}">
-    <div class="dialog-backdrop" style="z-index:3000" sc-camel-on-click="{{ closeDialogBg }}">
-      <div class="dialog blueprint" style="width:min(820px,100%);background:var(--color-bg);max-height:92vh;overflow-y:auto;overflow-x:hidden;box-sizing:border-box">
-        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
-        <div class="dialog-title">Связь с Google Таблицей</div>
+    <main class="page gs-page" style="max-width:980px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:16px">
+        <div class="page-head">
+          <div class="eyebrow" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-accent-700)">Sozlamalar</div>
+          <h1 style="margin:2px 0 0;font-size:38px">Связь</h1>
+        </div>
+        <h3 style="margin:8px 0 0">Google Таблица</h3>
         <div style="font-size:13px;color:var(--color-neutral-800);text-wrap:pretty">Таблица становится главной: новые партии, клиенты и склады из неё сами появляются на сайте, а правки на сайте записываются в неё. Формулы, планы и листы остаются в таблице. Ссылка сохраняется для всех устройств: телефон и компьютер после входа работают с одной таблицей.</div>
         <sc-if value="{{ gsConnected }}"><div style="font-size:13px;font-weight:500">{{ gsWhere }}</div></sc-if>
         <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;font-size:14px">
@@ -1442,16 +1495,7 @@
             <sc-if value="{{ tgHasCode }}"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px">В группе отчётов отправьте:<code class="tg-code">{{ tgCode }}</code><button class="btn btn-ghost" sc-camel-on-click="{{ tgCopy }}">Скопировать</button></div></sc-if>
             <sc-if value="{{ tgHasLink }}"><div style="font-size:13px">Ссылка для водителей: <a href="{{ tgLink }}" target="_blank" rel="noopener">{{ tgLink }}</a> — открыть и нажать «Старт».</div></sc-if>
             <div style="font-size:13px;color:{{ tgResColor }};text-wrap:pretty">{{ tgRes }}</div>
-            <sc-if value="{{ tgHasDrivers }}">
-              <div class="tg-drivers"><sc-for list="{{ tgDrivers }}" as="d">
-                <div class="tg-driver">
-                  <div style="flex:1;min-width:0"><div><b style="font-weight:500">{{ d.name }}</b> · {{ d.truck }} · {{ d.plate }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></div>
-                  <span class="tag {{ d.tagCls }}">{{ d.label }}</span>
-                  <sc-if value="{{ d.canAllow }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.allow }}">Разрешить</button></sc-if>
-                  <sc-if value="{{ d.canOff }}"><button class="btn btn-ghost" sc-camel-on-click="{{ d.off }}">Отключить</button></sc-if>
-                </div>
-              </sc-for></div>
-            </sc-if>
+            <sc-if value="{{ tgHasDrivers }}"><div style="font-size:13px">Водители в боте: {{ tgDriversNote }} — список, заявки и отключение во вкладке «Водители».</div></sc-if>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <sc-if value="{{ tgCanConnect }}"><button class="btn {{ tgConnectCls }}" sc-camel-on-click="{{ tgConnect }}">{{ tgConnectLabel }}</button></sc-if>
               <sc-if value="{{ tgHasBot }}"><button class="btn btn-ghost" sc-camel-on-click="{{ tgRefresh }}">Обновить список</button></sc-if>
@@ -1461,11 +1505,9 @@
         <div style="font-size:13px;color:var(--color-accent-700)">{{ dialogError }}</div>
         <div class="dialog-actions">
           <sc-if value="{{ gsConnected }}"><button class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ gsDisconnect }}">Отключить таблицу</button></sc-if>
-          <button class="btn btn-secondary" sc-camel-on-click="{{ closeDialog }}">Закрыть</button>
-          <button class="btn btn-primary" sc-camel-on-click="{{ gsConnect }}">Подключить</button>
+          <button class="btn btn-primary" sc-camel-on-click="{{ gsConnect }}">{{ gsConnectLabel }}</button>
         </div>
-      </div>
-    </div>
+    </main>
   </sc-if>
 
   <sc-if value="{{ isWhDialog }}" hint-placeholder-val="{{ false }}">
@@ -1551,6 +1593,10 @@ const VEH = { labo: 'Labo', changan: 'Changan', gazel: 'Gazel', kamaz: 'Kamaz' }
 // Машины автопарка для журнала (Sozlamalar C24:C39). Госномера придут позже — тогда имена поменяются.
 const FLEET_TRUCKS = ['Gazel-1', 'Gazel-2', 'Gazel-3', 'Gazel-4', 'Gazel-5', 'Gazel-6', 'Gazel-7', 'Gazel-8', 'Gazel-9', 'Changan', 'Labo', 'Kamaz-1', 'Kamaz-2', 'Mijoz ozi oladi', 'Belgilanmagan'];
 const reys = n => n % 10 === 1 && n % 100 !== 11 ? 'рейс' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'рейса' : 'рейсов';
+const plural = (n, one, few, many) => n % 10 === 1 && n % 100 !== 11 ? one : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? few : many;
+const tochki = n => plural(n, 'точка', 'точки', 'точек'), mashin = n => plural(n, 'машины', 'машин', 'машин');   // «у 1 машины», «у 3 машин»
+// вкладка → раздел шапки: импорт — в «Журнале», дашборд и отчёты — в «Отчётах», настройки — четыре подвкладки
+const TAB_GROUP = { import: 'journal', dash: 'reports', reports: 'reports', tariffs: 'settings', fleetset: 'settings', link: 'settings', check: 'settings' };
 const f0 = n => (n == null || isNaN(n)) ? '—' : Math.round(n).toLocaleString('ru-RU');
 const f1 = (n, d = 1) => (n == null || isNaN(n)) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d });
 const money = n => n == null ? '—' : Math.round(n).toLocaleString('ru-RU') + ' сум';
@@ -1605,7 +1651,7 @@ class Component extends DCLogic {
     // смена языка (js/i18n.js): подписи на 3D-холсте рисуются заново
     if (window.I18N) window.I18N.onChange.push(() => this.forceUpdate());
     // Esc закрывает открытое окно (отгрузка, клиент, склад, настройки связи) — как «Отмена»
-    window.addEventListener('keydown', e => { if (e.key === 'Escape' && this.state.dialog && !e.defaultPrevented) this.setState({ dialog: null }); });
+    window.addEventListener('keydown', e => { if (e.key === 'Escape' && this.state.dialog && this.state.dialog.type !== 'gs' && !e.defaultPrevented) this.setState({ dialog: null }); });
     const tick = async () => {
       if (!(window.XlsxIO && window.LOGI_TEMPLATE_B64 && window.LogiEngine)) return setTimeout(tick, 60);
       try {
@@ -1694,11 +1740,15 @@ class Component extends DCLogic {
   }
   componentDidUpdate() {
     this.syncMap(); this.syncDvMap(); this.syncViz(); this.syncSmooth(); this.syncImport();
+    // страница «Связь» открыта — черновик есть; ушли с неё — черновик убираем (Esc, кнопки вкладок)
+    { const st = this.state, gs = st.dialog && st.dialog.type === 'gs';
+      if (st.tab === 'link' && !st.dialog) this.setState({ dialog: this.gsDraft() });
+      else if (st.tab !== 'link' && gs) this.setState({ dialog: null }); }
     // «Водители» за период: отметки водителей за нужные дни (без этой вкладки таблица отдаёт 2 дня — опрос каждые 30 с)
     const want = this.tgDays();
     if (this.gsUrl && this.gsVersion >= 10 && this.gsTg && (this.gsTg.span || 0) < want && this._tgAsked !== want && !this._gsBusy) { this._tgAsked = want; this.gsPull(); }
   }
-  tgDays() { return this.state.tab === 'drivers' ? Math.max(2, +this.state.dvPeriod || 7) : 2; }
+  tgDays() { const st = this.state; return st.tab === 'drivers' || (st.tab === 'reports' && st.repKind === 'drivers') ? Math.max(2, +st.dvPeriod || 7) : 2; }
   // Плавность: новая вкладка открывается сверху; длинный список клиентов — сначала первые строки, остальные
   // следующим кадром (вкладка появляется сразу); 3D-библиотека загружается заранее, пока сайт простаивает.
   syncSmooth() {
@@ -1802,7 +1852,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 16); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 17); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -1883,7 +1933,10 @@ class Component extends DCLogic {
     dels.sort((a, b) => b.row - a.row);
     return ops.concat(dels);
   }
-  openGs = () => { let u = '', t = ''; try { u = localStorage.getItem('logi-gs-url') || ''; t = localStorage.getItem('logi-gs-token') || ''; } catch (e) {} this.setState({ dialog: { type: 'gs', draft: { url: u, token: t, gh: '' }, error: '' } }); };
+  // связь с таблицей, ИИ и Telegram — страница «Настройки» → «Связь»; её черновик (ссылка, пароль) — в st.dialog, как у окон
+  gsDraft() { let u = '', t = ''; try { u = localStorage.getItem('logi-gs-url') || ''; t = localStorage.getItem('logi-gs-token') || ''; } catch (e) {} return { type: 'gs', draft: { url: u, token: t, gh: '' }, error: '' }; }
+  goSettings = k => this.setState(s => ({ tab: k, setLast: k, dialog: k === 'link' ? (s.dialog && s.dialog.type === 'gs' ? s.dialog : this.gsDraft()) : s.dialog && s.dialog.type === 'gs' ? null : s.dialog }));
+  openGs = () => this.goSettings('link');
 
   idb(mode, val) {
     return new Promise(res => {
@@ -2064,7 +2117,7 @@ class Component extends DCLogic {
       impFileRef: this.impFileRef, impPick: () => this.impFileRef.current && this.impFileRef.current.click(),
       onImpFile: e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) this.impUpload(f); },
       onImpDrop: e => { e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) this.impUpload(f); },
-      onImpDragOver: e => e.preventDefault(), impOpenGs: () => this.openGs()
+      onImpDragOver: e => e.preventDefault(), impOpenGs: () => this.openGs(), impToJournal: () => this.setState({ tab: 'journal' })
     });
     const own = window.LogiAuth ? window.LogiAuth.owner() : { state: 'none', config: {} }, mode = this.impModeGet();
     out.impModes = [['local', 'Без ИИ — бесплатно'], ['ai', 'Через ИИ']].map(([k, l]) => ({ l, go: () => this.impSetMode(k),
@@ -2072,10 +2125,10 @@ class Component extends DCLogic {
     out.impModeNote = mode === 'local' ? 'Строки Excel — прямо из ячеек, PDF — из текста страниц. Скан без ИИ не прочитать. Незнакомые маркировки сопоставляете вы — один раз: сайт запомнит их у клиента.' :
       'Claude разбирает любой формат, в том числе сканы, и предлагает клиентов для незнакомых маркировок. Нужен ключ Claude API — платно, центы за манифест.';
     out.impDropNote = mode === 'local' ? 'Excel (.xlsx) или PDF с текстом · до 10 МБ, PDF — до 30 страниц' : 'Excel (.xlsx) или PDF, в том числе скан · до 10 МБ, PDF — до 30 страниц';
-    out.impSetup = mode === 'local' ? '' : !this.gsUrl ? 'Подключите Google Таблицу (полоса над журналом → «Настройки связи»): ИИ работает через её скрипт.' :
-      !(this.gsVersion >= 8) ? 'Обновите код скрипта таблицы до версии 8 и впишите ключ Claude API в свойства скрипта: «Настройки связи» → «ИИ-импорт манифестов».' :
-      own.state === 'locked' ? 'Секрет редактора закрыт на этом устройстве: «Настройки связи» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».' :
-      own.state !== 'open' ? 'Секрет редактора не задан: «Настройки связи» → «ИИ-импорт манифестов» → «Новый секрет редактора».' : '';
+    out.impSetup = mode === 'local' ? '' : !this.gsUrl ? 'Подключите Google Таблицу («Настройки» → «Связь»): ИИ работает через её скрипт.' :
+      !(this.gsVersion >= 8) ? 'Обновите код скрипта таблицы до версии 8 и впишите ключ Claude API в свойства скрипта: «Настройки» → «Связь» → «ИИ-импорт манифестов».' :
+      own.state === 'locked' ? 'Секрет редактора закрыт на этом устройстве: «Настройки» → «Связь» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».' :
+      own.state !== 'open' ? 'Секрет редактора не задан: «Настройки» → «Связь» → «ИИ-импорт манифестов» → «Новый секрет редактора».' : '';
     out.impHasSetup = !!out.impSetup;
     // черновики и статистика ручных правок (насколько хорошо справляется ИИ)
     const list = this.impList || [], stat = { draft: 'Черновик', confirmed: 'Подтверждён', rejected: 'Отклонён' };
@@ -2228,9 +2281,9 @@ class Component extends DCLogic {
     const open = [...new Set(data.shipments.filter(s => s.date <= today && E.vehicleKind(s.truck) && !TG_DONE.includes(s.status)).map(s => s.date))].sort();
     return open.length ? open[open.length - 1] : D.dates[D.dates.length - 1] || today;
   }
-  async dvRun(label, body, done) {
+  async dvRun(label, body, done, key = 'dvMsg') {
     if (this.state.dvBusy) return;
-    this.setState({ dvBusy: true, dvMsg: { text: label, color: 'var(--color-divider)' } });
+    this.setState({ dvBusy: true, [key]: { text: label, color: 'var(--color-divider)' } });
     try {
       // водитель получает точки из таблицы: сначала дописываем туда правки журнала
       for (let i = 0; i < 40 && body.action === 'dispatch' && this.gsQueue.length; i++) {
@@ -2238,16 +2291,19 @@ class Component extends DCLogic {
       }
       if (body.action === 'dispatch' && this.gsQueue.length) throw new Error('Последние правки журнала ещё не записались в Google Таблицу — проверьте связь и нажмите снова.');
       const j = await this.tgPost(body);
-      this.setState({ dvBusy: false, dvMsg: { text: done(j), color: 'var(--color-accent)' } });
-    } catch (e) { this.setState({ dvBusy: false, dvMsg: { text: e.message || String(e), color: 'var(--color-red)' } }); }
+      this.setState({ dvBusy: false, [key]: { text: done(j), color: 'var(--color-accent)' } });
+    } catch (e) { this.setState({ dvBusy: false, [key]: { text: e.message || String(e), color: 'var(--color-red)' } }); }
+  }
+  // бот готов принимать задания: таблица со скриптом 10+, бот подключён, вход не «только просмотр»
+  botReady() { const T = this.gsTg; return !this.readOnly && !!this.gsUrl && this.gsVersion >= 10 && !!T && !!T.hooked; }
+  dispatchText(date, j) {
+    const sent = (j.sent || []).map(x => x.name + ' — ' + x.truck + ', точек ' + x.n), sk = (j.skipped || []).map(x => (x.name ? x.name + ' — ' : '') + x.truck + ': ' + x.why);
+    return (sent.length ? 'Партия ' + dLong(date) + ' отправлена:\n' + sent.join('\n') : 'Никому не отправлено.') + (sk.length ? '\n\nНе отправлено:\n' + sk.join('\n') : '');
   }
   dvDispatch(date, drivers, trucks) {
     const who = drivers.map(d => d.name + ' (' + d.truck + ')').join(', ');
     if (!confirm('Отправить партию ' + dLong(date) + (who ? ' водителям: ' + who : ' всем водителям с точками в ней') + '?\n\nНе начавшие день получат список точек и нажмут «Начать работу»; кто уже на линии — сразу первую точку этой партии.')) return;
-    this.dvRun('Отправляю задание…', { action: 'dispatch', date, ids: drivers.map(d => d.id) }, j => {
-      const sent = (j.sent || []).map(x => x.name + ' — ' + x.truck + ', точек ' + x.n), sk = (j.skipped || []).map(x => (x.name ? x.name + ' — ' : '') + x.truck + ': ' + x.why);
-      return (sent.length ? 'Партия ' + dLong(date) + ' отправлена:\n' + sent.join('\n') : 'Никому не отправлено.') + (sk.length ? '\n\nНе отправлено:\n' + sk.join('\n') : '');
-    });
+    this.dvRun('Отправляю задание…', { action: 'dispatch', date, ids: drivers.map(d => d.id) }, j => this.dispatchText(date, j));
   }
   dvWrite(ids, who) {
     const text = prompt('Сообщение ' + who + ' (придёт в Telegram от бота):', '');
@@ -2314,31 +2370,33 @@ class Component extends DCLogic {
     const kinds = this.dvKindDefs(S), capOf = k => kinds.find(x => x.k === k) || { capM3: 0, capKg: 0 };
     const log = ((T && T.log) || []).slice(), days = ((T && T.days) || []).slice();
     const plates = data.lists.plates || {}, plateOf = t => plates[t] || (ok.find(d => d.truck === t && d.plate) || {}).plate || '';
-    const TABS = [['day', 'Партия и водители'], ['fleet', 'Автопарк'], ['deliv', 'Лента доставок'], ['report', 'Отчёты']];
+    const TABS = [['day', 'Кто что везёт'], ['deliv', 'Лента доставок']];
     Object.assign(out, {
       dvTabs: TABS.map(([k, l]) => ({ l, go: () => set({ dvTab: k }), bg: st.dvTab === k ? 'var(--color-accent-2)' : 'transparent', fg: st.dvTab === k ? 'var(--color-on-brand)' : 'var(--color-text)' })),
-      dvIsDay: st.dvTab === 'day', dvIsFleet: st.dvTab === 'fleet', dvIsDeliv: st.dvTab === 'deliv', dvIsReport: st.dvTab === 'report',
+      dvIsDay: st.dvTab !== 'deliv', dvIsDeliv: st.dvTab === 'deliv',
       dvCan: can, dvCanDrv: !ro && v9 && !!T, dvCanFleet: !ro, dvRo: ro, dvPlateRo: ro || (!!this.gsUrl && !v10), dvBusy: !!st.dvBusy,
-      dvSub: 'Отправка партии водителям в Telegram, кто на линии, доставки с фото, машины и отчёты.' + (ro ? ' Только просмотр.' : ''),
+      dvSub: 'Отправка груза водителям в Telegram, кто на линии и что везёт, доставки с фото. Бот, диспетчер и машины — «Настройки» → «Водители и автопарк».' + (ro ? ' Только просмотр.' : ''),
       dvHasMsg: !!st.dvMsg, dvMsg: st.dvMsg ? st.dvMsg.text : '', dvMsgColor: st.dvMsg ? st.dvMsg.color : 'var(--color-divider)', dvMsgClose: () => set({ dvMsg: null }),
       dvPeriod: String(per), onDvPeriod: e => set({ dvPeriod: e.target.value }),
       dvPeriodOpts: [['1', 'Сегодня'], ['7', '7 дней'], ['30', '30 дней'], ['45', '45 дней']].map(([v, l]) => ({ v, l })),
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
-    out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу в «Настройки связи».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 16. «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
-      !T ? 'Телеграм-бот не подключён: «Настройки связи» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (16): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
-      !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота» в «Настройки связи».' :
-      !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — в «Настройки связи».' :
+    out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу: «Настройки» → «Связь».' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 17. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !T ? 'Телеграм-бот не подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (17): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота»: «Настройки» → «Связь».' :
+      !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — «Настройки» → «Связь».' :
       T.tz && !UZ_TZ.includes(T.tz) ? 'Часовой пояс Google Таблицы — ' + T.tz + ', а не Ташкент: время водителей («на линии с …»), «сегодня» и итог дня в 20:00 сдвинуты. ' +
-        'Исправьте: в Google Таблице Файл → Настройки → Часовой пояс → «(GMT+05:00) Tashkent» → Сохранить; в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent». Затем «Настройки связи» → «Переподключить бота».' :
-      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта
+        'Исправьте: в Google Таблице Файл → Настройки → Часовой пояс → «(GMT+05:00) Tashkent» → Сохранить; в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent». Затем «Настройки» → «Связь» → «Переподключить бота».' :
+      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 17
       this.gsVersion < 16 && T.scriptTz && !UZ_TZ.includes(T.scriptTz) ? 'Часовой пояс скрипта — ' + T.scriptTz + ', а не Ташкент: даты партий могут сдвигаться на день назад (04.05.2006 → 03.05.2006). ' +
-        'Обновите код скрипта до 16 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
-      this.gsVersion < 16 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 16 — даты партий больше не сдвигаются на день (04.05.2006 не станет 03.05.2006), уже сдвинутые исправятся сами' +
-        (this.gsVersion < 15 ? '; у водителей станет один экран: короткая карточка точки с тремя большими кнопками (маршрут, «📷 Доставлено» сразу открывает камеру, «❌ Не доставлено»), остальное — в «☰ Ещё»' : '') +
-        (this.gsVersion < 14 ? '; бот сам напомнит водителю, если тот забыл нажать кнопку, и утром сам отправит план дня' : '') + (this.gsVersion < 13 ? '; сайт проверит часовой пояс таблицы' : '') + ': «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' :
+        'Обновите код скрипта до 17 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
+      // код ниже 17: что изменится у водителей и в таблице после обновления — по предложению на каждое изменение
+      this.gsVersion < 17 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 17: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' +
+        (this.gsVersion >= 15 ? ' У водителей снова будет прежняя карточка точки: все кнопки под точкой и полное меню внизу.' : '') +
+        (this.gsVersion < 16 ? ' Даты партий больше не будут сдвигаться на день (04.05.2006 не станет 03.05.2006), уже сдвинутые исправятся сами.' : '') +
+        (this.gsVersion < 14 ? ' Бот сам напомнит водителю, если тот забыл нажать кнопку, и утром сам отправит план дня.' : '') + (this.gsVersion < 13 ? ' Сайт проверит часовой пояс таблицы.' : '') :
       ro ? 'Только просмотр: отправлять задания, писать водителям и менять автопарк может руководитель.' : '';
     out.dvHasBanner = !!out.dvBanner;
     if (ro) out.dvCanSetup = false;
@@ -2349,6 +2407,14 @@ class Component extends DCLogic {
     const order = t => { const i = data.lists.trucks.indexOf(t); return i < 0 ? 99 : i; };
     const fleetTrucks = data.lists.trucks.filter(t => !TG_NOT_TRUCKS.includes(t));
     const lastLog = {}; log.forEach(x => { if (x.date === date) lastLog[x.truck + '|' + x.bl] = x; });
+    // что сейчас с водителем: на линии, закончил, задание отправлено…
+    const drvLine = d => {
+      const w = d.today, a = d.assign;
+      const on = w && !w.ended, state = w && w.ended ? 'закончил в ' + w.ended + ' · доставлено ' + w.ok + (w.fail ? ', не доставлено ' + w.fail : '') :
+        on ? 'на линии с ' + w.started + (w.date && w.date !== date ? ' · везёт партию ' + dLong(w.date) : w.cur ? ' · сейчас ' + w.cur.bl : '') + (w.posAt ? ' · 📍 ' + w.posAt : '') :
+        a && a.date === date ? 'задание отправлено ' + String(a.at || '').slice(11, 16) + ', ещё не начал' : a ? 'отправлена партия ' + dLong(a.date) : 'задание не отправлено';
+      return { dot: on ? 'var(--color-red)' : w ? 'var(--color-accent)' : 'var(--color-neutral-400)', name: d.name, state };
+    };
     const tot = { stops: 0, ok: 0, fail: 0, open: 0, cbm: 0 };
     const cards = truckNames.map(t => {
       const my = rows.filter(s => s.truck === t), kind = E.vehicleKind(t), cap = capOf(kind), drv = drivers.filter(d => d.truck === t && d.status === 'ruxsat');
@@ -2371,19 +2437,13 @@ class Component extends DCLogic {
               canMove: !ro && x.open, moveOpts: fleetTrucks.filter(o => o !== t), move: e => { const to = e.target.value; e.target.value = ''; this.dvMove(date, t, x.bl, x.round, to); } };
           }) };
       });
-      const dStates = drv.length ? drv.map(d => {
-        const w = d.today, a = d.assign;
-        const on = w && !w.ended, stTxt = w && w.ended ? 'закончил в ' + w.ended + ' · доставлено ' + w.ok + (w.fail ? ', не доставлено ' + w.fail : '') :
-          on ? 'на линии с ' + w.started + (w.date && w.date !== date ? ' · везёт партию ' + dLong(w.date) : w.cur ? ' · сейчас ' + w.cur.bl : '') + (w.posAt ? ' · 📍 ' + w.posAt : '') :
-          a && a.date === date ? 'задание отправлено ' + String(a.at || '').slice(11, 16) + ', ещё не начал' : a ? 'отправлена партия ' + dLong(a.date) : 'задание не отправлено';
-        return { dot: on ? 'var(--color-red)' : w ? 'var(--color-accent)' : 'var(--color-neutral-400)', name: d.name, state: stTxt };
-      }) : [{ dot: 'var(--color-neutral-300)', name: 'Нет водителя в боте', state: '' }];
+      const dStates = drv.length ? drv.map(drvLine) : [{ dot: 'var(--color-neutral-300)', name: 'Нет водителя в боте', state: '' }];
       const probs = ((T && T.problems) || []).filter(p => p.truck === t && String(p.t).slice(0, 10) === today).map(p => { const ll = String(p.ll || '').split(',').map(Number);
         return { time: String(p.t).slice(11, 16), type: p.type, text: p.text, photos: (p.photos || []).map(safeUrl).filter(Boolean).map((u, i) => ({ u, n: String(i + 1) })), hasLL: ll.length === 2 && !isNaN(ll[0]), ll: ll.length === 2 ? E.yPoint(ll[0], ll[1]) : '' }; });
       return { name: t, plate: plateOf(t), hasPlate: !!plateOf(t), probs, kindLine: (kind ? VEH[kind] + (cap.capM3 ? ' · ' + f1(cap.capM3, 1) + ' м³ / ' + f0(cap.capKg) + ' кг' : '') : 'не из автопарка') + ' · ' + (list.length ? list.length + ' точ. · ' + rounds.length + ' ' + reys(rounds.length) : 'нет точек'),
         canSend: can && !!drv.length && n.open > 0, send: () => this.dvDispatch(date, drv, [t]), canWrite: can && !!drv.length, write: () => this.dvWrite(drv.map(d => d.id), drv.map(d => d.name).join(', ')),
         drivers: dStates, pOk: n.stops ? Math.round(n.ok / n.stops * 100) : 0, pFail: n.stops ? Math.round(n.fail / n.stops * 100) : 0,
-        progTitle: n.stops ? 'Доставлено ' + n.ok + ' из ' + n.stops + (n.fail ? ', не доставлено ' + n.fail : '') + (n.open ? ', осталось ' + n.open : '') : '', rounds, noStops: !list.length, _k: list.length ? 0 : 1, _o: order(t) };
+        progTitle: n.stops ? 'Доставлено ' + n.ok + ' из ' + n.stops + (n.fail ? ', не доставлено ' + n.fail : '') + (n.open ? ', осталось ' + n.open : '') : '', rounds, noStops: !list.length, _k: list.length ? 0 : 1, _o: order(t), _n: n };
     }).sort((a, b) => a._k - b._k || a._o - b._o || a.name.localeCompare(b.name));
     const noTruck = rows.filter(s => !E.vehicleKind(s.truck) && s.truck !== 'Mijoz ozi oladi' && !TG_DONE.includes(s.status));
     // недоставленные партии — на другую дату (скрипт 12): статус «В плане», без машины; попытка остаётся в отметках
@@ -2419,6 +2479,28 @@ class Component extends DCLogic {
       dvMapNote: 'Точки партии: синие — доставлено, красные — не доставлено, тёмные — ещё везут; 🚚 — где водитель отметился последний раз.'
     });
     out.dvHasPending = out.dvPending.length > 0;
+    // список водителей с доступом: машина, что сейчас, точки этой партии; кнопки — отправить, написать, отключить
+    { const byTruck = {}; cards.forEach(c => { byTruck[c.name] = c; });
+      const trucksWithStops = cards.filter(c => !c.noStops).length, noDrv = cards.filter(c => !c.noStops && !drivers.some(d => d.truck === c.name && d.status === 'ruxsat')).map(c => c.name);
+      out.dvList = ok.map(d => {
+        const n = (byTruck[d.truck] || {})._n || { stops: 0, ok: 0, fail: 0, open: 0 }, ln = drvLine(d), plate = plateOf(d.truck) || d.plate || '';
+        return { name: d.name, sub: [d.user, d.lang === 'ru' ? 'русский' : 'узбекский'].filter(Boolean).join(' · '), truck: d.truck || '—', plate, hasPlate: !!plate, dot: ln.dot, state: ln.state,
+          pts: n.stops ? f0(n.stops) : '—', done: n.stops ? n.ok + ' из ' + n.stops + (n.fail ? ', не доставлено ' + n.fail : '') : '—', _o: order(d.truck),
+          canSend: can && n.open > 0, send: () => this.dvDispatch(date, [d], [d.truck]), canWrite: can, write: () => this.dvWrite([d.id], d.name),
+          canOff: !ro && v9 && !!T, off: () => { if (confirm('Отключить водителя ' + d.name + ' (' + d.truck + ')? Бот перестанет показывать ему точки.')) this.dvRun('Отключаю…', { action: 'driver', id: d.id, status: 'o‘chirilgan' }, () => d.name + ': доступ закрыт.'); } };
+      }).sort((a, b) => a._o - b._o || a.name.localeCompare(b.name));
+      out.dvHasList = out.dvList.length > 0; out.dvNoList = !out.dvList.length;
+      out.dvNoListText = !T ? 'Водители появятся здесь, когда бот будет подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».' :
+        'В боте пока нет водителей с доступом. Ссылка для водителей — «Настройки» → «Связь»: водитель открывает её, нажимает «Старт» и регистрируется, заявка появится здесь.';
+      out.dvOff = drivers.filter(d => d.status === 'rad' || d.status === 'o‘chirilgan').map(d => ({ name: d.name, truck: d.truck || '—', label: d.status === 'rad' ? 'отклонён' : 'отключён',
+        allow: () => this.dvRun('Открываю доступ…', { action: 'driver', id: d.id, status: 'ruxsat' }, () => d.name + ': доступ открыт, водителю пришло сообщение.') }));
+      out.dvHasOff = out.dvOff.length > 0;
+      // большая кнопка: всем водителям с точками в партии
+      out.dvShowSend = !ro; out.dvSendOff = !can || !!st.dvBusy || !tot.open;
+      out.dvSendNote = !tot.stops ? 'В партии ' + dLong(date) + ' нет точек с машинами.' :
+        'Партия ' + dLong(date) + ': ' + tot.stops + ' ' + tochki(tot.stops) + ' у ' + trucksWithStops + ' ' + mashin(trucksWithStops) + (tot.open < tot.stops ? ', осталось ' + tot.open : '') + '.' +
+        (noDrv.length ? ' Без водителя в боте: ' + noDrv.join(', ') + '.' : '') + (noTruck.length ? ' Без машины: ' + noTruck.length + ' отгр.' : '') +
+        (!can && !ro ? ' Отправка откроется, когда бот будет подключён (плашка выше).' : ''); }
     // настройки бота (скрипт версии 12): диспетчер, ожидание клиента, расстояние до клиента, фото только с камеры, перенос недоставленных;
     // версии 14: план дня утром (время или «выкл») и напоминания водителям
     { const cfg = (T && T.settings) || {}, disp = (T && T.dispatcher) || {}, v12 = this.gsVersion >= 12, v14 = this.gsVersion >= 14;
@@ -2437,7 +2519,7 @@ class Component extends DCLogic {
           const c = (j.tg && j.tg.settings) || {}; this.setState({ dvSet: null });
           return 'Настройки бота сохранены.' + (c.camera && !c.cameraReady ? ' Кнопка камеры включится, когда скрипт узнает адрес сайта — откройте сайт по его адресу в интернете (не с компьютера) и нажмите «Сохранить» ещё раз.' : '') +
             ' Кнопки «📞 Диспетчер» и «⚠️ Проблема» появятся у водителей со следующего сообщения бота.'; }),
-        dvSetNote: !v12 ? 'Нужен код скрипта таблицы версии 12: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' :
+        dvSetNote: !v12 ? 'Нужен код скрипта таблицы версии 12: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' :
           'Водитель звонит диспетчеру кнопкой «📞 Диспетчер», а когда клиент не отвечает — бот предлагает позвонить и пишет в группу номера клиента. «⏳ Жду клиента» напоминает через заданное время.' +
           (v14 ? ' Утром бот сам отправляет водителям план дня, если в журнале на сегодня расписаны машины; забыл нажать кнопку — бот напомнит, не помогло — напишет в группу.' : ' План дня утром и напоминания водителям — с кодом скрипта версии 14.'),
         dvSetSummary: [disp.phone ? 'Диспетчер: ' + (disp.name ? disp.name + ' · ' : '') + disp.phone : 'Номер диспетчера не указан',
@@ -2560,12 +2642,16 @@ class Component extends DCLogic {
     const unpNote = n => n ? 'рейсов без тарифа: ' + n : '';
     const known = t => t.capM3 > 0 && t.capKg > 0 && (t.cbm > 0 || t.kg > 0);   // рейсы с известным грузом — для загрузки
     const now = new Date(), ds = D.dates, last = ds[ds.length - 1] || '';
-    const out = { repIsBatch: kind === 'batch', repIsCost: kind === 'cost', repIsFleet: kind === 'fleet', repIsPeriod: kind !== 'batch',
-      repKinds: [['batch', 'Партия на день'], ['cost', 'Расходы за период'], ['fleet', 'Автопарк и экономия']].map(([k, l]) => ({ l, go: () => this.setState({ repKind: k }), bg: kind === k ? 'var(--color-accent)' : 'transparent', fg: kind === k ? 'var(--color-bg)' : 'var(--color-text)' })),
+    const out = { repIsBatch: kind === 'batch', repIsCost: kind === 'cost', repIsFleet: kind === 'fleet', repIsPeriod: kind !== 'batch' && kind !== 'drivers', repIsDrivers: kind === 'drivers', repNotDrivers: kind !== 'drivers',
       repMade: dLong(isoDay(now)) + ' ' + hhmm(now.getHours() * 60 + now.getMinutes()),
       repDateOpts: ds.slice().reverse().map(v => ({ v, l: dLong(v) })), repDateAsc: ds.map(v => ({ v, l: dLong(v) })),
       repNote: '', repHasNote: false, repKpis: [], repCost: [], repHasCost: false, repEmpty: !ds.length,
       repPrint: () => this.reportPrint(), repXlsx: () => this.reportXlsx() };
+    // водители — по отметкам в боте (прежде «Водители» → «Отчёты»): кто сколько доставил, машины, рабочие дни
+    if (kind === 'drivers') {
+      const dv = this.driversView(st, S, D);
+      return Object.assign(out, dv, { repTitle: 'Отчёт по водителям', repSub: dv.dvRepSum || 'По отметкам водителей в Telegram-боте', repPrintTitle: 'Отчёт по водителям · ' + (dv.dvRepSum || '') });
+    }
     if (!ds.length) return Object.assign(out, { repTitle: 'Отчёты', repSub: 'Нет данных', repPrintTitle: '' });
 
     if (kind === 'batch') {
@@ -2965,7 +3051,7 @@ class Component extends DCLogic {
     const r = await fetch(this.gsUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', ai }) });
     const j = await r.json();
-    if (!(j.v >= 8)) throw new Error('Для ИИ нужен код скрипта таблицы версии 8: «Настройки связи» → «Скопировать код» → вставить в Apps Script → новая версия развертывания');
+    if (!(j.v >= 8)) throw new Error('Для ИИ нужен код скрипта таблицы версии 8: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания');
     // владелец таблицы не разрешил скрипту внешние запросы (в том числе старый код, где это «Нет связи с Claude API»)
     if (j.error && /external_request|UrlFetchApp\.fetch/.test(j.error)) Object.assign(j, { code: 'auth', error: 'Скрипту таблицы не разрешены внешние запросы. ' +
       'В Google Таблице: Расширения → Apps Script (тем же аккаунтом Google, от имени которого развёрнуто веб-приложение) → вверху выберите функцию authorize (в старом коде — doGet) → ▶ Выполнить → ' +
@@ -2981,7 +3067,7 @@ class Component extends DCLogic {
       body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', tg, tgdays: this.tgDays(), site: location.origin + location.pathname.replace(/[^/]*$/, ''), hook: this.gsUrl }) });
     const j = await r.json();
     const need = ['settings', 'carry'].includes(tg.action) ? 12 : tg.action === 'dispatcher' ? 11 : ['dispatch', 'message', 'summary'].includes(tg.action) ? 10 : 9;   // отправка партии, сообщения, итог дня — с 10; диспетчер — с 11; настройки бота и перенос — с 12
-    if (!(j.v >= need)) throw new Error('Для этого нужен код скрипта таблицы версии ' + need + ' (сейчас ' + (j.v || 'старее 8') + '): «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия развертывания');
+    if (!(j.v >= need)) throw new Error('Для этого нужен код скрипта таблицы версии ' + need + ' (сейчас ' + (j.v || 'старее 8') + '): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия развертывания');
     if (j.error && /external_request|UrlFetchApp\.fetch/.test(j.error)) throw new Error('Скрипту таблицы не разрешены внешние запросы: в Apps Script выберите функцию authorize → ▶ Выполнить → отметьте все галочки → Продолжить.');
     if (j.error) throw new Error(j.error);
     if (j.tg !== undefined) { this.gsTg = j.tg; this.setState({}); }
@@ -3031,8 +3117,8 @@ class Component extends DCLogic {
     const useAi = this.impModeGet() === 'ai';
     if (useAi) {
       if (!this.gsUrl) return fail('Сначала подключите Google Таблицу — ИИ работает через её скрипт.');
-      if (!(this.gsVersion >= 8)) return fail('Обновите код скрипта таблицы до версии 8: «Настройки связи» → «Скопировать код».');
-      if (window.LogiAuth.owner().state === 'locked') return fail('Секрет редактора закрыт на этом устройстве: «Настройки связи» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».');
+      if (!(this.gsVersion >= 8)) return fail('Обновите код скрипта таблицы до версии 8: «Настройки» → «Связь» → «Скопировать код».');
+      if (window.LogiAuth.owner().state === 'locked') return fail('Секрет редактора закрыт на этом устройстве: «Настройки» → «Связь» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».');
     }
     this.impBusy({ step: 'Читаю файл', done: 0, total: 1, file: name });
     let buf, doc, pages = null, sheets = null;
@@ -3207,7 +3293,8 @@ class Component extends DCLogic {
   }
   // PDF на экране проверки: страницы рисуются один раз, строка-источник подсвечивается
   syncImport() {
-    if (this.state.tab === 'import' && !this.impList && !this._impLoading && !this.readOnly) { this._impLoading = true; this.impLoadList(); }
+    // черновики импорта нужны и журналу: плашка «ждут проверки»
+    if ((this.state.tab === 'import' || this.state.tab === 'journal') && !this.impList && !this._impLoading && !this.readOnly) { this._impLoading = true; this.impLoadList(); }
     const c = this.impCur; if (this.state.tab !== 'import' || !c || !this.state.impId) return;
     const selKey = c.draft.id + '|' + this.state.impSel + '|' + this.state.impSheet + '|' + this.state.impPane;
     if (c.book) {   // Excel: прокрутить таблицу документа к строке-источнику
@@ -3260,8 +3347,8 @@ class Component extends DCLogic {
     if (r && !r.short) return r;
     if (!/^https?:\/\//i.test(t)) return r ? { error: 'Это не ссылка на карту.' } : null;
     const tip = ' Или откройте ссылку в браузере и вставьте полную ссылку из адресной строки.';
-    if (!this.gsUrl) return { error: 'Короткую ссылку раскрывает скрипт Google Таблицы — подключите таблицу («Настройки связи»).' + tip };
-    if (!(this.gsVersion >= 7)) return { error: 'Короткую ссылку раскрывает скрипт Google Таблицы — обновите его код: «Настройки связи» → «Скопировать код».' + tip };
+    if (!this.gsUrl) return { error: 'Короткую ссылку раскрывает скрипт Google Таблицы — подключите таблицу («Настройки» → «Связь»).' + tip };
+    if (!(this.gsVersion >= 7)) return { error: 'Короткую ссылку раскрывает скрипт Google Таблицы — обновите его код: «Настройки» → «Связь» → «Скопировать код».' + tip };
     let j;
     try { j = await this.gsGet({ resolve: t }); } catch (e) { return { error: 'Не удалось открыть ссылку: ' + (e.message || e) + '.' + tip }; }
     for (const u of (j.hops || []).slice().reverse()) { const x = E.coordsFromLink(u); if (x && !x.short) return { ...x, how: x.how + ', по короткой ссылке', url: j.url }; }
@@ -3384,7 +3471,7 @@ class Component extends DCLogic {
     const grew = list.length !== data.lists.trucks.length;
     this.commit({ ...data, shipments: out, ...(grew ? { lists: { ...data.lists, trucks: list } } : {}) });
     if (grew && this.gsUrl && this.gsVersion >= 5) this.gsEnqueue([{ t: 'trucks', v: list }]);   // новые машины — в список таблицы
-    this.setState({ acceptInfo: { date, key, prev, added, n: ids.length, trips: plan.trips.length } });
+    this.setState({ acceptInfo: { date, key, prev, added, n: ids.length, trips: plan.trips.length }, sendAsk: this.botReady() ? { date, key } : null, planMsg: null });
   }
   undoAccept() {
     const a = this.state.acceptInfo;
@@ -3394,7 +3481,7 @@ class Component extends DCLogic {
     const same = (x, s) => x.id === s.id || (x.bl === s.bl && x.date === s.date && (x.note || '') === (s.note || '') && x.truck === s.truck && +x.route === +s.route && Math.abs((+x.cbm || 0) - (+s.cbm || 0)) < 1e-6);
     const added = s => { const i = left.findIndex(x => same(x, s)); if (i < 0) return false; left.splice(i, 1); return true; };
     this.commit({ ...data, shipments: data.shipments.filter(s => back.has(s.id) || !added(s)).map(s => back.get(s.id) || s) });
-    this.setState({ acceptInfo: null });
+    this.setState({ acceptInfo: null, sendAsk: null });
   }
 
   // «Проверка»: клиентам без координат, но со ссылкой, — координаты и район по ссылкам
@@ -3420,9 +3507,18 @@ class Component extends DCLogic {
 
   renderVals() {
     const st = this.state;
-    const tabsDef = [['journal', 'Журнал'], ['import', 'Импорт'], ['clients', 'Клиенты'], ['map', 'Карта'], ['dash', 'Дашборд'], ['reports', 'Отчёты'], ['plans', 'Планы A/B/C'], ['drivers', 'Водители'], ['viz', 'Визуализация'], ['tariffs', 'Тарифы'], ['check', 'Проверка']];
-    const tabs = tabsDef.filter(([k]) => k !== 'import' || !this.readOnly).map(([k, l]) => ({ label: l, go: () => this.setState({ tab: k }), color: st.tab === k ? 'var(--color-on-brand)' : 'color-mix(in srgb, var(--color-on-brand) 72%, transparent)', border: st.tab === k ? 'var(--color-red)' : 'transparent' }));
-    const base = { tabs, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isDrivers: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
+    // вкладки шапки: «Журнал» — журнал и импорт, «Отчёты» — дашборд и отчёты,
+    // «Настройки» — тарифы, водители и автопарк, связь, проверка данных (у них — строка подвкладок под шапкой)
+    const top = TAB_GROUP[st.tab] || st.tab;
+    const tabsDef = [['journal', 'Журнал'], ['clients', 'Клиенты'], ['map', 'Карта'], ['reports', 'Отчёты'], ['plans', 'Планы A/B/C'], ['drivers', 'Водители'], ['viz', 'Визуализация'], ['settings', 'Настройки']];
+    const goTop = k => k === 'reports' ? this.setState({ tab: 'dash' }) : k === 'settings' ? this.goSettings(st.setLast || 'tariffs') : this.setState({ tab: k });
+    const tabs = tabsDef.map(([k, l]) => ({ label: l, go: () => goTop(k), color: top === k ? 'var(--color-on-brand)' : 'color-mix(in srgb, var(--color-on-brand) 72%, transparent)', border: top === k ? 'var(--color-red)' : 'transparent' }));
+    const SUB = { reports: [['dash', 'Дашборд'], ['batch', 'Партия на день'], ['cost', 'Расходы'], ['fleet', 'Автопарк'], ['drivers', 'Водители']],
+      settings: [['tariffs', 'Тарифы и планы'], ['fleetset', 'Водители и автопарк'], ['link', 'Связь'], ['check', 'Проверка данных']] };
+    const curSub = top === 'reports' ? (st.tab === 'dash' ? 'dash' : st.repKind || 'batch') : st.tab;
+    const subtabs = (SUB[top] || []).filter(([k]) => !(k === 'link' && this.readOnly)).map(([k, l]) => ({ l, cls: k === curSub ? 'subtab on' : 'subtab',
+      go: () => top === 'reports' ? this.setState(k === 'dash' ? { tab: 'dash' } : { tab: 'reports', repKind: k }) : this.goSettings(k) }));
+    const base = { tabs, subtabs, hasSubtabs: subtabs.length > 0, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isDrivers: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, isFleetSet: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
       fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
       account: () => window.LogiAuth && window.LogiAuth.openAccount(), readOnly: this.readOnly };
     const fs = st.fileStatus, fat = st.fileAt ? hhmm(st.fileAt.getHours() * 60 + st.fileAt.getMinutes()) : '';
@@ -3439,7 +3535,7 @@ class Component extends DCLogic {
       Object.assign(base, {
         gsMode: true, showConnect: false, showReload: false, showDisconnect: false, fileErr: false, gsErr: gs === 'error' && this.gsQueue.length > 0,
         fileTitle: 'Google Таблица: ' + (st.gsName || '…'),
-        fileNote: gs === 'loading' ? 'Загружаю данные из таблицы…' : gs === 'saving' ? 'Записываю изменения в таблицу…' : gs === 'error' ? st.gsMsg : this.gsOldScript || this.gsScriptOld ? 'Обновите код скрипта в таблице: «Настройки связи» → «Скопировать код» → вставить в Apps Script → Развернуть → Управление развертываниями → ✎ → Версия: новая. Без этого часть настроек не записывается в таблицу' : 'Синхронизировано ' + gat + (this.gsShared ? ' · одна таблица на всех устройствах' : ' · только на этом устройстве') + (this.readOnly ? ' · только просмотр' : ' · правки сразу уходят в таблицу') + ', новые строки подтягиваются каждые 30 сек',
+        fileNote: gs === 'loading' ? 'Загружаю данные из таблицы…' : gs === 'saving' ? 'Записываю изменения в таблицу…' : gs === 'error' ? st.gsMsg : this.gsOldScript || this.gsScriptOld ? 'Обновите код скрипта в таблице: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → Управление развертываниями → ✎ → Версия: новая. Без этого часть настроек не записывается в таблицу' : 'Синхронизировано ' + gat + (this.gsShared ? ' · одна таблица на всех устройствах' : ' · только на этом устройстве') + (this.readOnly ? ' · только просмотр' : ' · правки сразу уходят в таблицу') + ', новые строки подтягиваются каждые 30 сек',
         fileDot: gs === 'error' ? 'transparent' : 'var(--color-accent)', fileNoteColor: gs === 'error' ? 'var(--color-accent-900)' : 'var(--color-neutral-700)', gsLabel: 'Настройки связи' });
     }
     base.showStrip = st.tab === 'journal' || base.fileErr || base.gsErr || st.gsStatus === 'error' || st.fileStatus === 'error' || st.fileStatus === 'needPerm';
@@ -3456,9 +3552,13 @@ class Component extends DCLogic {
     const distName = d => d === 'Aniqlanmagan' ? 'Не определён' : (d || '—');
     const out = { ...base, depotName: S.depotName, statusOpts, truckOpts, districtOpts, dateOpts,
       savedNote: st.savedAt ? 'Сохранено ' + hhmm(st.savedAt.getHours() * 60 + st.savedAt.getMinutes()) : '',
-      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isDrivers: st.tab === 'drivers', isViz: st.tab === 'viz', isTariffs: st.tab === 'tariffs', isReports: st.tab === 'reports', isImport: st.tab === 'import' && !this.readOnly, isCheck: st.tab === 'check' };
+      isJournal: st.tab === 'journal', isClients: st.tab === 'clients', isMap: st.tab === 'map', isDash: st.tab === 'dash', isPlans: st.tab === 'plans', isDrivers: st.tab === 'drivers', isViz: st.tab === 'viz', isTariffs: st.tab === 'tariffs', isReports: st.tab === 'reports', isImport: st.tab === 'import' && !this.readOnly, isCheck: st.tab === 'check', isFleetSet: st.tab === 'fleetset' };
 
     if (st.tab === 'journal') {
+      // импорт манифестов — отсюда: кнопка «Импорт манифеста» и плашка о черновиках, которые ждут проверки
+      const drafts = this.readOnly ? [] : (this.impList || []).filter(d => d.status === 'draft');
+      Object.assign(out, { goImport: () => this.setState({ tab: 'import', impId: null }), jHasDrafts: drafts.length > 0,
+        jDraftsNote: 'Черновиков импорта ждут проверки: ' + drafts.length + ' (' + drafts.slice(0, 3).map(d => (d.file && d.file.name) || d.id).join(', ') + (drafts.length > 3 ? '…' : '') + '). Партии появятся в журнале после подтверждения.' });
       const q = st.jSearch.trim().toLowerCase();
       const rows = data.shipments.filter(s => (st.jDate === 'all' || s.date === st.jDate) && (st.jStatus === 'all' || s.status === st.jStatus) && (!q || [s.bl, s.note, ...(Object.values(D.cmap[s.bl] || {}))].join(' ').toLowerCase().includes(q)))
         .sort((a, b) => b.date.localeCompare(a.date) || a.bl.localeCompare(b.bl, 'ru', { numeric: true }));
@@ -3541,7 +3641,7 @@ class Component extends DCLogic {
         : { depotTag: 'уточнены', depotTagClass: 'tag-accent', depotAct: 'Изменить',
         depotNote: 'Отсюда начинаются все рейсы: от этой точки считаются расстояния, время и стоимость. Если склад переедет — «Тарифы» → «Склад отправки» → «Ссылка на склад».' });
       out.kamazMissing = S.kamazBase == null || S.kamazPt == null;
-      out.goTariffs = () => this.setState({ tab: 'tariffs' });
+      out.goTariffs = () => this.goSettings('tariffs');
       out.fileNotes = data.notes || [];
       out.hasFileNotes = out.fileNotes.length > 0;
     }
@@ -3626,7 +3726,7 @@ class Component extends DCLogic {
     }
 
     if (st.tab === 'reports') Object.assign(out, this.reportView(st, S, D));
-    if (st.tab === 'drivers') Object.assign(out, this.driversView(st, S, D));
+    if (st.tab === 'drivers' || st.tab === 'fleetset') Object.assign(out, this.driversView(st, S, D));
     if (st.tab === 'import' && !this.readOnly) Object.assign(out, this.importView(st, S, D));
 
     if (st.tab === 'plans' && st.planDate) {
@@ -3677,6 +3777,14 @@ class Component extends DCLogic {
           acceptLabel: done ? 'Записать снова' : 'Принять план ' + planKey, acceptBtnClass: done ? 'btn-secondary' : 'btn-primary', acceptBorder: done ? 'var(--color-accent)' : 'var(--color-divider)',
           acceptPlan: () => this.acceptPlan(st.planDate, planKey), undoAccept: () => this.undoAccept(),
           goAcceptJournal: () => this.setState({ tab: 'journal', jDate: st.planDate, jLimit: 60 }) }); }
+      // план записан — отправить водителям сейчас или позже (вкладка «Водители» → «Отправить груз водителям»)
+      { const ask = st.sendAsk && st.sendAsk.date === st.planDate && st.sendAsk.key === planKey ? st.sendAsk : null, pm = st.planMsg;
+        Object.assign(out, { sendAskShow: !!ask, dvBusy: !!st.dvBusy,
+          sendAskNote: 'Водители с точками в партии ' + dLong(st.planDate) + ' получат задание в Telegram. «Позже» — отправите во вкладке «Водители» кнопкой «Отправить груз водителям».',
+          sendAskYes: () => { this.setState({ sendAsk: null }); this.dvRun('Отправляю задание водителям…', { action: 'dispatch', date: st.planDate, ids: [] }, j => this.dispatchText(st.planDate, j), 'planMsg'); },
+          sendAskNo: () => this.setState({ sendAsk: null }),
+          planHasMsg: !!pm, planMsg: pm ? pm.text : '', planMsgColor: pm ? pm.color : 'var(--color-divider)', planMsgSent: !!pm && pm.color === 'var(--color-accent)',
+          planMsgClose: () => this.setState({ planMsg: null }), planGoDrivers: () => this.setState({ tab: 'drivers', dvDate: st.planDate, planMsg: null }) }); }
       out.planTrips = plan.trips.map((t, ti) => {
         const v = t.vehicle;
         let prev = depot;
@@ -3813,8 +3921,9 @@ class Component extends DCLogic {
             ...(q && !(rec.bl + ' ' + (rec.note || '')).toLowerCase().includes(q) ? { jSearch: '' } : {}) });
         };
         out.deleteItem = () => { if (confirm('Удалить отгрузку?')) { this.commit({ ...data, shipments: data.shipments.filter(s => s.id !== dl.id) }); this.setState({ dialog: null }); } };
-      } else if (dl.type === 'gs') {
+      } else if (dl.type === 'gs' && st.tab === 'link') {
         out.isGsDialog = true;
+        out.gsConnectLabel = this.gsUrl ? 'Подключить заново' : 'Подключить';
         out.gsScript = window.LOGI_GS_SCRIPT || '';
         out.gsConnected = !!this.gsUrl;
         out.copyGs = e => { const b = e.currentTarget; navigator.clipboard.writeText(window.LOGI_GS_SCRIPT || '').then(() => { b.textContent = 'Скопировано ✓'; setTimeout(() => { b.textContent = 'Скопировать код'; }, 1800); }).catch(() => { const ta = document.getElementById('gs-code'); ta && ta.select(); document.execCommand('copy'); }); };
@@ -3857,7 +3966,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 16 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 17 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :
@@ -3886,6 +3995,8 @@ class Component extends DCLogic {
               off: () => { if (confirm('Отключить водителя ' + d.name + ' (' + d.truck + ')? Бот перестанет показывать ему точки.')) run('Отключаю…', { action: 'driver', id: d.id, status: d.status === 'kutilmoqda' ? 'rad' : 'o‘chirilgan' }, () => d.name + ': доступ закрыт.'); } };
           });
           out.tgHasDrivers = out.tgDrivers.length > 0;
+          { const all = (T && T.drivers) || [], n = st => all.filter(d => d.status === st).length;
+            out.tgDriversNote = 'с доступом ' + n('ruxsat') + (n('kutilmoqda') ? ', ждут подтверждения ' + n('kutilmoqda') : '') + (n('o‘chirilgan') + n('rad') ? ', отключены ' + (n('o‘chirilgan') + n('rad')) : ''); }
         }
         out.gsWhere = !this.gsUrl ? '' : this.gsShared ? 'Сейчас подключена одна таблица для всех устройств.' : 'Сейчас таблица подключена только на этом устройстве.';
         const say = error => this.setState(s => ({ dialog: s.dialog && { ...s.dialog, error } }));
