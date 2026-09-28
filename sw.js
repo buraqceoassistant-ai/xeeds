@@ -12,6 +12,8 @@ const SHELL = [
   'css/design-system.css',
   'css/app.css',
   'css/mobile.css',
+  'js/i18n-uz.js',
+  'js/i18n.js',
   'js/vendor/react.production.min.js',
   'js/vendor/react-dom.production.min.js',
   'js/dc-runtime.js',

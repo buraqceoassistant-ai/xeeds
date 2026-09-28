@@ -13,16 +13,23 @@
 .app-tabs::-webkit-scrollbar { display: none; }
 
 /* ─────────────── Планшет ─────────────── */
-/* Ноутбук: вкладки, метка «Только просмотр» и «Аккаунт» помещаются в одну строку. */
+/* Ноутбук: вкладки, метка «Только просмотр», язык UZ / RU и «Аккаунт» помещаются в одну строку. */
+@media screen and (min-width: 1441px) {
+  .app-tabs { gap: 2px !important; }
+  .app-tabs > button { padding: 0 10px !important; }
+}
 @media screen and (max-width: 1440px) {
   .app-bar { gap: 14px !important; }
   .app-tabs { margin-left: 4px !important; gap: 0 !important; }
-  .app-tabs > button { padding: 0 9px !important; letter-spacing: .04em !important; }
+  .app-tabs > button { padding: 0 8px !important; letter-spacing: .04em !important; }
+  .ro-badge { display: none; }
 }
-@media screen and (max-width: 1300px) { .ro-badge { display: none; } }
+/* узбекские названия вкладок длиннее русских — буквы чуть плотнее */
+@media screen and (min-width: 1381px) { html[lang="uz"] .app-tabs > button { letter-spacing: .02em !important; } }
+@media screen and (min-width: 1101px) and (max-width: 1380px) { html[lang="uz"] .app-tabs > button { padding: 0 5px !important; letter-spacing: 0 !important; font-size: 12.5px !important; } }
 /* Ноутбук 1280–1366 px: 11 вкладок в строку; журнал и клиенты — без прокрутки вбок */
 @media screen and (min-width: 1101px) and (max-width: 1380px) {
-  .app-tabs > button { padding: 0 7px !important; letter-spacing: .02em !important; }
+  .app-tabs > button { padding: 0 6px !important; letter-spacing: .02em !important; }
   .table.tc th, .table.tc td { padding-left: 6px; padding-right: 6px; }
   .table.tc { font-size: 13px; }
   .table.tc td.c-actions > div { flex-direction: column; align-items: flex-end; gap: 0 !important; }
@@ -61,6 +68,8 @@
   .app-tabs { margin-left: 0 !important; }
   .app-tabs > button { padding: 0 10px !important; font-size: 14px !important; }
   .app-account { margin: 0 max(10px, env(safe-area-inset-right)) 0 0; padding: 6px 8px; font-size: 12px; }
+  .lang-switch:not(.lang-switch--auth) button { padding: 5px 7px; font-size: 11px; }
+  .lang-switch + .app-account { margin-left: 6px; }
 
   .app-strip { padding: 8px max(12px, env(safe-area-inset-left)) 4px !important; gap: 6px 10px !important; }
   .app-strip-actions {

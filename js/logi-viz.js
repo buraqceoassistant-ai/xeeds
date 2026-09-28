@@ -280,6 +280,7 @@
     if (ro) ro.observe(el); else window.addEventListener('resize', resize);
 
     const sprite = (text, o) => {
+      if (window.I18N) text = window.I18N.t(text);   // подпись на холсте — на языке сайта (js/i18n.js)
       const fs = 64, c = document.createElement('canvas'), x = c.getContext('2d');
       x.font = '500 ' + fs + 'px ' + font;
       const round = !!o.round, hgt = Math.round(fs * (round ? 1.5 : 1.35)), w = round ? hgt : Math.ceil(x.measureText(text).width) + 48;

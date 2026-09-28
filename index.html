@@ -16,6 +16,9 @@
 <link rel="stylesheet" href="css/design-system.css">
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/mobile.css">
+<!-- язык сайта (русский / узбекский): словарь и перевод поверх страницы — до приложения, чтобы окна и первый экран были на выбранном языке -->
+<script src="js/i18n-uz.js"></script>
+<script src="js/i18n.js"></script>
 <!-- dc-runtime берёт React из window, а не с CDN; пустая карта ресурсов отключает повторную загрузку страницы -->
 <script>window.__resources = {};</script>
 <script defer src="js/vendor/react.production.min.js"></script>
@@ -36,6 +39,7 @@
 <noscript><div style="padding:40px;text-align:center">Для работы сайта нужен JavaScript.</div></noscript>
 <!-- Вход: данные расшифровываются только после правильного логина и пароля (js/auth.js) -->
 <div id="auth" class="auth" data-state="checking">
+  <div class="lang-switch lang-switch--auth" translate="no" role="group" aria-label="Til / Язык"><button type="button" data-lang-set="uz">UZ</button><button type="button" data-lang-set="ru">RU</button></div>
   <form id="auth-form" class="auth-card" autocomplete="on" novalidate>
     <div class="auth-logo" role="img" aria-label="BURAQ logistics"></div>
     <h1 class="auth-title">Вход</h1>
@@ -62,6 +66,7 @@
         </sc-for>
       </nav>
       <sc-if value="{{ readOnly }}"><span class="ro-badge" title="Этот вход — только для просмотра: изменить ничего нельзя">Только просмотр</span></sc-if>
+      <div class="lang-switch" translate="no" role="group" aria-label="Til / Язык"><button type="button" data-lang-set="uz" title="O‘zbekcha">UZ</button><button type="button" data-lang-set="ru" title="Русский">RU</button></div>
       <button class="app-account" sc-camel-on-click="{{ account }}" title="Смена пароля и выход">Аккаунт</button>
     </div>
     <sc-if value="{{ showStrip }}" hint-placeholder-val="{{ true }}">
@@ -1597,6 +1602,8 @@ class Component extends DCLogic {
   }
   componentDidMount() {
     this.loadLeaflet();
+    // смена языка (js/i18n.js): подписи на 3D-холсте рисуются заново
+    if (window.I18N) window.I18N.onChange.push(() => this.forceUpdate());
     // Esc закрывает открытое окно (отгрузка, клиент, склад, настройки связи) — как «Отмена»
     window.addEventListener('keydown', e => { if (e.key === 'Escape' && this.state.dialog && !e.defaultPrevented) this.setState({ dialog: null }); });
     const tick = async () => {
@@ -2782,7 +2789,7 @@ class Component extends DCLogic {
     const one = this.vizOne(M), all = one === 'all';
     const items = all ? M.lays.map((lay, idx) => ({ lay, idx, title: lay.name + ' · ' + Math.round(lay.fill * 100) + '%' })) : [{ lay: M.lays[one], idx: one }];
     this.viz.show({ mode: all ? 'all' : 'one', items, step: all ? 0 : st.vizStep, sel: all ? null : st.vizSel, view: st.vizView,
-      sceneKey: M.id + '|' + one, fitKey: M.id + '|' + one + '|' + st.vizView + '|' + (st.vizViewN || 0) });
+      sceneKey: M.id + '|' + one + '|' + (window.I18N ? window.I18N.lang : ''), fitKey: M.id + '|' + one + '|' + st.vizView + '|' + (st.vizViewN || 0) });
   }
 
   syncMap() {
@@ -3513,15 +3520,15 @@ class Component extends DCLogic {
         mk('Неполные карточки (< 67%)', low, 'Не хватает бренда, имени, телефона, получателя, адреса или координат.', 'info'),
         mk('Снаружи кольцевой', outC, 'Для них действует тариф точки снаружи кольца.', 'info'),
         mk('Повторяющиеся BL в справочнике', blDup.map(([bl]) => D.cmap[bl]), 'Один BL должен быть одной строкой.', 'warn'),
-        { ...mk('Строки без даты — не видны на сайте', data.skipped || [], 'В листе Yuborishlar дата не распознана. Впишите дату в столбец A как ДД.ММ.ГГГГ.', 'warn', x => ({ label: 'стр. ' + x.row, sub: x.bl + (x.value ? ' «' + x.value + '»' : ' без даты'), go: () => {} })),
+        { ...mk('Строки без даты — не видны на сайте', data.skipped || [], 'В листе Yuborishlar дата не распознана. Впишите дату в столбец A как ДД.ММ.ГГГГ.', 'warn', x => ({ label: 'строка ' + x.row, sub: x.bl + (x.value ? ' «' + x.value + '»' : ' без даты'), go: () => {} })),
           // удалить такие строки из таблицы одной кнопкой (снизу вверх — номера строк выше не сдвигаются)
           ...((sk => ({ act: sk.length && this.gsUrl && !this.readOnly ? 'Удалить из таблицы (' + sk.length + ')' : '', go: () => {
-            if (!confirm('Удалить из Google Таблицы ' + sk.length + ' ' + (sk.length === 1 ? 'строку' : 'строк') + ' без даты?\n\n' + sk.map(x => 'стр. ' + x.row + ' · ' + x.bl + (x.value ? ' «' + x.value + '»' : '')).join('\n'))) return;
+            if (!confirm('Удалить из Google Таблицы ' + sk.length + ' ' + (sk.length === 1 ? 'строку' : 'строк') + ' без даты?\n\n' + sk.map(x => 'строка ' + x.row + ' · ' + x.bl + (x.value ? ' «' + x.value + '»' : '')).join('\n'))) return;
             this.gsEnqueue(sk.slice().sort((a, b) => b.row - a.row).map(x => ({ t: 'ship.delete', row: x.row, guard: { bl: x.bl, date: '' } })));
           } }))(data.skipped || [])) },
         mk('Необычная дата партии', (() => { const now = Date.now(), far = D.dates.filter(d => { const t = Date.parse(d); return t < now - 365 * 864e5 || t > now + 90 * 864e5; }); return data.shipments.filter(s => far.includes(s.date)); })(),
           'Больше года назад или больше чем через 3 месяца — похоже на опечатку в годе (например 2006 вместо 2026). Нажмите на отгрузку и исправьте дату.', 'warn', s => ({ label: s.bl, sub: dLong(s.date), go: () => this.openShipment(s) })),
-        mk('Дата записана не датой', data.textDates || [], 'Ячейка с датой — текст или число (так бывает, если в таблице английская локаль). Сайт понял её как ДД.ММ; в Google Таблице: Файл → Настройки → Региональные настройки → Россия или Узбекистан.', 'info', x => ({ label: 'стр. ' + x.row + ' → ' + dLong(x.date), sub: x.bl + ' «' + x.value + '»', go: () => {} }))
+        mk('Дата записана не датой', data.textDates || [], 'Ячейка с датой — текст или число (так бывает, если в таблице английская локаль). Сайт понял её как ДД.ММ; в Google Таблице: Файл → Настройки → Региональные настройки → Россия или Узбекистан.', 'info', x => ({ label: 'строка ' + x.row + ' → ' + dLong(x.date), sub: x.bl + ' «' + x.value + '»', go: () => {} }))
       ];
       out.checks = out.checks.map(c => ({ act: '', go: () => {}, fix: '', ...c, hasAct: !!c.act, hasFix: !!c.fix }));
       out.checkWarn = out.checks.filter(c => c.warn).length;

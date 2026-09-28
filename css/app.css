@@ -47,6 +47,25 @@ html.locked, html.locked body { overflow: hidden; }
 }
 .app-account:hover { border-color: var(--color-on-brand); background: color-mix(in srgb, var(--color-on-brand) 10%, transparent); }
 
+/* ── Язык сайта: «таблетка» UZ | RU (js/i18n.js); нажатая — белая ── */
+.lang-switch {
+  flex: none; align-self: center; display: inline-flex; margin-left: auto;
+  border: 1px solid color-mix(in srgb, var(--color-on-brand) 70%, transparent); border-radius: var(--radius-pill); overflow: hidden;
+}
+.lang-switch + .app-account { margin-left: 0; }
+@media (min-width: 1301px) { .ro-badge + .lang-switch { margin-left: 0; } }
+.lang-switch button {
+  background: none; border: 0; padding: 7px 8px; cursor: pointer;
+  font: 500 11px/1.2 var(--font-heading); letter-spacing: .06em; color: var(--color-on-brand);
+}
+.lang-switch button[aria-pressed="true"] { background: var(--color-on-brand); color: var(--color-brand); }
+.lang-switch button:not([aria-pressed="true"]):hover { background: color-mix(in srgb, var(--color-on-brand) 12%, transparent); }
+.lang-switch button:focus-visible { outline: 2px solid var(--color-red); outline-offset: -2px; }
+/* на экране входа — в правом верхнем углу экрана, вдали от логотипа (охранное поле) */
+.lang-switch--auth { position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); margin: 0; }
+.auth[data-state="checking"] .lang-switch--auth, .auth[data-state="open"] .lang-switch--auth { display: none; }
+@media print { .lang-switch { display: none !important; } }
+
 /* ── Фирменная шапка: белый логотип на синем (buraq-brand/logo/buraq-logo-white.svg), охранное поле ~10 % ширины ── */
 .app-logo {
   width: 124px; height: 100%; flex: none;
@@ -118,6 +137,7 @@ main.map-layout { animation: fade-in var(--t-page) ease both; }
   content: "Готовлю 3D…"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: 14px; color: var(--color-neutral-700); animation: pulse 1.4s ease-in-out infinite;
 }
+html[lang="uz"] .viz-stage:has(canvas[style*="opacity: 0;"])::before { content: "3D tayyorlanmoqda…"; }
 @keyframes pulse { 50% { opacity: .45; } }
 /* 3D: кнопки видов — «таблетки», как остальные кнопки бренда */
 .viz-views button { border-radius: var(--radius-pill); }
