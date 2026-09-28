@@ -30,9 +30,11 @@
  *   план дня водителям утром сам (TG_MORNING, по умолчанию 08:30) — всё в триггере tgTick.
  * Версия 15: «один экран» у водителя — короткая карточка с кнопками «🧭 маршрут · 📷 доставлено (сразу камера) · ❌ не доставлено»,
  *   остальное в «☰ Ещё»; нижнее меню из 2–3 кнопок; у прошлой карточки кнопки снимаются.
+ * Версия 16: дата партии — полночь по часовому поясу таблицы, а не скрипта (с другим поясом скрипта, например «Алматы»,
+ *   старые даты уезжали на день назад: 04.05.2006 → 03.05.2006); уже сдвинутые даты журнала исправляются один раз сами.
  */
 var TOKEN = '';
-var VERSION = 15; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 16; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 var COLS = { ship: 16, cli: 25, wh: 8, set: 4, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера машин
@@ -168,6 +170,7 @@ function serial_(d, tz) {
 // tgDays — за сколько дней отдать отметки водителей (сайт просит 45 только на вкладке «Водители»)
 function dump_(tgDays) {
   var ss = SpreadsheetApp.getActiveSpreadsheet(), tz = ss.getSpreadsheetTimeZone(), out = { name: ss.getName(), sheets: {}, links: {} };
+  try { fixShipDates_(ss); } catch (err) { console.error('Даты журнала: ' + ((err && err.message) || err)); }
   Object.keys(SH).forEach(function (k) {
     var sh = ss.getSheetByName(SH[k]);
     if (!sh) return;
@@ -211,7 +214,34 @@ function lastRow_(sh, col, first) {
 }
 
 function num_(x) { return x === '' || x === null || x === undefined || isNaN(Number(x)) ? '' : Number(x); }
-function date_(iso) { var p = String(iso).split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+// Дата партии — полночь по часовому поясу ТАБЛИЦЫ. new Date(г, м, д) дал бы полночь по поясу скрипта (Apps Script →
+// ⚙ Настройки проекта): если там, например, «Алматы» или «Екатеринбург», то в годы, когда у этих поясов было другое
+// смещение, чем у Ташкента, полночь попадала в 23:00 предыдущего дня таблицы — 04.05.2006 превращалось в 03.05.2006.
+var SHEET_TZ = '';
+function sheetTz_() { return SHEET_TZ || (SHEET_TZ = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone()); }
+function date_(iso) {
+  var p = String(iso).split('-').map(Number);
+  return Utilities.parseDate(p[0] + '-' + ('0' + p[1]).slice(-2) + '-' + ('0' + p[2]).slice(-2), sheetTz_(), 'yyyy-MM-dd');
+}
+// день из ячейки с датой (в поясе таблицы) — с поправкой на прежний код, который писал полночь по поясу скрипта:
+// 18:00 и позже — это полночь следующего дня из пояса восточнее (Алматы до 2024 года — 23:00, Китай — 21:00),
+// раньше 18:00 — тот же день из пояса западнее (Москва — 02:00, Лос-Анджелес — 12:00–13:00)
+function day_(v, tz) { return v instanceof Date ? Utilities.formatDate(new Date(v.getTime() + 6 * 3600e3), tz || sheetTz_(), 'yyyy-MM-dd') : ''; }
+// один раз после обновления кода: даты журнала, записанные прежним кодом не в полночь, — на полночь своего дня (day_)
+function fixShipDates_(ss) {
+  var p = props_();
+  if (p.getProperty('SHIP_DATES_FIXED') === '1') return 0;
+  p.setProperty('SHIP_DATES_FIXED', '1');
+  var sh = ss.getSheetByName(SH.ship), last = sh ? lastRow_(sh, 3, 5) : 0, n = 0;
+  if (last < 5) return 0;
+  var tz = ss.getSpreadsheetTimeZone();
+  sh.getRange(5, 1, last - 4, 1).getValues().forEach(function (r, i) {
+    if (!(r[0] instanceof Date)) return;
+    var fixed = Utilities.parseDate(day_(r[0], tz), tz, 'yyyy-MM-dd');
+    if (fixed.getTime() !== r[0].getTime()) { sh.getRange(5 + i, 1).setValue(fixed); n++; }
+  });
+  return n;
+}
 
 function setRow_(sh, row, map, textCols) {
   Object.keys(map).forEach(function (c) {
@@ -248,8 +278,7 @@ function findShip_(sh, row, guard) {
   if (last < 5) return 0;
   var v = sh.getRange(5, 1, last - 4, 3).getValues(), tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
   for (var i = 0; i < v.length; i++) {
-    var d = v[i][0] instanceof Date ? Utilities.formatDate(v[i][0], tz, 'yyyy-MM-dd') : '';
-    if (String(v[i][2]).trim() === guard.bl && d === guard.date) return 5 + i;
+    if (String(v[i][2]).trim() === guard.bl && day_(v[i][0], tz) === guard.date) return 5 + i;
   }
   return 0;
 }

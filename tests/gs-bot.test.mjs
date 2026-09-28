@@ -65,7 +65,7 @@ const connect = t => t.s.post({ token: '', editor: '', tg: { action: 'setup', ur
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 15); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 16); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
@@ -463,7 +463,7 @@ test('фото только с камеры: кнопка открывает dri
   assert.equal(up({}, initData({ id: 501 }, { token: 'чужой' })).code, 'auth', 'подпись другим токеном');
   assert.equal(up({}, initData({ id: 501 }, { at: Date.UTC(2026, 8, 24) / 1000 })).code, 'auth', 'подпись старше суток');
   assert.equal(up({ key: 'BL-902|1' }).code, 'stage', 'снимок не той точки');
-  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 15 }, 'проверка связи со страницы камеры');
+  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 16 }, 'проверка связи со страницы камеры');
   assert.equal(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-902|1', ping: 1 } }).code, 'stage');
   const r = up({ ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -860,7 +860,7 @@ test('один экран: карточка с камерой — «📷 Дос�
   assert.equal(kb[1][0].web_app.url, 'https://buraq.example/xeeds/driver.html?s=' + encodeURIComponent('https://script.google.com/macros/s/AKfy-test_1/exec') + '&k=BL-901%7C1&bl=BL-901&l=ru&m=ok');
   const cam = extra => t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ...extra } });
   // камера открылась с карточки: связь в порядке, шаг ещё не меняется; «Готово» без снимка — нельзя; чужая точка — нет
-  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 15 });
+  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 16 });
   assert.equal(cam({ done: 1 }).code, 'nophoto');
   assert.equal(cam({ key: 'BL-902|1', img: JPEG }).code, 'stage');
   // «⏳ Жду клиента» из «☰ Ещё», потом снимок с карточки — минуты ожидания учтены
@@ -911,4 +911,14 @@ test('один экран: «☰ Ещё» — для открытой точки
   assert.equal(t.last('sendMessage', 501).text, 'Til: o‘zbekcha ✅');
   t.cb(501, 'end');
   assert.match(t.last('sendMessage', 501).text, /Ishni tugatish uchun/);
+});
+
+test('бот читает дату партии с поправкой на прежний сдвиг пояса: 23:00 вчера и 13:00 сегодня — сегодняшняя партия, 18:00 сегодня — завтрашняя', () => {
+  const t = approved({ TG_MORNING: 'off' });
+  const add = (h, d, bl) => { const r = new Array(16).fill(''); r[0] = new Date(Date.UTC(2026, 8, d, h) - 5 * 3600e3); r[2] = bl; r[9] = 1; r[10] = 10; r[11] = 1; r[12] = 'Gazel-2'; r[13] = 1; r[14] = 'Rejada'; t.s.book.sheets.Yuborishlar.rows.push(r); };
+  add(23, 25, 'BL-907'); add(13, 26, 'BL-908'); add(18, 26, 'BL-909');
+  const r = t.s.post({ token: '', tg: { action: 'dispatch', date: TODAY } });
+  assert.deepEqual(r.sent.map(x => x.n), [5], 'BL-901, 902, 903 + BL-907 и BL-908');
+  assert.match(t.last('sendMessage', 501).text, /BL-907[\s\S]*BL-908/);
+  assert.ok(!/BL-909/.test(t.last('sendMessage', 501).text), 'BL-909 — партия 27.09');
 });

@@ -18,7 +18,7 @@ const call = (extra = {}) => ({ token: '', login: 'buraq', ai: { action: 'call',
 test('проверка связи: ключ из свойств, модель по умолчанию, инструмент strict и tool_choice на него, запись в журнал', () => {
   const s = loadScript({ props: { ANTHROPIC_API_KEY: 'sk-test' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
   const r = s.post(ping());
-  assert.equal(r.ok, true); assert.equal(r.v, 15); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
+  assert.equal(r.ok, true); assert.equal(r.v, 16); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
   assert.equal(r.mode, 'tool'); assert.equal(r.editorSet, false); assert.deepEqual(r.usage, { in: 120, cache: 0, out: 30 });
   const c = s.calls[0];
   assert.equal(c.url, 'https://api.anthropic.com/v1/messages');
@@ -80,7 +80,7 @@ test('пароль скрипта из свойства TOKEN проверяет
   assert.equal(s.post(ping({ token: 'x' })).error, 'Неверный пароль');
   assert.equal(s.get({ token: 'x' }).error, 'Неверный пароль');
   assert.equal(s.post(ping({ token: 'pw' })).ok, true);
-  assert.equal(s.get({ token: 'pw' }).v, 15);
+  assert.equal(s.get({ token: 'pw' }).v, 16);
 });
 
 test('Opus 5.5 и Fable 5.1 не принимают принудительный tool_choice — схема уходит через output_config.format', () => {
@@ -163,4 +163,37 @@ test('пределы плотности — строки 71–72 листа «So
   s.post({ token: '', ops: [{ t: 'set', v: { densityMin: 40, densityMax: 800 } }] });
   const z = s.book.sheets.Sozlamalar.rows;
   assert.equal(z[70][1], 40); assert.equal(z[71][1], 800); assert.match(z[70][0], /zichlik/i); assert.match(z[71][0], /zichlik/i);
+});
+
+// Сайт выбирает дату партии 04.05.2006, скрипт с поясом «Алматы» (в 2006 году — UTC+6) записывал её как полночь
+// своего пояса = 23:00 03.05.2006 в таблице с поясом Ташкента (UTC+5), и дата на сайте становилась 03.05.2006.
+// В заглушке таблица — Ташкент; пояс скрипта — это пояс процесса Node (new Date(г, м, д) в скрипте).
+test('дата партии — полночь по поясу таблицы, а не скрипта: при поясе скрипта «Алматы» 04.05.2006 не становится 03.05.2006', () => {
+  const tz0 = process.env.TZ; process.env.TZ = 'Asia/Almaty';
+  try {
+    const s = loadScript({ props: { TOKEN: 'pw' }, sheets: book() });
+    const up = (row, date, bl) => s.post({ token: 'pw', ops: [{ t: 'ship.upsert', row, guard: { bl, date }, v: { date, bl, cbm: 1, kg: 10, places: 1, truck: 'Gazel-1', route: 1, status: 'Rejada', note: '' } }] });
+    up(0, '2006-05-04', 'BL-1'); up(0, '2026-09-28', 'BL-2'); up(0, '2023-02-01', 'BL-3');
+    const tash = d => new Date(d.getTime() + 5 * 3600e3).toISOString().slice(0, 16).replace('T', ' ');
+    assert.deepEqual(s.book.sheets.Yuborishlar.rows.slice(4).map(r => tash(r[0])), ['2006-05-04 00:00', '2026-09-28 00:00', '2023-02-01 00:00'], 'в таблице — полночь нужного дня');
+    // сайт получает дату целым числом дней: 04.05.2006 → 38841
+    const ship = s.get({ token: 'pw' }).data.sheets.Yuborishlar.slice(4).map(r => r[0]);
+    assert.deepEqual(ship, [38841, 46293, 44958]);
+    // правка той же строки по дате находит её (защита от сдвига строк)
+    assert.equal(up(9, '2006-05-04', 'BL-1').results[0].row, 5);
+  } finally { if (tz0 === undefined) delete process.env.TZ; else process.env.TZ = tz0; }
+});
+
+test('даты, которые прежний код уже записал со сдвигом пояса, исправляются один раз сами: 18:00 и позже — следующий день, раньше — тот же', () => {
+  const sheets = book(), tash = (y, m, d, h = 0) => new Date(Date.UTC(y, m - 1, d, h) - 5 * 3600e3);
+  sheets.Yuborishlar.rows.push([tash(2006, 5, 3, 23), '', 'BL-1'], [tash(2026, 9, 28), '', 'BL-2'], [tash(2026, 9, 27, 5), '', 'BL-3'], ['31.08.2026', '', 'BL-4'],
+    [tash(2026, 9, 27, 13), '', 'BL-5'], [tash(2026, 9, 26, 21), '', 'BL-6']);
+  const s = loadScript({ props: { TOKEN: 'pw' }, sheets });
+  const ship = s.get({ token: 'pw' }).data.sheets.Yuborishlar.slice(4).map(r => r[0]);
+  // 23:00 (скрипт в «Алматы», 2006) и 21:00 (скрипт в Китае) → следующий день; 05:00 (UTC) и 13:00 (Лос-Анджелес) → тот же
+  assert.deepEqual(ship, [38841, 46293, 46292, '31.08.2026', 46292, 46292], 'текст не трогаем');
+  assert.equal(s.props.SHIP_DATES_FIXED, '1');
+  // второй раз не трогает: даже если кто-то вписал время руками
+  s.book.sheets.Yuborishlar.rows[5][0] = tash(2026, 9, 28, 23);
+  assert.ok(Math.abs(s.get({ token: 'pw' }).data.sheets.Yuborishlar[5][0] - (46293 + 23 / 24)) < 1e-6, 'повторно не исправляет');
 });

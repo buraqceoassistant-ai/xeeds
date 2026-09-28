@@ -725,7 +725,7 @@ function tgData_() {
 function tgStops_(truck, date) {
   var D = tgData_(), tz = D.tz, out = {}, order = [];
   D.rows.forEach(function (r, i) {
-    var dt = r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy-MM-dd') : String(r[0]).slice(0, 10);
+    var dt = r[0] instanceof Date ? day_(r[0], tz) : String(r[0]).slice(0, 10);
     if (dt !== date || String(r[12]).trim() !== truck) return;
     var bl = String(r[2]).trim(), round = Number(r[13]) || 1, key = bl + '|' + round;
     if (!out[key]) { out[key] = { key: key, bl: bl, round: round, rows: [], places: 0, cbm: 0, kg: 0, notes: [], open: false, statuses: [] }; order.push(key); }
@@ -956,7 +956,7 @@ function tgDispatch_(date, ids, auto) {
   if (!(ids && ids.length)) {
     var has = {}; drivers.forEach(function (d) { has[d.truck] = 1; });
     var D = tgData_(), trucks = {};
-    D.rows.forEach(function (r) { var dt = r[0] instanceof Date ? Utilities.formatDate(r[0], D.tz, 'yyyy-MM-dd') : String(r[0]).slice(0, 10), t = String(r[12]).trim(); if (dt === date && t && TG_NOT_TRUCKS.indexOf(t) < 0 && TG_DONE.indexOf(String(r[14]).trim()) < 0 && !has[t]) trucks[t] = 1; });
+    D.rows.forEach(function (r) { var dt = r[0] instanceof Date ? day_(r[0], D.tz) : String(r[0]).slice(0, 10), t = String(r[12]).trim(); if (dt === date && t && TG_NOT_TRUCKS.indexOf(t) < 0 && TG_DONE.indexOf(String(r[14]).trim()) < 0 && !has[t]) trucks[t] = 1; });
     Object.keys(trucks).forEach(function (t) { skipped.push({ truck: t, why: 'нет водителя в боте' }); });
   }
   return { sent: sent, skipped: skipped };
@@ -1008,7 +1008,7 @@ function tgDailySummary() {
 function tgMorningRun_(today) {
   var r = tgDispatch_(today, null, true), D = tgData_(), free = [];
   D.rows.forEach(function (x) {
-    var dt = x[0] instanceof Date ? Utilities.formatDate(x[0], D.tz, 'yyyy-MM-dd') : String(x[0]).slice(0, 10), t = String(x[12]).trim(), bl = String(x[2]).trim();
+    var dt = x[0] instanceof Date ? day_(x[0], D.tz) : String(x[0]).slice(0, 10), t = String(x[12]).trim(), bl = String(x[2]).trim();
     if (dt === today && bl && (!t || t === 'Belgilanmagan') && TG_DONE.indexOf(String(x[14]).trim()) < 0 && free.indexOf(bl) < 0) free.push(bl);
   });
   if (!tgGroup_() || !(r.sent.length || r.skipped.length || free.length)) return r;
@@ -1028,7 +1028,7 @@ function tgCarry_(dates, to) {
   if (last < 5) return [];
   var tz = ss.getSpreadsheetTimeZone(), moved = [];
   sh.getRange(5, 1, last - 4, 16).getValues().forEach(function (r, i) {
-    var dt = r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy-MM-dd') : String(r[0]).slice(0, 10);
+    var dt = r[0] instanceof Date ? day_(r[0], tz) : String(r[0]).slice(0, 10);
     if (dates.indexOf(dt) < 0 || dt === to || String(r[14]).trim() !== 'Qolib ketgan') return;
     var row = 5 + i, note = String(r[15] || '').trim();
     sh.getRange(row, 1).setValue(date_(to));

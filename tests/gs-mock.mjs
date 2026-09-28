@@ -61,7 +61,9 @@ export function loadScript({ props = {}, sheets = {}, fetch, now } = {}) {
     ContentService: { createTextOutput: s => ({ text: s, setMimeType() { return this; } }), MimeType: { JSON: 'json' } },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     // время «сейчас» в тестах можно задать: now.value = new Date(…); часовой пояс таблицы — Ташкент (UTC+5)
-    Utilities: { formatDate: (d, tz, f) => { const t = new Date(d.getTime() + 5 * 3600e3).toISOString(); return f.replace('yyyy', t.slice(0, 4)).replace('MM', t.slice(5, 7)).replace('dd', t.slice(8, 10)).replace('HH', t.slice(11, 13)).replace('mm', t.slice(14, 16)); },
+    Utilities: { formatDate: (d, tz, f) => { const t = new Date(d.getTime() + 5 * 3600e3).toISOString(); return f.replace('yyyy', t.slice(0, 4)).replace('MM', t.slice(5, 7)).replace('dd', t.slice(8, 10)).replace('HH', t.slice(11, 13)).replace('mm', t.slice(14, 16)).replace('ss', t.slice(17, 19)); },
+      // разбор даты в поясе таблицы (в заглушке — Ташкент, UTC+5): «2006-05-04» → полночь 04.05.2006 по Ташкенту
+      parseDate: (str, tz, f) => { const m = String(str).match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/); if (!m) throw new Error('Unparseable date: ' + str); return new Date(Date.UTC(+m[1], m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)) - 5 * 3600e3); },
       getUuid: () => 'uuid-' + (++uuid) + '-0000-0000',
       computeHmacSha256Signature: (value, key) => sbytes(createHmac('sha256', ubuf(key)).update(ubuf(value)).digest()),
       base64Decode: s => sbytes(Buffer.from(String(s), 'base64')),

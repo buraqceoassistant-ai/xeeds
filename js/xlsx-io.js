@@ -72,7 +72,10 @@
   }
   const str = v => v == null ? '' : String(v).trim();
   const num = v => v == null || v === '' || isNaN(+v) ? null : +v;
-  const serialToISO = s => { if (!num(s)) return ''; return new Date(Math.round((+s - 25569) * 864e5)).toISOString().slice(0, 10); };
+  // дата партии: прежний скрипт таблицы писал полночь по поясу скрипта, и в ячейке оказывалось не 00:00. 18:00 и позже —
+  // это полночь следующего дня из пояса восточнее (так 04.05.2006 становилось 03.05.2006 23:00), раньше 18:00 — тот же
+  // день из пояса западнее (Москва — 02:00, Лос-Анджелес — 12:00–13:00)
+  const serialToISO = s => { if (!num(s)) return ''; return new Date(Math.floor(+s - 25569 + 0.25) * 864e5).toISOString().slice(0, 10); };
   const isoToSerial = d => { const [y, m, dd] = d.split('-').map(Number); return Date.UTC(y, m - 1, dd) / 864e5 + 25569; };
 
   const SET_ROWS = { isuzuM3: 5, isuzuKg: 6, depotName: 7, depotLat: 8, depotLon: 9, unloadMin: 10, dayStart: 11, speed: 12, aMaxStops: 13, maxPlaces: 14, bSmallM3: 15, bcMaxStops: 16, cM3: 17, cKg: 18, cTrucks: 19, roadK: 20, gazelBase: 43, gazelHeavy: 44, gazelHeavyKg: 45, gazelPtIn: 46, gazelPtOut: 47, laboBase: 48, laboPt: 49, laboM3: 50, laboKg: 51, baseIncludesPts: 52, kamazBase: 53, kamazPt: 54, laboBaseIncludesPts: 55, kamazBaseIncludesPts: 56, gazelM3: 57, gazelKg: 58, bTolM3: 59, bTolKg: 60,
