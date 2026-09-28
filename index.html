@@ -746,6 +746,58 @@
             <sc-raw-tbody><sc-for list="{{ dvDays }}" as="x"><sc-raw-tr><sc-raw-td>{{ x.day }}</sc-raw-td><sc-raw-td>{{ x.name }}</sc-raw-td><sc-raw-td>{{ x.truck }}</sc-raw-td><sc-raw-td>{{ x.date }}</sc-raw-td><sc-raw-td>{{ x.start }}</sc-raw-td><sc-raw-td>{{ x.end }}</sc-raw-td><sc-raw-td>{{ x.ok }}</sc-raw-td><sc-raw-td>{{ x.fail }}</sc-raw-td></sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
         </section>
       </sc-if>
+
+      <sc-if value="{{ repIsAi }}">
+        <div class="ai-rep-bar no-print">
+          <div class="field"><label>Период</label>
+            <sc-raw-select class="input" value="{{ aiPer }}" sc-camel-on-change="{{ onAiPer }}"><sc-for list="{{ aiPerOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></div>
+          <sc-if value="{{ aiIsBatch }}"><div class="field"><label>Партия</label>
+            <sc-raw-select class="input" value="{{ aiDate }}" sc-camel-on-change="{{ onAiDate }}"><sc-for list="{{ aiDateOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></div></sc-if>
+          <span class="ai-rep-range">{{ aiRangeNote }}</span>
+          <sc-if value="{{ aiCanMake }}"><button class="btn btn-primary ai-rep-go" sc-camel-on-click="{{ aiMake }}" disabled="{{ aiBusy }}">{{ aiBtn }}</button></sc-if>
+        </div>
+        <div class="ai-rep-note no-print">{{ aiNote }}</div>
+        <sc-if value="{{ aiHasErr }}"><div class="imp-alert imp-alert-err no-print"><div style="flex:1;text-wrap:pretty">{{ aiErr }}</div><button class="btn btn-ghost" sc-camel-on-click="{{ aiErrClose }}">Закрыть</button></div></sc-if>
+        <sc-if value="{{ aiBusy }}"><div class="imp-alert imp-busy no-print"><div style="flex:1"><div style="font-weight:500">ИИ читает сводку и составляет отчёт</div><div style="font-size:12px;color:var(--color-neutral-700);margin-top:4px">Обычно 20–60 секунд. Не закрывайте страницу.</div></div></div></sc-if>
+        <sc-if value="{{ aiHas }}">
+          <section class="ai-rep">
+            <div class="ai-rep-head">
+              <div><h2 class="ai-rep-title">{{ aiTitle }}</h2><div class="ai-rep-meta">{{ aiMeta }}</div></div>
+              <button class="btn btn-secondary no-print" sc-camel-on-click="{{ aiXlsx }}">Скачать Excel</button>
+            </div>
+            <sc-if value="{{ aiHasLangNote }}"><div class="ai-rep-meta no-print">{{ aiLangNote }}</div></sc-if>
+            <sc-if value="{{ aiHasSummary }}"><div class="ai-rep-sum" translate="no">{{ aiSummary }}</div></sc-if>
+            <div class="ai-rep-cols">
+              <div class="ai-rep-col">
+                <h3>Проблемы</h3>
+                <sc-for list="{{ aiProblems }}" as="p">
+                  <article class="ai-item">
+                    <div class="ai-item-top"><span class="ai-n">{{ p.n }}</span><span class="{{ p.sevCls }}">{{ p.sev }}</span><span class="ai-area">{{ p.area }}</span></div>
+                    <div class="ai-item-title" translate="no">{{ p.title }}</div>
+                    <div class="ai-item-text" translate="no">{{ p.detail }}</div>
+                    <sc-if value="{{ p.hasEv }}"><div class="ai-item-ev"><span class="ai-lbl">Факты:</span> <span translate="no">{{ p.evidence }}</span></div></sc-if>
+                  </article>
+                </sc-for>
+                <sc-if value="{{ aiNoProblems }}"><div class="ai-empty">ИИ не нашёл проблем за этот период.</div></sc-if>
+              </div>
+              <div class="ai-rep-col">
+                <h3>Предложения</h3>
+                <sc-for list="{{ aiSuggestions }}" as="s">
+                  <article class="ai-item">
+                    <div class="ai-item-top"><span class="ai-n">{{ s.n }}</span><span class="ai-area">{{ s.area }}</span></div>
+                    <div class="ai-item-title" translate="no">{{ s.title }}</div>
+                    <div class="ai-item-text" translate="no">{{ s.detail }}</div>
+                    <sc-if value="{{ s.hasEff }}"><div class="ai-item-ev"><span class="ai-lbl">Эффект:</span> <span translate="no">{{ s.effect }}</span></div></sc-if>
+                  </article>
+                </sc-for>
+                <sc-if value="{{ aiNoSuggestions }}"><div class="ai-empty">Предложений нет.</div></sc-if>
+              </div>
+            </div>
+            <div class="ai-rep-meta">ИИ может ошибаться: проверяйте цифры в отчётах «Партия на день», «Расходы», «Автопарк» и «Водители».</div>
+          </section>
+        </sc-if>
+        <sc-if value="{{ aiNone }}"><div class="ai-empty ai-rep-none">{{ aiNoneText }}</div></sc-if>
+      </sc-if>
     </main>
   </sc-if>
 
@@ -1612,6 +1664,22 @@ const isoDay = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() +
 // телеграм-бот: точка с таким статусом водителю больше не нужна; «машины», которые не ездят
 const UZ_TZ = ['Asia/Tashkent', 'Asia/Samarkand'];   // UTC+5 — время Узбекистана
 const TG_DONE = ['Yetkazildi', 'Qolib ketgan', 'Mijoz ozi oldi', 'Bekor qilindi'], TG_NOT_TRUCKS = ['Belgilanmagan', 'Mijoz ozi oladi'];
+// ИИ-отчёт: ответ ИИ строго по схеме — итог, проблемы и предложения по трём темам
+const AI_REP_SCHEMA = { name: 'report', description: 'ИИ-отчёт: итог, проблемы и предложения по сводке за период.', input_schema: { type: 'object', additionalProperties: false, required: ['summary', 'problems', 'suggestions'], properties: {
+  summary: { type: 'string', description: 'Главное за период: 2–4 предложения' },
+  problems: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['area', 'severity', 'title', 'detail', 'evidence'], properties: {
+    area: { type: 'string', enum: ['deliveries', 'costs', 'data'] }, severity: { type: 'string', enum: ['high', 'medium', 'low'] }, title: { type: 'string', description: 'Коротко, до 10 слов' },
+    detail: { type: 'string', description: 'Что не так и почему это важно: 1–2 предложения' }, evidence: { type: 'string', description: 'Цифры, даты, BL, машины или коды водителей из сводки' } } } },
+  suggestions: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['area', 'title', 'detail', 'effect'], properties: {
+    area: { type: 'string', enum: ['deliveries', 'costs', 'data'] }, title: { type: 'string', description: 'Что сделать, до 10 слов' },
+    detail: { type: 'string', description: 'Как сделать: 1–2 предложения' }, effect: { type: 'string', description: 'Ожидаемый эффект, по возможности в сумах, рейсах или процентах' } } } } } } };
+// сводка для ИИ → строки «показатель · значение» для Excel
+const aiFlat = (v, p = '', rows = []) => {
+  if (v && typeof v === 'object' && !Array.isArray(v)) Object.keys(v).forEach(k => aiFlat(v[k], p ? p + ' · ' + k : k, rows));
+  else if (Array.isArray(v) && v.some(x => x && typeof x === 'object')) v.forEach((x, i) => aiFlat(x, p + ' · ' + (i + 1), rows));
+  else rows.push([p, Array.isArray(v) ? v.join(', ') : v == null ? '' : v]);
+  return rows;
+};
 // текст из таблицы в HTML подсказок карты — только экранированный
 const escHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // ссылка из таблицы — только http(s): «javascript:…» в ячейке не должен выполняться по клику
@@ -1763,7 +1831,11 @@ class Component extends DCLogic {
     const want = this.tgDays();
     if (this.gsUrl && this.gsVersion >= 10 && this.gsTg && (this.gsTg.span || 0) < want && this._tgAsked !== want && !this._gsBusy) { this._tgAsked = want; this.gsPull(); }
   }
-  tgDays() { const st = this.state; return st.tab === 'drivers' || (st.tab === 'reports' && st.repKind === 'drivers') ? Math.max(2, +st.dvPeriod || 7) : 2; }
+  tgDays() {
+    const st = this.state;
+    if (st.tab === 'reports' && st.repKind === 'ai' && st.ready) return this.aiRepRange().span;   // ИИ-отчёт: отметки водителей за его период
+    return st.tab === 'drivers' || (st.tab === 'reports' && st.repKind === 'drivers') ? Math.max(2, +st.dvPeriod || 7) : 2;
+  }
   // Плавность: новая вкладка открывается сверху; длинный список клиентов — сначала первые строки, остальные
   // следующим кадром (вкладка появляется сразу); 3D-библиотека загружается заранее, пока сайт простаивает.
   syncSmooth() {
@@ -2670,7 +2742,7 @@ class Component extends DCLogic {
     const unpNote = n => n ? 'рейсов без тарифа: ' + n : '';
     const known = t => t.capM3 > 0 && t.capKg > 0 && (t.cbm > 0 || t.kg > 0);   // рейсы с известным грузом — для загрузки
     const now = new Date(), ds = D.dates, last = ds[ds.length - 1] || '';
-    const out = { repIsBatch: kind === 'batch', repIsCost: kind === 'cost', repIsFleet: kind === 'fleet', repIsPeriod: kind !== 'batch' && kind !== 'drivers', repIsDrivers: kind === 'drivers', repNotDrivers: kind !== 'drivers',
+    const out = { repIsBatch: kind === 'batch', repIsCost: kind === 'cost', repIsFleet: kind === 'fleet', repIsPeriod: !['batch', 'drivers', 'ai'].includes(kind), repIsDrivers: kind === 'drivers', repIsAi: kind === 'ai', repNotDrivers: !['drivers', 'ai'].includes(kind),
       repMade: dLong(isoDay(now)) + ' ' + hhmm(now.getHours() * 60 + now.getMinutes()),
       repDateOpts: ds.slice().reverse().map(v => ({ v, l: dLong(v) })), repDateAsc: ds.map(v => ({ v, l: dLong(v) })),
       repNote: '', repHasNote: false, repKpis: [], repCost: [], repHasCost: false, repEmpty: !ds.length,
@@ -2679,6 +2751,13 @@ class Component extends DCLogic {
     if (kind === 'drivers') {
       const dv = this.driversView(st, S, D);
       return Object.assign(out, dv, { repTitle: 'Отчёт по водителям', repSub: dv.dvRepSum || 'По отметкам водителей в Telegram-боте', repPrintTitle: 'Отчёт по водителям · ' + (dv.dvRepSum || '') });
+    }
+    // ИИ-отчёт — проблемы и предложения по кнопке «Составить отчёт»
+    if (kind === 'ai') {
+      const ai = this.aiRepView(st, D);
+      Object.assign(out, ai, { repTitle: 'ИИ-отчёт', repSub: 'Проблемы и предложения: доставки и водители, расходы и машины, качество данных', repPrintTitle: ai.aiTitle || 'ИИ-отчёт' });
+      this._repX = { kind, out };
+      return out;
     }
     if (!ds.length) return Object.assign(out, { repTitle: 'Отчёты', repSub: 'Нет данных', repPrintTitle: '' });
 
@@ -2866,6 +2945,214 @@ class Component extends DCLogic {
     const ds = this.derived().dates, p = this.state.repPeriod, last = ds[ds.length - 1] || '';
     if (p === 'all' || p === 'custom' || (p && ds.some(d => d.startsWith(String(p).slice(2))))) return p;
     return 'm:' + last.slice(0, 7);   // по умолчанию — месяц последней партии
+  }
+
+  // ---------- ИИ-отчёт: проблемы и предложения за период ----------
+  // Сайт сам собирает сводку по трём темам — доставки и водители, расходы и машины, качество данных — и отправляет её ИИ
+  // через скрипт таблицы, как ИИ-импорт: ключ Claude API — только в свойствах скрипта, вызов — с секретом руководителя.
+  // В сводке нет имён клиентов, телефонов и адресов: числа, BL, районы, машины, причины недоставки; водители — под кодами
+  // DRV1, DRV2… (имя подставляется на экране и в Excel только на этом устройстве). Отчёт — только по кнопке; последний
+  // хранится на этом устройстве, в таблицу не пишется (кроме строки «ИИ-журнала» о вызове).
+  aiRepRange() {
+    const st = this.state, ds = this.derived().dates, today = isoDay(), per = ['batch', '7', '30'].includes(st.aiPer) ? st.aiPer : 'batch';
+    if (per === 'batch') {
+      const past = ds.filter(d => d <= today), date = ds.includes(st.aiDate) ? st.aiDate : past[past.length - 1] || ds[ds.length - 1] || '';
+      const ago = date ? Math.round((Date.parse(today) - Date.parse(date)) / 864e5) : 0;
+      return { per, from: date, to: date, dates: date ? [date] : [], label: date ? 'Партия ' + dLong(date) : 'Партий нет', span: Math.min(45, Math.max(2, ago + 2)), old: ago > 43 };
+    }
+    const n = +per, from = isoDay(new Date(Date.now() - (n - 1) * 864e5));
+    return { per, from, to: today, dates: ds.filter(d => d >= from && d <= today), label: 'За ' + n + ' дней: ' + dLong(from) + ' – ' + dLong(today), span: n, old: false };
+  }
+  aiRepFacts(rg) {
+    const D = this.derived(), E = window.LogiEngine, data = this.state.data, S = data.settings, T = this.gsTg || null, today = isoDay();
+    const r1 = x => Math.round((+x || 0) * 10) / 10, r0 = x => Math.round(+x || 0), pc = x => x == null || isNaN(x) ? null : Math.round(x * 100);
+    const dn = d => !d || d === 'Aniqlanmagan' ? 'не определён' : d, sum = (a, f) => a.reduce((s, x) => s + (+f(x) || 0), 0);
+    const tally = (a, f) => a.reduce((o, x) => { const k = f(x); if (k != null && k !== '') o[k] = (o[k] || 0) + 1; return o; }, {});
+    const bls = a => { const u = [...new Set(a.map(x => x.bl))]; return { count: a.length, bl: u.slice(0, 25).concat(u.length > 25 ? ['… ещё ' + (u.length - 25)] : []) }; };
+    const mins = v => { const m = String(v || '').match(/^(\d\d):(\d\d)/); return m ? +m[1] * 60 + +m[2] : null; };
+    const avgT = a => { const v = a.filter(x => x != null); return v.length ? hhmm(v.reduce((s, x) => s + x, 0) / v.length) : null; };
+    const KINDS = ['labo', 'changan', 'gazel', 'kamaz'], batch = rg.per === 'batch', inR = d => d >= rg.from && d <= rg.to;
+    const codes = {}, names = {}, drv = (id, name) => { const k = String(id || name || '?'); if (!codes[k]) { codes[k] = 'DRV' + (Object.keys(codes).length + 1); names[codes[k]] = String(name || ''); } return codes[k]; };
+    const R = rg.dates.map(d => this.reportBatch(d)), ships = R.flatMap(r => r.ships), trips = R.flatMap(r => r.trips), active = ships.filter(s => !E.NO_PLAN.includes(s.status));
+    const f = { period: { type: batch ? 'одна партия' : rg.per + ' дней', from: rg.from, to: rg.to, today, batches: R.length } };
+
+    // отгрузки и партии
+    f.shipments = { total: ships.length, points: new Set(ships.map(s => s.date + '|' + s.bl)).size, cbm: r1(sum(ships, s => s.cbm)), kg: r0(sum(ships, s => s.kg)), places: r0(sum(ships, s => s.places)),
+      byStatus: tally(ships, s => ST[s.status] || s.status), notInTrips: R.reduce((a, r) => a + r.left.length, 0), notInTripsList: R.flatMap(r => r.left.map(x => r.date + ' ' + x.bl + ': ' + x.why)).slice(0, 30) };
+    f.batches = R.map(r => { const c = r.sum.cost; return { date: r.date, source: r.src === 'journal' ? 'журнал' : 'план A', shipments: r.ships.length, cbm: r1(r.sum.cbm), kg: r0(r.sum.kg), trips: r.sum.trips, km: r0(r.sum.km),
+      price: r0(r.sum.price), tripsWithoutTariff: r.sum.unpriced, paid: c.n ? r0(c.ours) : null, notPaidSmall: c.n ? r0(c.small) : null, notPaidOutsideRing: c.n ? r0(c.outside) : null, notInTrips: r.left.length }; });
+
+    // расходы и машины
+    const priced = trips.filter(t => t.price && t.price.total != null), cost = this.costOf(trips.map(t => t.cost)), withVol = R.filter(r => r.sum.cbm > 0);
+    const known = t => t.capM3 > 0 && t.capKg > 0 && (t.cbm > 0 || t.kg > 0), pts = t => new Set(t.stops.map(x => x.bl)).size, byVehicle = {};
+    KINDS.forEach(k => {
+      const ts = trips.filter(t => t.kind === k); if (!ts.length) return;
+      const pr = ts.filter(t => t.price && t.price.total != null), wc = ts.filter(known), p = sum(pr, t => t.price.total);
+      byVehicle[VEH[k]] = { trips: ts.length, points: sum(ts, pts), cbm: r1(sum(ts, t => t.cbm)), kg: r0(sum(ts, t => t.kg)), km: r0(sum(ts, t => t.real)), price: r0(p), tripsWithoutTariff: ts.length - pr.length,
+        pricePerTrip: pr.length ? r0(p / pr.length) : null, avgLoadM3Pct: wc.length ? pc(sum(wc, t => t.cbm / t.capM3) / wc.length) : null, avgLoadKgPct: wc.length ? pc(sum(wc, t => t.kg / t.capKg) / wc.length) : null,
+        tripsUnderHalfLoaded: wc.filter(t => Math.max(t.cbm / t.capM3, t.kg / t.capKg) < 0.5).length,
+        tripsOverloaded: ts.filter(t => t.over || (t.capM3 > 0 && t.cbm > t.capM3 + 1e-6) || (t.capKg > 0 && t.kg > t.capKg + 1e-6)).length, tripsWithoutVehicle: ts.filter(t => t.noVehicle).length };
+    });
+    f.costs = { trips: trips.length, km: r0(sum(trips, t => t.real)), price: r0(sum(R, r => r.sum.price)), tripsWithoutTariff: trips.length - priced.length,
+      paid: cost.n ? r0(cost.ours) : null, notPaidSmall: cost.n ? r0(cost.small) : null, notPaidOutsideRing: cost.n ? r0(cost.outside) : null,
+      pricePerM3: withVol.length ? r0(sum(withVol, r => r.sum.price) / sum(withVol, r => r.sum.cbm)) : null, pricePerPoint: priced.length ? r0(sum(priced, t => t.price.total) / Math.max(1, sum(priced, pts))) : null, byVehicle };
+    const per = +S.tripsPerVehicle || 2, park = { labo: +S.laboCount || 0, changan: +S.changanCount || 0, gazel: +S.gazelCount || 0, kamaz: +S.cTrucks || 0 };
+    f.fleet = {};
+    KINDS.forEach(k => {
+      const days = R.map(r => { const x = r.trips.filter(t => t.kind === k); return { date: r.date, n: x.length, cars: new Set(x.map(t => t.car).filter(Boolean)).size, noCar: x.filter(t => t.noVehicle).length }; }).filter(x => x.n);
+      if (!days.length && !park[k]) return;
+      const peak = days.reduce((a, x) => !a || x.n > a.n ? x : a, null);
+      f.fleet[VEH[k]] = { inPark: park[k], maxTripsPerDay: park[k] * per, busiestDay: peak ? { date: peak.date, trips: peak.n, vehicles: peak.cars } : null,
+        daysShortOfVehicles: days.filter(x => x.noCar || (park[k] && (x.n > park[k] * per || x.cars > park[k]))).map(x => x.date) };
+    });
+    const byD = {};
+    R.forEach(r => r.trips.forEach(t => t.stops.forEach((x, j) => {
+      const k = dn((x.client || {}).district), o = byD[k] = byD[k] || { pts: new Set(), cbm: 0, price: 0, notPaid: 0 };
+      o.pts.add(r.date + '|' + x.bl); o.cbm += x.cbm;
+      if (t.price && t.price.total != null) { const v = t.price.perStop[j] || 0; o.price += v; if (t.cost && t.cost.why[j]) o.notPaid += v; }
+    })));
+    f.districts = Object.entries(byD).sort((a, b) => b[1].price - a[1].price || b[1].cbm - a[1].cbm).slice(0, 20)
+      .map(([name, o]) => ({ district: name, points: o.pts.size, cbm: r1(o.cbm), price: r0(o.price), notPaid: r0(o.notPaid), pricePerM3: o.cbm > 0 ? r0(o.price / o.cbm) : null }));
+    const planVal = (P, k) => P[k].noFleet ? 'нет машин' : !P[k].sum.trips ? null : P[k].sum.unpriced ? 'рейсов без тарифа: ' + P[k].sum.unpriced : r0(P[k].sum.price);
+    f.plans = R.map(r => { const P = this.plansFor(r.date); return { date: r.date, planA: planVal(P, 'A'), planB: planVal(P, 'B'), planC: planVal(P, 'C'), tripsA: P.A.sum.trips,
+      journal: r.src !== 'journal' ? null : r.sum.unpriced ? 'рейсов без тарифа: ' + r.sum.unpriced : r0(r.sum.price), tripsJournal: r.src === 'journal' ? r.sum.trips : null }; });
+    f.settings = {};
+    this.settingDefs().filter(g => !['Склад отправки', 'Импорт манифестов'].includes(g.title))
+      .forEach(g => g.fields.forEach(x => { f.settings[g.title + ' — ' + x.label + (x.unit ? ', ' + x.unit : '')] = x.value === '' ? null : x.value; }));
+
+    // доставки и водители — по отметкам в боте
+    if (!T) f.deliveries = { note: 'Телеграм-бот не подключён — отметок водителей нет' };
+    else {
+      const cfg = T.settings || {}, maxKm = +cfg.maxKm || 1, waitMin = +cfg.waitMin || 15;
+      const log = (T.log || []).filter(x => batch ? x.date === rg.from : inR(String(x.t).slice(0, 10)));
+      const days = (T.days || []).filter(x => batch ? x.date === rg.from : inR(x.day)), dset = new Set(days.map(x => x.day).concat([rg.from]));
+      const probs = (T.problems || []).filter(p => { const d = String(p.t).slice(0, 10); return batch ? dset.has(d) : inR(d); });
+      const by = {}, put = (id, name) => { const c = drv(id, name); return by[c] = by[c] || { trucks: new Set(), days: new Set(), starts: [], ends: [], ok: 0, fail: 0, reasons: {}, waits: [], far: 0, noPhoto: 0, open: 0 }; };
+      days.forEach(x => { const o = put(x.id, x.name); o.trucks.add(x.truck); if (!o.days.has(x.day)) { o.days.add(x.day); o.starts.push(mins(x.start)); o.ends.push(mins(x.end)); if (!x.end && x.day < today) o.open++; } });
+      log.forEach(x => { const o = put(x.id, x.name), why = x.reason || 'не указана'; o.trucks.add(x.truck); o.days.add(String(x.t).slice(0, 10)); o[x.ok ? 'ok' : 'fail']++;
+        if (!x.ok) o.reasons[why] = (o.reasons[why] || 0) + 1; if (x.wait) o.waits.push(x.wait); if (x.km != null && x.km > maxKm) o.far++; if (!(x.photos || []).length) o.noPhoto++; });
+      const fail = log.filter(x => !x.ok), waits = log.filter(x => x.wait > 0), marked = new Set((T.log || []).map(x => x.date + '|' + x.bl)), botDates = new Set((T.log || []).map(x => x.date));
+      const two = (a, f) => a.reduce((o, x) => { const k = f(x), v = o[k] = o[k] || { delivered: 0, notDelivered: 0 }; v[x.ok ? 'delivered' : 'notDelivered']++; return o; }, {});
+      const drivers = T.drivers || [];
+      f.deliveries = { settings: { waitClientMin: waitMin, maxKmFromClient: maxKm },
+        marks: log.length, delivered: log.length - fail.length, notDelivered: fail.length, notDeliveredReasons: tally(fail, x => x.reason || 'не указана'),
+        waitedForClient: { marks: waits.length, avgMin: waits.length ? r0(sum(waits, x => x.wait) / waits.length) : null, overLimit: waits.filter(x => x.wait > waitMin).length },
+        marksFarFromClient: log.filter(x => x.km != null && x.km > maxKm).sort((a, b) => b.km - a.km).slice(0, 15).map(x => ({ bl: x.bl, km: r1(x.km), driver: drv(x.id, x.name), truck: x.truck })),
+        marksWithoutPhoto: log.filter(x => !(x.photos || []).length).length,
+        pointsWithoutBotMark: bls(active.filter(s => botDates.has(s.date) && s.date < today && E.vehicleKind(s.truck) && !marked.has(s.date + '|' + s.bl))),
+        byDriver: Object.entries(by).map(([c, o]) => ({ driver: c, trucks: [...o.trucks].filter(Boolean).join(', '), days: o.days.size, delivered: o.ok, notDelivered: o.fail,
+          pointsPerDay: o.days.size ? r1((o.ok + o.fail) / o.days.size) : null, avgStart: avgT(o.starts), avgEnd: avgT(o.ends), notDeliveredReasons: o.reasons,
+          avgWaitMin: o.waits.length ? r0(sum(o.waits, x => x) / o.waits.length) : null, marksFarFromClient: o.far, marksWithoutPhoto: o.noPhoto, daysNotFinished: o.open })),
+        byTruck: two(log, x => x.truck || '—'), byDistrict: two(log, x => dn((D.cmap[x.bl] || {}).district)), problemsOnRoad: tally(probs, p => String(p.type || 'другое').replace(/^\S+\s/, '')),
+        drivers: { active: drivers.filter(d => d.status === 'ruxsat').length, waitingApproval: drivers.filter(d => d.status === 'kutilmoqda').length },
+        trucksWithoutDriver: data.lists.trucks.filter(t => !TG_NOT_TRUCKS.includes(t) && !drivers.some(d => d.truck === t && d.status === 'ruxsat')) };
+      if (!log.length && !days.length) f.deliveries.note = 'За период водители в боте не работали';
+      else if (rg.old) f.deliveries.note = 'Отметки водителей сайт получает за 45 дней — по этой партии они могут быть неполными';
+    }
+
+    // качество данных: клиенты и отгрузки периода + вся база
+    const cls = new Set(ships.map(s => s.bl)), pcl = data.clients.filter(c => cls.has(c.bl));
+    const compl = c => ([c.brand, c.name, c.tel1, c.receiver, c.address].filter(Boolean).length + (c.lat != null ? 1 : 0)) / 6;
+    const miss = { brand: c => !c.brand, name: c => !c.name, phone: c => !c.tel1, receiver: c => !c.receiver, address: c => !c.address, coords: c => c.lat == null };
+    const now = Date.now(), odd = new Set(D.dates.filter(d => { const t = Date.parse(d); return t < now - 365 * 864e5 || t > now + 90 * 864e5; }));
+    f.dataQuality = { clientsInPeriod: pcl.length,
+      clientsWithoutCoords: bls(pcl.filter(c => c.lat == null)), clientsNearRingBorder: bls(pcl.filter(c => (D.zones[c.bl] || {}).border)),
+      clientsDistrictUndefined: bls(pcl.filter(c => !c.district || c.district === 'Aniqlanmagan')),
+      clientsIncompleteCards: { count: pcl.filter(c => compl(c) < 0.67).length, missing: Object.fromEntries(Object.entries(miss).map(([k, fn]) => [k, pcl.filter(fn).length])) },
+      shipmentsBlNotInDirectory: bls(ships.filter(s => !D.cmap[s.bl])), shipmentsWithoutCbm: bls(active.filter(s => !+s.cbm)), shipmentsWithoutKg: bls(active.filter(s => !+s.kg)),
+      shipmentsWithoutPlaces: bls(active.filter(s => !+s.places)), shipmentsWithoutTruck: bls(ships.filter(s => !E.vehicleKind(s.truck) && !E.NO_PRICE.includes(s.status))),
+      pastShipmentsStatusNotClosed: bls(ships.filter(s => s.date < today && ['Rejada', 'Yolda'].includes(s.status))),
+      wholeBase: { clients: data.clients.length, clientsWithoutCoords: data.clients.filter(c => c.lat == null).length, duplicateBl: Object.values(tally(data.clients, c => c.bl)).filter(n => n > 1).length,
+        rowsWithoutDate: (data.skipped || []).length, shipmentsWithUnusualDate: data.shipments.filter(s => odd.has(s.date)).length, datesStoredAsText: (data.textDates || []).length,
+        kamazTariffMissing: S.kamazBase == null || S.kamazPt == null, depotCoordsApproximate: S.depotLat === 41.380417 && S.depotLon === 69.235222 } };
+    return { facts: f, names };
+  }
+  aiRepPrompt(lang) {
+    return 'Ты — аналитик логистической компании BURAQ logistics (Ташкент). Компания возит сборные грузы со своего склада клиентам по городу на Gazel, Labo, Changan и Kamaz; ' +
+      'водители отмечают каждую точку в Telegram-боте (фото обязательно). Тебе дают сводку за период в JSON. Найди проблемы и предложи конкретные улучшения по трём темам:\n' +
+      '- deliveries — доставки и водители: недоставки и их причины, ожидание клиента, отметки далеко от клиента, отметки без фото, незакрытые рабочие дни, точки без отметки в боте, начало и конец дня, машины без водителя;\n' +
+      '- costs — расходы и машины: стоимость, «платим / не платим», загрузка машин, перегруз, рейсы без тарифа, нехватка машин, планы A/B/C против журнала, дорогие районы;\n' +
+      '- data — качество данных: клиенты без координат и района, у границы кольцевой, отгрузки без CBM, KG и мест, BL не из справочника, незакрытые статусы, неполные карточки.\n' +
+      'Как читать сводку: суммы — в сумах; «платим» (paid) — точки внутри кольцевой (ТКАД) от порога объёма, «не платим» — грузы меньше порога (notPaidSmall) и точки за кольцом (notPaidOutsideRing); ' +
+      'source «план A» — у партии в журнале нет машин, рейсы и стоимость посчитаны по плану A; null — нет данных. Водители — под кодами DRV1, DRV2…, называй их так же.\n' +
+      'Правила: опирайся только на цифры сводки, ничего не выдумывай; в evidence приводи конкретные цифры, даты, BL, машины или коды водителей. Не больше 7 проблем и 7 предложений, самые важные первыми. ' +
+      'Если по теме данных нет или всё в порядке — скажи об этом в summary и не придумывай проблем. Предложение — конкретное действие руководителя (на сайте, в боте, с машинами, водителями или тарифами) ' +
+      'и ожидаемый эффект, по возможности в сумах, рейсах или процентах. Пиши коротко и просто: summary — 2–4 предложения, detail — 1–2 предложения.\n' +
+      (lang === 'uz' ? 'Язык ответа: узбекский, латиница (o‘ и g‘ — со знаком ‘), простые слова. Названия машин, BL и коды водителей не переводи.' : 'Язык ответа: русский.');
+  }
+  aiRepLoad() {
+    if (this.aiRep === undefined) { try { const r = JSON.parse(localStorage.getItem('logi-ai-report') || 'null'); this.aiRep = r && r.v === 1 && Array.isArray(r.problems) ? r : null; } catch (e) { this.aiRep = null; } }
+    return this.aiRep;
+  }
+  async aiRepMake() {
+    if (this.state.aiRepBusy) return;
+    const fail = e => this.setState({ aiRepBusy: false, aiRepErr: e });
+    if (this.readOnly) return fail('ИИ-отчёт составляет руководитель: вход «только просмотр» данные ИИ не отправляет.');
+    if (!this.gsUrl) return fail('Сначала подключите Google Таблицу — ИИ работает через её скрипт.');
+    if (!(this.gsVersion >= 8)) return fail('Обновите код скрипта таблицы до версии 8: «Настройки» → «Связь» → «Скопировать код».');
+    const A = window.LogiAuth;
+    if (A && A.owner && A.owner().state === 'locked') return fail('Секрет редактора закрыт на этом устройстве: «Настройки» → «Связь» → «ИИ-импорт манифестов» → пароль входа → «Открыть секрет».');
+    this.setState({ aiRepBusy: true, aiRepErr: '' });
+    try {
+      let rg = this.aiRepRange();
+      // отметки водителей за весь период: без этой подвкладки таблица отдаёт только 2 дня
+      if (this.gsTg && this.gsVersion >= 10 && (this.gsTg.span || 0) < rg.span) {
+        for (let i = 0; i < 40 && this._gsBusy; i++) await new Promise(r => setTimeout(r, 250));
+        await this.gsPull(); rg = this.aiRepRange();
+      }
+      const { facts, names } = this.aiRepFacts(rg);
+      if (!rg.dates.length && !(facts.deliveries && facts.deliveries.marks)) return fail('За выбранный период нет ни партий, ни отметок водителей — отчёт не из чего составить.');
+      const lang = window.I18N && window.I18N.lang === 'uz' ? 'uz' : 'ru';
+      const j = await this.aiPost({ action: 'call', system: this.aiRepPrompt(lang), content: [{ type: 'text', text: 'Сводка за период (' + rg.label + '):\n' + JSON.stringify(facts) }],
+        schema: AI_REP_SCHEMA, max_tokens: 6000, effort: 'low', meta: { step: 'ИИ-отчёт', file: rg.label } });
+      if (!j.ok) return fail(j.code === 'truncated' ? 'Ответ ИИ не поместился — выберите период короче или составьте отчёт ещё раз.' :
+        j.code === 'timeout' ? 'ИИ не ответил вовремя (Apps Script ждёт около минуты) — составьте отчёт ещё раз или выберите период короче.' :
+        j.code === 'refusal' || j.code === 'noresult' ? 'ИИ не составил отчёт — попробуйте ещё раз.' :
+        (e => j.code === 'editor' ? e.replace(/[.!]?$/, '. ') + 'Проверьте секрет редактора: «Настройки» → «Связь» → «ИИ-импорт манифестов».' : e)(j.error || 'ИИ не ответил'));
+      const res = j.result || {}, AREAS = ['deliveries', 'costs', 'data'], str = v => String(v == null ? '' : v).trim(), list = v => (Array.isArray(v) ? v : []).filter(x => x && typeof x === 'object').slice(0, 10);
+      const rep = { v: 1, made: new Date().toISOString(), per: rg.per, from: rg.from, to: rg.to, label: rg.label, lang, model: str(j.model), ms: +j.ms || 0, facts, names, summary: str(res.summary),
+        problems: list(res.problems).map(x => ({ area: AREAS.includes(x.area) ? x.area : 'data', severity: ['high', 'medium', 'low'].includes(x.severity) ? x.severity : 'medium', title: str(x.title), detail: str(x.detail), evidence: str(x.evidence) })),
+        suggestions: list(res.suggestions).map(x => ({ area: AREAS.includes(x.area) ? x.area : 'data', title: str(x.title), detail: str(x.detail), effect: str(x.effect) })) };
+      this.aiRep = rep;
+      try { localStorage.setItem('logi-ai-report', JSON.stringify(rep)); } catch (e) { /* закрытый режим — отчёт виден до перезагрузки */ }
+      this.setState({ aiRepBusy: false, aiRepErr: '' });
+    } catch (e) { fail(e.message || String(e)); }
+  }
+  aiRepView(st, D) {
+    const ro = this.readOnly, rg = this.aiRepRange(), rep = this.aiRepLoad(), busy = !!st.aiRepBusy, today = isoDay();
+    const AREA = { deliveries: 'Доставки и водители', costs: 'Расходы и машины', data: 'Качество данных' };
+    const SEV = { high: ['Важно', 'tag-red'], medium: ['Средне', 'tag-outline'], low: ['Мелочь', 'tag-neutral'] };
+    const nm = s => String(s || '').replace(/\bDRV\d+\b/g, c => (rep && rep.names && rep.names[c]) || c);   // коды водителей → имена (только на этом устройстве)
+    const out = {
+      aiPer: rg.per, onAiPer: e => this.setState({ aiPer: e.target.value }), aiPerOpts: [['batch', 'Одна партия'], ['7', '7 дней'], ['30', '30 дней']].map(([v, l]) => ({ v, l })),
+      aiIsBatch: rg.per === 'batch', aiDate: rg.from, onAiDate: e => this.setState({ aiDate: e.target.value }),
+      aiDateOpts: D.dates.filter(d => d <= today).reverse().map(v => ({ v, l: dLong(v) })),
+      aiRangeNote: rg.per === 'batch' ? '' : rg.label + ' · партий: ' + rg.dates.length,
+      aiCanMake: !ro, aiBusy: busy, aiBtn: busy ? 'Составляю отчёт…' : 'Составить отчёт', aiMake: () => this.aiRepMake(),
+      aiNote: ro ? 'ИИ-отчёт составляет руководитель: вход «только просмотр» данные ИИ не отправляет.' :
+        'ИИ получает сводку за период: доставки и водители, расходы и машины, качество данных. Имена клиентов, телефоны и адреса не отправляются — только числа, BL, районы, машины и причины недоставки; водители — под кодами. Один отчёт — один запрос к Claude API.',
+      aiHasErr: !!st.aiRepErr, aiErr: st.aiRepErr || '', aiErrClose: () => this.setState({ aiRepErr: '' }),
+      aiHas: !!rep, aiNone: !rep && !busy, aiHasLangNote: false,
+      aiNoneText: ro ? 'Отчётов на этом устройстве нет.' : 'Выберите период и нажмите «Составить отчёт»: ИИ найдёт проблемы и предложит, что улучшить.'
+    };
+    if (!rep) return out;
+    const made = new Date(rep.made), mk = isNaN(made) ? '' : dLong(isoDay(made)) + ' ' + hhmm(made.getHours() * 60 + made.getMinutes());
+    const cur = window.I18N && window.I18N.lang === 'uz' ? 'uz' : 'ru';
+    Object.assign(out, {
+      aiTitle: 'Отчёт: ' + rep.label, aiMeta: 'Составлен ' + mk + (rep.ms ? ' · ИИ ответил за ' + Math.max(1, Math.round(rep.ms / 1000)) + ' с' : '') + (rep.model ? ' · ' + rep.model : ''),
+      aiHasLangNote: rep.lang !== cur, aiLangNote: rep.lang !== cur ? (rep.lang === 'uz' ? 'Отчёт составлен на узбекском. Чтобы получить его на русском, составьте отчёт заново.' : 'Отчёт составлен на русском. Чтобы получить его на узбекском, составьте отчёт заново.') : '',
+      aiSummary: nm(rep.summary), aiHasSummary: !!rep.summary,
+      aiProblems: rep.problems.map((x, i) => ({ n: i + 1, area: AREA[x.area], sev: SEV[x.severity][0], sevCls: 'tag ' + SEV[x.severity][1], title: nm(x.title), detail: nm(x.detail), evidence: nm(x.evidence), hasEv: !!x.evidence })),
+      aiSuggestions: rep.suggestions.map((x, i) => ({ n: i + 1, area: AREA[x.area], title: nm(x.title), detail: nm(x.detail), effect: nm(x.effect), hasEff: !!x.effect })),
+      aiNoProblems: !rep.problems.length, aiNoSuggestions: !rep.suggestions.length,
+      aiXlsx: () => this.dvXlsx('II-hisobot_' + (rep.from === rep.to ? rep.from : rep.from + '_' + rep.to), [
+        { name: 'ИИ-отчёт', rows: [['ИИ-отчёт · ' + rep.label], ['Составлен ' + mk + (rep.model ? ' · ' + rep.model : '')], [], ['Итог'], [nm(rep.summary)], [],
+          ['ИИ может ошибаться: проверяйте цифры в отчётах сайта.']] },
+        { name: 'Проблемы', rows: [['№', 'Тема', 'Важность', 'Проблема', 'Подробно', 'Факты']].concat(rep.problems.map((x, i) => [i + 1, AREA[x.area], SEV[x.severity][0], nm(x.title), nm(x.detail), nm(x.evidence)])) },
+        { name: 'Предложения', rows: [['№', 'Тема', 'Предложение', 'Как сделать', 'Эффект']].concat(rep.suggestions.map((x, i) => [i + 1, AREA[x.area], nm(x.title), nm(x.detail), nm(x.effect)])) },
+        { name: 'Сводка для ИИ', rows: [['Показатель', 'Значение']].concat(aiFlat(rep.facts)) }])
+    });
+    return out;
   }
 
   // ---------- Визуализация: рейсы плана в 3D (js/logi-viz.js) ----------
@@ -3559,7 +3846,7 @@ class Component extends DCLogic {
     const tabsDef = [['journal', 'Журнал'], ['clients', 'Клиенты'], ['map', 'Карта'], ['reports', 'Отчёты'], ['plans', 'Планы A/B/C'], ['drivers', 'Водители'], ['viz', 'Визуализация'], ['settings', 'Настройки']];
     const goTop = k => k === 'reports' ? this.setState({ tab: 'dash' }) : k === 'settings' ? this.goSettings(st.setLast || 'tariffs') : this.setState({ tab: k });
     const tabs = tabsDef.map(([k, l]) => ({ label: l, go: () => goTop(k), color: top === k ? 'var(--color-on-brand)' : 'color-mix(in srgb, var(--color-on-brand) 72%, transparent)', border: top === k ? 'var(--color-red)' : 'transparent' }));
-    const SUB = { reports: [['dash', 'Дашборд'], ['batch', 'Партия на день'], ['cost', 'Расходы'], ['fleet', 'Автопарк'], ['drivers', 'Водители']],
+    const SUB = { reports: [['dash', 'Дашборд'], ['batch', 'Партия на день'], ['cost', 'Расходы'], ['fleet', 'Автопарк'], ['drivers', 'Водители'], ['ai', 'ИИ-отчёт']],
       settings: [['tariffs', 'Тарифы и планы'], ['fleetset', 'Водители и автопарк'], ['link', 'Связь'], ['check', 'Проверка данных']] };
     const curSub = top === 'reports' ? (st.tab === 'dash' ? 'dash' : st.repKind || 'batch') : st.tab;
     const subtabs = (SUB[top] || []).filter(([k]) => !(k === 'link' && this.readOnly)).map(([k, l]) => ({ l, cls: k === curSub ? 'subtab on' : 'subtab',

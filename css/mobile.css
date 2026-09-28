@@ -236,6 +236,11 @@
   .dv-page .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .dv-toolbar > * { flex: 1 1 100%; }
   .dv-toolbar .field select { width: 100%; }
+  .ai-rep-bar > * { flex: 1 1 100%; }
+  .ai-rep-bar .input { width: 100%; }
+  .ai-rep-go { margin-left: 0; }
+  .ai-rep { padding: 14px; }
+  .ai-rep-cols { grid-template-columns: minmax(0, 1fr); }
   .dv-stop { flex-wrap: wrap; }
   .dv-move { max-width: none; flex: 1 1 100%; }
   .dv-map { height: 340px; }
