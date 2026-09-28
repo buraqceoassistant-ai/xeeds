@@ -86,7 +86,7 @@ var TX = {
     notWorking: 'Avval «🚚 Ishni boshlash» tugmasini bosing.', already: 'Ish kuni allaqachon boshlangan.',
     stale: 'Bu tugma eskirgan — joriy manzil pastda.', staleNow: 'Bu tugma eskirgan — joriy manzil:', changed: '⚠️ Bugungi reyslaringiz o‘zgardi.', busy: 'Avval joriy manzilni yakunlang.',
     unknown: 'Tugmalardan foydalaning 👇',
-    assign: '📋 Topshiriq: {date} partiyasi\n🚚 {truck} · {n} ta manzil\n\n{list}\n\nBoshlash uchun «🚚 Ishni boshlash» tugmasini bosing.',
+    assign: '📋 Topshiriq: {date} partiyasi\n🚚 {truck} · {n} ta manzil{rounds}\n\nBoshlash uchun «🚚 Ishni boshlash» tugmasini bosing — bot birinchi manzilni yuboradi. Keyingisi faqat yetkazish rasmidan keyin keladi.', assignRounds: ' · {r} ta reys',
     assignNow: '📋 Yangi topshiriq: {date} partiyasi — {n} ta manzil. Birinchi manzil pastda 👇',
     assignChanged: '⚠️ Topshiriq o‘zgardi.', round: '{round}-reys', msg: '📩 Rahbardan xabar:\n{text}',
     bProblem: '⚠️ Muammo', askProblem: 'Nima bo‘ldi?', probAsk: 'Qisqacha yozing va rasm yuboring (ixtiyoriy), keyin joylashuvni yuboring 👇',
@@ -134,7 +134,7 @@ var TX = {
     notWorking: 'Сначала нажмите «🚚 Начать работу».', already: 'Рабочий день уже начат.',
     stale: 'Эта кнопка устарела — текущая точка ниже.', staleNow: 'Эта кнопка устарела — вот текущая точка:', changed: '⚠️ Ваши рейсы на сегодня изменились.', busy: 'Сначала завершите текущую точку.',
     unknown: 'Пользуйтесь кнопками 👇',
-    assign: '📋 Задание: партия {date}\n🚚 {truck} · точек: {n}\n\n{list}\n\nЧтобы начать, нажмите «🚚 Начать работу».',
+    assign: '📋 Задание: партия {date}\n🚚 {truck} · точек: {n}{rounds}\n\nЧтобы начать, нажмите «🚚 Начать работу» — бот пришлёт первую точку. Следующая придёт только после фото доставки.', assignRounds: ' · рейсов: {r}',
     assignNow: '📋 Новое задание: партия {date} — точек: {n}. Первая точка ниже 👇',
     assignChanged: '⚠️ Задание изменилось.', round: 'рейс {round}', msg: '📩 Сообщение от руководителя:\n{text}',
     bProblem: '⚠️ Проблема', askProblem: 'Что случилось?', probAsk: 'Коротко опишите и пришлите фото (по желанию), затем отправьте геолокацию 👇',
@@ -883,17 +883,14 @@ function tgChanged_(skip) {
   });
 }
 
-// ── задание водителю: партия, точки по рейсам ──
+// ── задание водителю: партия, число точек и рейсов ──
+// Списка точек нет (версия 20): адрес, телефон и метку водитель видит по одной точке — следующую только после фото
+// доставки (или фото места, если не доставлено) и геолокации предыдущей.
 function tgAssignText_(d, date, stops) {
-  var open = stops.filter(function (x) { return x.open; }), rounds = {}, lines = [];
-  open.forEach(function (x) { (rounds[x.round] = rounds[x.round] || []).push(x); });
-  var rs = Object.keys(rounds).map(Number).sort(function (a, b) { return a - b; }), i = 0;
-  rs.forEach(function (r) {
-    if (rs.length > 1) lines.push('— ' + tx_(d.lang, 'round', { round: r }) + ' —');
-    rounds[r].forEach(function (x) { i++; if (i <= 40) lines.push(i + '. ' + x.bl + (x.c.brand || x.c.name ? ' · ' + (x.c.brand || x.c.name) : '') + (x.c.district ? ' · ' + x.c.district : '')); });
-  });
-  if (i > 40) lines.push('… +' + (i - 40));
-  return tx_(d.lang, 'assign', { date: tgDmy_(date), truck: d.truck, n: open.length, list: lines.join('\n') });
+  var open = stops.filter(function (x) { return x.open; }), rounds = {};
+  open.forEach(function (x) { rounds[x.round] = 1; });
+  var r = Object.keys(rounds).length;
+  return tx_(d.lang, 'assign', { date: tgDmy_(date), truck: d.truck, n: open.length, rounds: r > 1 ? tx_(d.lang, 'assignRounds', { r: r }) : '' });
 }
 // «Отправить» с сайта: водителям (всем с точками в партии или выбранным) — задание; тем, кто уже работает, — сразу первая точка.
 // «Всем» (ids пусто) не повторяет водителю тот же план: кто уже получил эту партию с теми же точками (утром или раньше)
