@@ -563,7 +563,7 @@
         price: t.price, kind: t.v.kind, vehicle: t.v, over: !!t.over, outside: t.stops.filter(s => s.zone === 'out') }));
       const leave = (t, at) => Object.assign(t, tripMetrics(depot, t.stops, S, at), { start: at });   // the trip starts later: arrivals move
       // рейс на конкретной машине: её имя и вместимость (у плана B — плюс допуск Gazel)
-      const onCar = (t, c, round, name) => Object.assign(t, { name, car: c.no, round, carName: c.unnamed ? null : c.name,
+      const onCar = (t, c, round, name) => Object.assign(t, { name, car: c.no, round, carName: c.name,
         vehicle: { ...t.vehicle, m3: c.m3 + (t.vehicle.tolM3 || 0), kg: c.kg + (t.vehicle.tolKg || 0), nomM3: c.m3, nomKg: c.kg } });
       const fits = (t, c) => t.over || (t.cbm <= c.m3 + (t.vehicle.tolM3 || 0) + EPS && t.kg <= c.kg + (t.vehicle.tolKg || 0) + EPS);
       const blocked = [];
