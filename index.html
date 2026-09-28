@@ -1660,9 +1660,7 @@ class Component extends DCLogic {
         delete fresh.defaults;
         if (!fresh.settings.baseIncludesPts) this.firstPointRule(fresh);
         this.capacityFix(fresh.settings);
-        // во встроенном Excel — старая граница ТКАД (без Keles): по умолчанию — уточнённая
-        const oldRing = JSON.stringify(fresh.ring);
-        fresh.ring = window.LogiEngine.TKAD_V2.map(p => p.slice());
+        // граница кольцевой по умолчанию — из вашего Excel; главная — в Google Таблице, её сайт сам не меняет
         if (this.once('logi-ring-clean-v5')) this.dropStaleRing();
         this.tpl = tpl; this.fresh = fresh;
         let data = null;
@@ -1670,7 +1668,6 @@ class Component extends DCLogic {
         if (!data) { try { const old = JSON.parse(localStorage.getItem('logi-site-v1') || 'null'); if (old && old.shipments) data = { ...fresh, clients: old.clients, shipments: old.shipments, settings: { ...fresh.settings, ...old.settings } }; } catch (e) {} }
         if (!data || !data.shipments) data = JSON.parse(JSON.stringify(fresh));
         ['ring', 'lists', 'notes', 'warehouses'].forEach(k => { if (!data[k]) data[k] = fresh[k]; });
-        if (JSON.stringify(data.ring) === oldRing) data.ring = fresh.ring.map(p => p.slice());   // только на экране; граница из таблицы придёт как есть
         data.settings = Object.assign({}, fresh.settings, data.settings || {});
         let ptsFix = false; try { ptsFix = localStorage.getItem('logi-base-pts-v1') === '1'; } catch (e) {}
         if (!ptsFix) { this.firstPointRule(data); try { localStorage.setItem('logi-base-pts-v1', '1'); } catch (e) {} }
@@ -1693,8 +1690,18 @@ class Component extends DCLogic {
   }
   // Вместимость машин со слов владельца (24.09): Gazel 23 м³ / 4 000 кг, Kamaz 50 м³ / 15 000 кг, Labo 550 кг (было примерно 800).
   // Меняем только старые значения из файла и прежнюю прикидку, поэтому выбор, сделанный позже во «Тарифах», не трогается.
-  capacityFix(S) {
+  // fillOnly — для данных из таблицы: только пустые значения, заданные не трогаем
+  capacityFix(S, fillOnly) {
     const changed = {};
+    if (fillOnly) {
+      if (S.gazelM3 == null) changed.gazelM3 = 19;
+      if (S.gazelKg == null) changed.gazelKg = 4000;
+      if (S.freeOutM3 == null) changed.freeOutM3 = 1;
+      if (S.densityMin == null) changed.densityMin = 40;
+      if (S.densityMax == null) changed.densityMax = 800;
+      Object.assign(S, changed);
+      return changed;
+    }
     if (S.cM3 === 35 && S.cKg === 5000) Object.assign(changed, { cM3: 50, cKg: 15000 });
     if (S.gazelM3 == null || (S.gazelM3 === 18 && S.gazelKg === 2000)) Object.assign(changed, { gazelM3: 23, gazelKg: 4000 });
     if (S.laboKg === 800) changed.laboKg = 550;
@@ -1838,18 +1845,12 @@ class Component extends DCLogic {
     this.gsShared = false;
     this.setState({ gsStatus: null, gsName: null });
   }
-  // Правила, которые должны попасть и в таблицу. Каждое срабатывает один раз для таблицы на устройстве.
+  // В таблицу сайт сам пишет только ПУСТЫЕ настройки (значение по умолчанию). Всё, что в таблице уже задано, — ваше:
+  // прежние одноразовые замены (Gazel 23 → 19 м³, список машин с Changan, «первая точка в базовой цене», вместимость,
+  // старая точка склада) срабатывали заново на каждом новом устройстве и после «Выйти» и затирали ваши правки — убраны.
   gsMigrations(data) {
-    const cap = this.capacityFix(data.settings), ops = Object.keys(cap).length ? [{ t: 'set', v: cap }] : [], mark = 'logi-mig-base-pts:' + this.gsUrl;
-    // новый автопарк — в таблицу, один раз: объём Gazel скрипт хранит с версии 3, список машин пишет с версии 5
-    if (this.gsVersion >= 3 && data.settings.gazelM3 === 23 && this.once('logi-mig-gazel19:' + this.gsUrl)) ops.push({ t: 'set', v: this.gazel19(data.settings) });
-    if (this.gsVersion >= 5 && data.lists && data.lists.trucks && !data.lists.trucks.includes('Changan') && this.once('logi-mig-trucks:' + this.gsUrl)) { this.fleetList(data); ops.push({ t: 'trucks', v: FLEET_TRUCKS }); }
-    let done = false; try { done = localStorage.getItem(mark) === '1'; } catch (e) {}
-    if (!done) {
-      try { localStorage.setItem(mark, '1'); } catch (e) {}
-      if (!data.settings.baseIncludesPts) { data.settings.baseIncludesPts = 1; ops.push({ t: 'set', v: { baseIncludesPts: 1 } }); }
-    }
-    return ops;
+    const fill = this.capacityFix(data.settings, true);
+    return Object.keys(fill).length ? [{ t: 'set', v: fill }] : [];
   }
   gsApply(j, first) {
     if (!j || j.error || !j.data) { const d = this.gsDeny(j), e = new Error(d || (j && j.error) || 'Пустой ответ'); e.deny = !!d; throw e; }
@@ -1869,7 +1870,6 @@ class Component extends DCLogic {
     if (fill.length) mig.push({ t: 'set', v: Object.fromEntries(fill.map(k => [k, data.settings[k]])) });
     const cur = this.state.data;
     let pend = null; if (!this.readOnly) try { pend = JSON.parse(localStorage.getItem('logi-ring-pending') || 'null'); } catch (e) {}
-    if (this.gsOldScript && cur && cur.ring && !pend) { pend = cur.ring; try { localStorage.setItem('logi-ring-pending', JSON.stringify(pend)); } catch (e) {} }
     if (pend) { if (JSON.stringify(pend) === JSON.stringify(data.ring)) { try { localStorage.removeItem('logi-ring-pending'); } catch (e) {} this.gsOldScript = false; } else data.ring = pend; }
     const same = cur && JSON.stringify([cur.clients, cur.shipments, cur.warehouses, cur.settings, cur.ring, cur.skipped, cur.textDates, cur.lists]) === JSON.stringify([data.clients, data.shipments, data.warehouses, data.settings, data.ring, data.skipped, data.textDates, data.lists]);
     if (!same) {
