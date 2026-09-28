@@ -1859,7 +1859,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 17); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 18); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -1898,10 +1898,12 @@ class Component extends DCLogic {
     if (this.readOnly) { this.gsQueue = []; this.gsSaveQueue(); return this.gsPull(); }   // «только просмотр»: ничего не пишем, только читаем
     if (!this.gsUrl || this._gsBusy || !this.gsQueue.length) return;
     this._gsBusy = true;
-    const ops = this.gsQueue.slice(0, 40), url = this.gsUrl;   // частями: большая первая выгрузка не упирается в лимиты Apps Script
+    // частями: большая первая выгрузка не упирается в лимиты Apps Script. more — не последняя порция, quiet — запись перед
+    // «Отправить»: скрипт (версия 18) пишет водителям об изменениях один раз, после последней порции, а перед отправкой — не пишет
+    const ops = this.gsQueue.slice(0, 40), url = this.gsUrl;
     this.setState({ gsStatus: 'saving' });
     try {
-      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: this.gsToken, ops, tgdays: this.tgDays() }) });
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: this.gsToken, ops, tgdays: this.tgDays(), more: this.gsQueue.length > ops.length, quiet: !!this._gsQuiet || (this._tgHold || 0) > Date.now() }) });
       const j = await r.json();
       if (this.gsUrl !== url) { this._gsBusy = false; return this.gsUrl && this.gsPull(true); }   // таблицу сменили, пока шёл запрос
       if (j.error) throw new Error(j.error);
@@ -2292,20 +2294,32 @@ class Component extends DCLogic {
     if (this.state.dvBusy) return;
     this.setState({ dvBusy: true, [key]: { text: label, color: 'var(--color-divider)' } });
     try {
-      // водитель получает точки из таблицы: сначала дописываем туда правки журнала
-      for (let i = 0; i < 40 && body.action === 'dispatch' && this.gsQueue.length; i++) {
-        if (this._gsBusy) await new Promise(r => setTimeout(r, 250)); else { await this.gsFlush(); if (this.state.gsStatus === 'error') break; }
-      }
+      // водитель получает точки из таблицы: сначала дописываем туда правки журнала — тихо: задание придёт следом одним сообщением
+      this._gsQuiet = body.action === 'dispatch';
+      try {
+        for (let i = 0; i < 40 && body.action === 'dispatch' && this.gsQueue.length; i++) {
+          if (this._gsBusy) await new Promise(r => setTimeout(r, 250)); else { await this.gsFlush(); if (this.state.gsStatus === 'error') break; }
+        }
+      } finally { this._gsQuiet = false; }
       if (body.action === 'dispatch' && this.gsQueue.length) throw new Error('Последние правки журнала ещё не записались в Google Таблицу — проверьте связь и нажмите снова.');
       const j = await this.tgPost(body);
       this.setState({ dvBusy: false, [key]: { text: done(j), color: 'var(--color-accent)' } });
     } catch (e) { this.setState({ dvBusy: false, [key]: { text: e.message || String(e), color: 'var(--color-red)' } }); }
   }
+  // «Позже» на вопрос «Отправить водителям сейчас?»: правки журнала ушли в таблицу тихо — пустая запись (скрипт 18)
+  // говорит скрипту сообщить об изменениях тем водителям, у кого задание уже было
+  async gsTgRelease() {
+    for (let i = 0; i < 80 && (this._gsBusy || this.gsQueue.length); i++) await new Promise(r => setTimeout(r, 250));
+    if (!this.gsUrl || this.readOnly || this.gsVersion < 18 || (this._tgHold || 0) > Date.now()) return;
+    try { await fetch(this.gsUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: this.gsToken, ops: [], tgdays: this.tgDays() }) }); } catch (e) { /* скрипт сообщит сам по таймеру */ }
+  }
   // бот готов принимать задания: таблица со скриптом 10+, бот подключён, вход не «только просмотр»
   botReady() { const T = this.gsTg; return !this.readOnly && !!this.gsUrl && this.gsVersion >= 10 && !!T && !!T.hooked; }
   dispatchText(date, j) {
     const sent = (j.sent || []).map(x => x.name + ' — ' + x.truck + ', точек ' + x.n), sk = (j.skipped || []).map(x => (x.name ? x.name + ' — ' : '') + x.truck + ': ' + x.why);
-    return (sent.length ? 'Партия ' + dLong(date) + ' отправлена:\n' + sent.join('\n') : 'Никому не отправлено.') + (sk.length ? '\n\nНе отправлено:\n' + sk.join('\n') : '');
+    const al = (j.already || []).map(x => x.name + ' — ' + x.truck + ': ' + x.why);   // скрипт 18: тот же план второй раз не шлёт
+    return (sent.length ? 'Партия ' + dLong(date) + ' отправлена:\n' + sent.join('\n') : al.length ? 'Новых заданий нет — у всех водителей этот план уже есть.' : 'Никому не отправлено.') +
+      (al.length ? '\n\nУже есть, повторно не отправлено:\n' + al.join('\n') + '\nОтправить ещё раз одному — кнопка «Отправить» в его строке.' : '') + (sk.length ? '\n\nНе отправлено:\n' + sk.join('\n') : '');
   }
   dvDispatch(date, drivers, trucks) {
     const who = drivers.map(d => d.name + ' (' + d.truck + ')').join(', ');
@@ -2389,19 +2403,20 @@ class Component extends DCLogic {
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
     out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу: «Настройки» → «Связь».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 17. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 18. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
       !T ? 'Телеграм-бот не подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (17): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (18): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота»: «Настройки» → «Связь».' :
       !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — «Настройки» → «Связь».' :
       T.tz && !UZ_TZ.includes(T.tz) ? 'Часовой пояс Google Таблицы — ' + T.tz + ', а не Ташкент: время водителей («на линии с …»), «сегодня» и итог дня в 20:00 сдвинуты. ' +
         'Исправьте: в Google Таблице Файл → Настройки → Часовой пояс → «(GMT+05:00) Tashkent» → Сохранить; в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent». Затем «Настройки» → «Связь» → «Переподключить бота».' :
-      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 17
+      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 18
       this.gsVersion < 16 && T.scriptTz && !UZ_TZ.includes(T.scriptTz) ? 'Часовой пояс скрипта — ' + T.scriptTz + ', а не Ташкент: даты партий могут сдвигаться на день назад (04.05.2006 → 03.05.2006). ' +
-        'Обновите код скрипта до 17 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
-      // код ниже 17: что изменится у водителей и в таблице после обновления — по предложению на каждое изменение
-      this.gsVersion < 17 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 17: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' +
-        (this.gsVersion >= 15 ? ' У водителей снова будет прежняя карточка точки: все кнопки под точкой и полное меню внизу.' : '') +
+        'Обновите код скрипта до 18 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
+      // код ниже 18: что изменится у водителей и в таблице после обновления — по предложению на каждое изменение
+      this.gsVersion < 18 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 18: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' +
+        ' План больше не будет приходить водителю по нескольку раз.' +
+        (this.gsVersion >= 15 && this.gsVersion < 17 ? ' У водителей снова будет прежняя карточка точки: все кнопки под точкой и полное меню внизу.' : '') +
         (this.gsVersion < 16 ? ' Даты партий больше не будут сдвигаться на день (04.05.2006 не станет 03.05.2006), уже сдвинутые исправятся сами.' : '') +
         (this.gsVersion < 14 ? ' Бот сам напомнит водителю, если тот забыл нажать кнопку, и утром сам отправит план дня.' : '') + (this.gsVersion < 13 ? ' Сайт проверит часовой пояс таблицы.' : '') :
       ro ? 'Только просмотр: отправлять задания, писать водителям и менять автопарк может руководитель.' : '';
@@ -3476,6 +3491,9 @@ class Component extends DCLogic {
       });
     });
     const grew = list.length !== data.lists.trucks.length;
+    // пока открыт вопрос «Отправить водителям сейчас?» — запись в таблицу тихая (скрипт 18): «Да» — водителю одно задание,
+    // «Позже» — одно «Задание изменилось» тем, у кого задание уже было (например, утреннее). Не дольше 10 минут.
+    this._tgHold = this.botReady() ? Date.now() + 600000 : 0;
     this.commit({ ...data, shipments: out, ...(grew ? { lists: { ...data.lists, trucks: list } } : {}) });
     if (grew && this.gsUrl && this.gsVersion >= 5) this.gsEnqueue([{ t: 'trucks', v: list }]);   // новые машины — в список таблицы
     this.setState({ acceptInfo: { date, key, prev, added, n: ids.length, trips: plan.trips.length }, sendAsk: this.botReady() ? { date, key } : null, planMsg: null });
@@ -3488,6 +3506,7 @@ class Component extends DCLogic {
     const same = (x, s) => x.id === s.id || (x.bl === s.bl && x.date === s.date && (x.note || '') === (s.note || '') && x.truck === s.truck && +x.route === +s.route && Math.abs((+x.cbm || 0) - (+s.cbm || 0)) < 1e-6);
     const added = s => { const i = left.findIndex(x => same(x, s)); if (i < 0) return false; left.splice(i, 1); return true; };
     this.commit({ ...data, shipments: data.shipments.filter(s => back.has(s.id) || !added(s)).map(s => back.get(s.id) || s) });
+    this._tgHold = 0;
     this.setState({ acceptInfo: null, sendAsk: null });
   }
 
@@ -3788,8 +3807,8 @@ class Component extends DCLogic {
       { const ask = st.sendAsk && st.sendAsk.date === st.planDate && st.sendAsk.key === planKey ? st.sendAsk : null, pm = st.planMsg;
         Object.assign(out, { sendAskShow: !!ask, dvBusy: !!st.dvBusy,
           sendAskNote: 'Водители с точками в партии ' + dLong(st.planDate) + ' получат задание в Telegram. «Позже» — отправите во вкладке «Водители» кнопкой «Отправить груз водителям».',
-          sendAskYes: () => { this.setState({ sendAsk: null }); this.dvRun('Отправляю задание водителям…', { action: 'dispatch', date: st.planDate, ids: [] }, j => this.dispatchText(st.planDate, j), 'planMsg'); },
-          sendAskNo: () => this.setState({ sendAsk: null }),
+          sendAskYes: () => { this._tgHold = 0; this.setState({ sendAsk: null }); this.dvRun('Отправляю задание водителям…', { action: 'dispatch', date: st.planDate, ids: [] }, j => this.dispatchText(st.planDate, j), 'planMsg'); },
+          sendAskNo: () => { this._tgHold = 0; this.setState({ sendAsk: null }); this.gsTgRelease(); },
           planHasMsg: !!pm, planMsg: pm ? pm.text : '', planMsgColor: pm ? pm.color : 'var(--color-divider)', planMsgSent: !!pm && pm.color === 'var(--color-accent)',
           planMsgClose: () => this.setState({ planMsg: null }), planGoDrivers: () => this.setState({ tab: 'drivers', dvDate: st.planDate, planMsg: null }) }); }
       out.planTrips = plan.trips.map((t, ti) => {
@@ -3973,7 +3992,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 17 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 18 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :

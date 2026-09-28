@@ -84,7 +84,7 @@ var TX = {
     allDone: 'Bugungi barcha manzillar tugadi 👏 «🏁 Ishni tugatish» tugmasini bosing.',
     endDay: 'Ish kuni tugadi. Yetkazildi: {ok}, yetkazilmadi: {fail}, qoldi: {left}. Rahmat!',
     notWorking: 'Avval «🚚 Ishni boshlash» tugmasini bosing.', already: 'Ish kuni allaqachon boshlangan.',
-    stale: 'Bu tugma eskirgan — joriy manzil pastda.', changed: '⚠️ Bugungi reyslaringiz o‘zgardi.', busy: 'Avval joriy manzilni yakunlang.',
+    stale: 'Bu tugma eskirgan — joriy manzil pastda.', staleNow: 'Bu tugma eskirgan — joriy manzil:', changed: '⚠️ Bugungi reyslaringiz o‘zgardi.', busy: 'Avval joriy manzilni yakunlang.',
     unknown: 'Tugmalardan foydalaning 👇',
     assign: '📋 Topshiriq: {date} partiyasi\n🚚 {truck} · {n} ta manzil\n\n{list}\n\nBoshlash uchun «🚚 Ishni boshlash» tugmasini bosing.',
     assignNow: '📋 Yangi topshiriq: {date} partiyasi — {n} ta manzil. Birinchi manzil pastda 👇',
@@ -132,7 +132,7 @@ var TX = {
     allDone: 'Все точки на сегодня пройдены 👏 Нажмите «🏁 Закончить работу».',
     endDay: 'Рабочий день закончен. Доставлено: {ok}, не доставлено: {fail}, осталось: {left}. Спасибо!',
     notWorking: 'Сначала нажмите «🚚 Начать работу».', already: 'Рабочий день уже начат.',
-    stale: 'Эта кнопка устарела — текущая точка ниже.', changed: '⚠️ Ваши рейсы на сегодня изменились.', busy: 'Сначала завершите текущую точку.',
+    stale: 'Эта кнопка устарела — текущая точка ниже.', staleNow: 'Эта кнопка устарела — вот текущая точка:', changed: '⚠️ Ваши рейсы на сегодня изменились.', busy: 'Сначала завершите текущую точку.',
     unknown: 'Пользуйтесь кнопками 👇',
     assign: '📋 Задание: партия {date}\n🚚 {truck} · точек: {n}\n\n{list}\n\nЧтобы начать, нажмите «🚚 Начать работу».',
     assignNow: '📋 Новое задание: партия {date} — точек: {n}. Первая точка ниже 👇',
@@ -545,7 +545,7 @@ function tgCallback_(q) {
   if (data === 'more' || data === 'tels') return tgCurrent_(d, w);
   var m = data.match(/^(ok|fail):(.+)$/);
   if (m) {
-    if (!w.cur || w.cur.key !== m[2] || (w.stage && w.stage !== 'wait')) return tgSend_(d.id, tx_(L, w.stage ? 'busy' : 'stale')) && tgCurrent_(d, w);
+    if (!w.cur || w.cur.key !== m[2] || (w.stage && w.stage !== 'wait')) return tgCurrent_(d, w, tx_(L, w.stage ? 'busy' : 'staleNow'));
     w.waited = w.wait && w.wait.key === m[2] ? Math.max(1, Math.round((new Date().getTime() - w.wait.since) / 60000)) : 0; w.wait = null;
     w.result = m[1]; w.photos = []; w.reason = ''; w.photoLL = null;
     if (m[1] === 'ok') { w.stage = 'photo'; tgSave_(d); return tgPhotoAsk_(d, w, 'askPhoto'); }
@@ -562,20 +562,20 @@ function tgCallback_(q) {
   }
   // шаг «фото»: кнопки в сообщении
   if (data === 'pdone' || data === 'pcancel') {
-    if (w.stage !== 'photo' && w.stage !== 'failPhoto') return tgSend_(d.id, tx_(L, 'stale')) && tgCurrent_(d, w);
+    if (w.stage !== 'photo' && w.stage !== 'failPhoto') return tgCurrent_(d, w, tx_(L, 'staleNow'));
     return data === 'pdone' ? tgPhotoDone_(d, w) : tgCancel_(d, w);
   }
   // «⏳ Жду клиента»: таймер (tgTick раз в 5 минут напомнит водителю и напишет в группу)
   if (/^wait:.+$/.test(data)) {
     var wk = data.slice(5);
-    if (!w.cur || w.cur.key !== wk || (w.stage && w.stage !== 'wait' && w.stage !== 'noAnswer')) return tgSend_(d.id, tx_(L, w.stage ? 'busy' : 'stale')) && tgCurrent_(d, w);
+    if (!w.cur || w.cur.key !== wk || (w.stage && w.stage !== 'wait' && w.stage !== 'noAnswer')) return tgCurrent_(d, w, tx_(L, w.stage ? 'busy' : 'staleNow'));
     var t0 = new Date().getTime();
     w.wait = { key: wk, since: w.wait && w.wait.key === wk ? w.wait.since : t0, until: t0 + tgWaitMin_() * 60000 }; w.stage = 'wait'; tgSave_(d);
     return tgSend_(d.id, tx_(L, 'waiting', { until: tgHm_(w.wait.until) }), tgOkFailKb_(d, wk));
   }
   // меню «клиент не отвечает»: позвонить диспетчеру, номера клиента, клиент ответил, всё равно не доставлено
   if (/^na:(call|tel|ok|fail)$/.test(data)) {
-    if (w.stage !== 'noAnswer' || !w.cur) return tgSend_(d.id, tx_(L, 'stale')) && tgCurrent_(d, w);
+    if (w.stage !== 'noAnswer' || !w.cur) return tgCurrent_(d, w, tx_(L, 'staleNow'));
     var act = data.slice(3);
     if (act === 'call') return tgSendDispatcher_(d);
     if (act === 'tel') {
@@ -733,32 +733,33 @@ function tgCard_(d, s, stops) {
   if (!(c.lat && c.lon)) lines.push('', tx_(L, 'noCoords'));
   return lines.join('\n');
 }
-function tgNext_(d, w) {
-  var L = d.lang, stops = tgStops_(d.truck, w.date);
+// head — строка над сообщением («Новое задание…», «Рейсы изменились»): одно сообщение вместо двух
+function tgNext_(d, w, head) {
+  var L = d.lang, stops = tgStops_(d.truck, w.date), h = head ? head + '\n\n' : '';
   w.sig = tgSig_(stops);
-  if (!stops.length) { w.cur = null; tgSave_(d); return tgSend_(d.id, tx_(L, 'noStops', { truck: d.truck }), tgMenu_(L)); }
+  if (!stops.length) { w.cur = null; tgSave_(d); return tgSend_(d.id, h + tx_(L, 'noStops', { truck: d.truck }), tgMenu_(L)); }
   var round = w.round || Math.min.apply(null, stops.filter(function (s) { return s.open; }).map(function (s) { return s.round; }).concat([99]));
-  if (round === 99) { w.cur = null; tgSave_(d); return tgSend_(d.id, tx_(L, 'allDone'), tgMenu_(L)); }
+  if (round === 99) { w.cur = null; tgSave_(d); return tgSend_(d.id, h + tx_(L, 'allDone'), tgMenu_(L)); }
   var s = tgPick_(stops, round, w.pos || tgDepot_());
   if (!s) {
     var later = stops.filter(function (x) { return x.open && x.round > round; }).map(function (x) { return x.round; });
-    if (!later.length) { w.cur = null; tgSave_(d); return tgSend_(d.id, tx_(L, 'allDone'), tgMenu_(L)); }
+    if (!later.length) { w.cur = null; tgSave_(d); return tgSend_(d.id, h + tx_(L, 'allDone'), tgMenu_(L)); }
     var nx = Math.min.apply(null, later);
     w.cur = null; w.stage = 'roundWait'; tgSave_(d);
-    return tgSend_(d.id, tx_(L, 'roundDone', { round: round, next: nx }), tgInline_([[{ text: tx_(L, 'bRound', { next: nx }), callback_data: 'round:' + nx }]]));
+    return tgSend_(d.id, h + tx_(L, 'roundDone', { round: round, next: nx }), tgInline_([[{ text: tx_(L, 'bRound', { next: nx }), callback_data: 'round:' + nx }]]));
   }
   w.round = round; w.cur = { key: s.key, bl: s.bl, round: s.round }; w.stage = null; tgSave_(d);
-  tgSend_(d.id, tgCard_(d, s, stops), tgStopKb_(d, s));
+  tgSend_(d.id, h + tgCard_(d, s, stops), tgStopKb_(d, s));
   tgNotify_(s.bl, 'way:' + w.date + ':' + s.key, txc_('onWay', { eta: tgEta_(w.pos || tgDepot_(), s.c), truck: d.truck }));
   if (s.c.lat && s.c.lon) tg_('sendLocation', { chat_id: d.id, latitude: s.c.lat, longitude: s.c.lon, reply_markup: tgMenu_(L) });
   else tgSend_(d.id, tx_(L, 'menu'), tgMenu_(L));
 }
-function tgCurrent_(d, w) {
-  if (w.stage === 'roundWait' || !w.cur) return tgNext_(d, w);
+function tgCurrent_(d, w, head) {
+  if (w.stage === 'roundWait' || !w.cur) return tgNext_(d, w, head);
   var stops = tgStops_(d.truck, w.date), s = stops.filter(function (x) { return x.key === w.cur.key && x.open; })[0];
-  if (!s) return tgNext_(d, w);
+  if (!s) return tgNext_(d, w, head);
   w.sig = tgSig_(stops); tgSave_(d);
-  tgSend_(d.id, tgCard_(d, s, stops), tgStopKb_(d, s));
+  tgSend_(d.id, (head ? head + '\n\n' : '') + tgCard_(d, s, stops), tgStopKb_(d, s));
   if (s.c.lat && s.c.lon) tg_('sendLocation', { chat_id: d.id, latitude: s.c.lat, longitude: s.c.lon });
 }
 function tgPhoto_(d, w, fileId) {
@@ -851,18 +852,28 @@ function tgReport_(text, photos) {
 }
 
 // ── изменения на сайте: водителю, который работает с партией или получил её заданием, — если его точки поменялись ──
-function tgAfterOps_(ops) {
-  if (!prop_('TG_TOKEN') || !(ops || []).some(function (op) { return /^ship\./.test(op.t); })) return;
+// Сайт пишет журнал порциями по 40 правок. Раньше водитель получал «задание изменилось» со всем списком после каждой
+// порции, а потом ещё и само задание — один план приходил 2–3 раза подряд. Теперь (версия 18) промежуточные порции
+// (more) и запись перед «Отправить» (quiet) водителям не пишут, только запоминают, что точки менялись: сообщение —
+// одно, после последней порции; перед отправкой — только само задание (tgDispatch_ сообщит остальным).
+function tgAfterOps_(ops, hold) {
+  if (!prop_('TG_TOKEN')) return;
+  var ship = (ops || []).some(function (op) { return /^ship\./.test(op.t); }), c = CacheService.getScriptCache();
+  if (hold) { if (ship) c.put('tg:ops', String(new Date().getTime()), 3600); return; }
+  if (!ship && !c.get('tg:ops')) return;
+  c.remove('tg:ops');
+  tgChanged_({});
+}
+function tgChanged_(skip) {
   TG_MEMO = null;
   tgDrivers_().forEach(function (d) {
-    if (d.status !== 'ruxsat') return;
+    if (d.status !== 'ruxsat' || skip[d.id]) return;
     var w = tgWork_(d), a = tgAssigned_(d);
     if (w && w.started) {
       var sig = tgSig_(tgStops_(d.truck, w.date));
       if (sig === w.sig) return;
-      tgSend_(d.id, tx_(d.lang, 'changed'));
-      if (!w.stage || w.stage === 'roundWait') tgCurrent_(d, w);
-      else { w.sig = sig; tgSave_(d); }
+      if (!w.stage || w.stage === 'roundWait') tgCurrent_(d, w, tx_(d.lang, 'changed'));   // одним сообщением с карточкой
+      else { w.sig = sig; tgSave_(d); tgSend_(d.id, tx_(d.lang, 'changed')); }
     } else if (a) {
       var st = tgStops_(d.truck, a.date), sg = tgSig_(st);
       if (sg === a.sig) return;
@@ -885,27 +896,39 @@ function tgAssignText_(d, date, stops) {
   return tx_(d.lang, 'assign', { date: tgDmy_(date), truck: d.truck, n: open.length, list: lines.join('\n') });
 }
 // «Отправить» с сайта: водителям (всем с точками в партии или выбранным) — задание; тем, кто уже работает, — сразу первая точка.
+// «Всем» (ids пусто) не повторяет водителю тот же план: кто уже получил эту партию с теми же точками (утром или раньше)
+// или уже везёт её — в ответе сайту «уже получил». Выбранному водителю («Отправить» в его строке) — всегда.
+// Кто уже везёт эту партию, того не сбрасываем на начало: текущая точка и шаг (фото, ожидание) остаются.
 // auto (утром по расписанию): кто уже работает или уже получил эту партию — не трогаем
 function tgDispatch_(date, ids, auto) {
-  var sent = [], skipped = [], today = tgNow_('yyyy-MM-dd'), drivers = tgDrivers_().filter(function (d) { return d.status === 'ruxsat'; });
+  var sent = [], skipped = [], already = [], today = tgNow_('yyyy-MM-dd'), drivers = tgDrivers_().filter(function (d) { return d.status === 'ruxsat'; });
   TG_MEMO = null;
-  var targets = ids && ids.length ? drivers.filter(function (d) { return ids.indexOf(d.id) >= 0; }) : drivers;
+  var one = !!(ids && ids.length), done = {};
+  var targets = one ? drivers.filter(function (d) { return ids.indexOf(d.id) >= 0; }) : drivers;
   targets.forEach(function (d) {
-    var stops = tgStops_(d.truck, date), open = stops.filter(function (x) { return x.open; });
+    var stops = tgStops_(d.truck, date), open = stops.filter(function (x) { return x.open; }), sig = tgSig_(stops);
     if (!open.length) { if (!auto) skipped.push({ id: d.id, name: d.name, truck: d.truck, why: 'нет точек' }); return; }
-    var w = tgWork_(d), a0 = tgAssigned_(d);
+    var w = tgWork_(d), a0 = tgAssigned_(d), who = { id: d.id, name: d.name, truck: d.truck, n: open.length };
     if (auto && ((w && w.started) || (a0 && a0.date === date))) return;
-    if (w && w.started) {
+    done[d.id] = 1;
+    if (w && w.started && w.date === date) {
+      var free = !w.stage || w.stage === 'roundWait';
+      if (w.sig === sig && (!one || !free)) { already.push(Object.assign(who, { why: 'уже везёт эту партию' })); return; }
+      if (free) tgCurrent_(d, w, w.sig === sig ? '' : tx_(d.lang, 'changed'));
+      else { w.sig = sig; tgSave_(d); tgSend_(d.id, tx_(d.lang, 'changed')); }
+    } else if (w && w.started) {
       w.date = date; w.round = null; w.cur = null; w.stage = null; tgSave_(d);
-      tgSend_(d.id, tx_(d.lang, 'assignNow', { date: tgDmy_(date), n: open.length }));
-      tgNext_(d, w);
+      tgNext_(d, w, tx_(d.lang, 'assignNow', { date: tgDmy_(date), n: open.length }));   // одним сообщением с первой точкой
     } else {
-      d.st.assign = { date: date, day: today, at: tgNow_(), sig: tgSig_(stops) }; tgSave_(d);
+      if (!one && a0 && a0.date === date && a0.sig === sig) { already.push(Object.assign(who, { why: 'уже получил этот план в ' + String(a0.at || '').slice(11, 16) })); return; }
+      d.st.assign = { date: date, day: today, at: tgNow_(), sig: sig }; tgSave_(d);
       tgSend_(d.id, tgAssignText_(d, date, stops), tgMenu_(d.lang));
     }
     open.forEach(function (x) { tgNotify_(x.bl, 'today:' + date, txc_('today', { bl: x.bl, places: x.places })); });
-    sent.push({ id: d.id, name: d.name, truck: d.truck, n: open.length });
+    sent.push(who);
   });
+  // правки журнала перед отправкой (quiet) водителям не писали: у кого точки изменились, а задание сейчас не ушло, — сообщение
+  if (!auto) { CacheService.getScriptCache().remove('tg:ops'); tgChanged_(done); }
   // машины с точками, у которых нет водителя в боте
   if (!(ids && ids.length)) {
     var has = {}; drivers.forEach(function (d) { has[d.truck] = 1; });
@@ -913,7 +936,7 @@ function tgDispatch_(date, ids, auto) {
     D.rows.forEach(function (r) { var dt = r[0] instanceof Date ? day_(r[0], D.tz) : String(r[0]).slice(0, 10), t = String(r[12]).trim(); if (dt === date && t && TG_NOT_TRUCKS.indexOf(t) < 0 && TG_DONE.indexOf(String(r[14]).trim()) < 0 && !has[t]) trucks[t] = 1; });
     Object.keys(trucks).forEach(function (t) { skipped.push({ truck: t, why: 'нет водителя в боте' }); });
   }
-  return { sent: sent, skipped: skipped };
+  return { sent: sent, skipped: skipped, already: already };
 }
 // «Написать водителю»: одному, выбранным или всем, кто сегодня на линии
 function tgMessage_(ids, text) {
@@ -1019,6 +1042,9 @@ function tgTick() {
       props_().setProperty('TG_MORNING_DAY', today);
       try { tgMorningRun_(today); } catch (err) { console.error('План утром: ' + ((err && err.stack) || err)); }
     }
+    // правки журнала, о которых водители ещё не знают (сайт не дописал порции или не отправил задание), — через 2 минуты
+    var pend = Number(CacheService.getScriptCache().get('tg:ops') || 0);
+    if (pend && t - pend > 120000) { try { tgAfterOps_([], false); } catch (err) { console.error('Правки для водителей: ' + ((err && err.stack) || err)); } }
     if (h < 7) return;
     tgDrivers_().forEach(function (d) {
       if (d.status !== 'ruxsat') return;
@@ -1194,6 +1220,13 @@ function tgSetDispatcher_(p, a) {
   return '';
 }
 // ── сайт: подключить бота, водители ──
+// действия сайта с ботом — под той же блокировкой, что и кнопки водителей: два «Отправить» подряд (или с двух устройств)
+// и нажатие водителя в ту же секунду не перезаписывают состояние друг друга и не шлют задание дважды
+function tgSiteLocked_(body) {
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(25000); } catch (err) { return { error: 'Бот сейчас занят — нажмите ещё раз через несколько секунд.', v: VERSION }; }
+  try { return tgSite_(body); } finally { lock.releaseLock(); }
+}
 function tgSite_(body) {
   var editor = prop_('EDITOR_TOKEN'), a = body.tg || {};
   if (editor && body.editor !== editor) return { error: 'Бот настраивает только руководитель: секрет редактора не подходит', code: 'editor', v: VERSION };
@@ -1235,7 +1268,7 @@ function tgSite_(body) {
   if (a.action === 'dispatch') {
     if (!/^20\d\d-\d\d-\d\d$/.test(String(a.date || ''))) return { error: 'Выберите партию', v: VERSION };
     var r = tgDispatch_(a.date, a.ids);
-    return { ok: true, v: VERSION, sent: r.sent, skipped: r.skipped, tg: tgInfo_(body.tgdays) };
+    return { ok: true, v: VERSION, sent: r.sent, skipped: r.skipped, already: r.already, tg: tgInfo_(body.tgdays) };
   }
   if (a.action === 'dispatcher') {
     var de = tgSetDispatcher_(p, a);

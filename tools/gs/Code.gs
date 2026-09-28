@@ -34,9 +34,13 @@
  *   старые даты уезжали на день назад: 04.05.2006 → 03.05.2006); уже сдвинутые даты журнала исправляются один раз сами.
  * Версия 17: «один экран» убран — у водителя снова карточка точки как в версии 14 (все кнопки под точкой, метка на карте,
  *   полное меню); напоминания, план утром и исправление дат остаются. Кнопки карточек версии 15, оставшиеся в чате, работают.
+ * Версия 18: план не приходит водителю по нескольку раз. Правки журнала сайт пишет порциями — водителю одно сообщение
+ *   «задание изменилось» после последней порции, а перед «Отправить» — только само задание. «Отправить всем» не повторяет
+ *   тот же план тому, кто его уже получил (в том числе утром) или уже везёт; кто везёт — не сбрасывается на начало.
+ *   «Новое задание» и «Рейсы изменились» — одним сообщением с карточкой точки. Действия сайта с ботом — под блокировкой.
  */
 var TOKEN = '';
-var VERSION = 17; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 18; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 var COLS = { ship: 16, cli: 25, wh: 8, set: 4, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера машин
@@ -115,14 +119,14 @@ function doPost(e) {
   if (body.tgphoto) return json_(tgPhotoUpload_(body.tgphoto));   // фото с камеры водителя: вход по подписи Telegram
   if (tk && body.token !== tk) return json_({ error: 'Неверный пароль' });
   if (body.ai) return json_(ai_(body, raw.length));   // ИИ — без блокировки таблицы и без выгрузки данных
-  if (body.tg) return json_(tgSite_(body));   // бот: подключить, водители
+  if (body.tg) return json_(tgSiteLocked_(body));   // бот: подключить, водители, отправка
   var lock = LockService.getScriptLock();
   lock.waitLock(25000);
   var results = [];
   try {
     (body.ops || []).forEach(function (op) { results.push(apply_(op)); });
     SpreadsheetApp.flush();
-    try { tgAfterOps_(body.ops); } catch (err) { console.error('Бот после правок: ' + ((err && err.message) || err)); }   // водителям — если их точки изменились
+    try { tgAfterOps_(body.ops, body.more || body.quiet); } catch (err) { console.error('Бот после правок: ' + ((err && err.message) || err)); }   // водителям — если их точки изменились
   } finally { lock.releaseLock(); }
   return json_({ ok: true, v: VERSION, results: results, data: dump_(body.tgdays) });
 }
