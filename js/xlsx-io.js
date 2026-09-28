@@ -146,7 +146,14 @@
     const col = (c, a, b) => { const o = []; for (let r = a; r <= b; r++) if (Ss[r] && str(Ss[r][c])) o.push(str(Ss[r][c])); return o; };
     // госномера машин — D24:D39 напротив названия машины в C
     const plates = {}; for (let r = 24; r <= 39; r++) if (Ss[r] && str(Ss[r].C) && str(Ss[r].D)) plates[str(Ss[r].C)] = str(Ss[r].D);
-    const lists = { districts: col('A', 24, 39), statuses: col('B', 24, 29), trucks: col('C', 24, 39), plates };
+    // карточка машины — E:J (скрипт версии 21): в ремонте, марка, год, объём м³, грузоподъёмность кг, примечание
+    const fleet = {};
+    for (let r = 24; r <= 39; r++) {
+      const c = Ss[r], t = c && str(c.C); if (!t) continue;
+      const x = { repair: /ta.?mirda|ремонт/i.test(str(c.E)), model: str(c.F), year: num(c.G), m3: num(c.H), kg: num(c.I), note: str(c.J) };
+      if (x.repair || x.model || x.year != null || x.m3 != null || x.kg != null || x.note) fleet[t] = x;
+    }
+    const lists = { districts: col('A', 24, 39), statuses: col('B', 24, 29), trucks: col('C', 24, 39), plates, fleet };
     const notes = []; let sec = null;
     Object.keys(Ns).map(Number).sort((a, b) => a - b).forEach(r => {
       const c = Ns[r];
@@ -263,8 +270,14 @@
     if (P[SH.set]) {
       const cells = {}; for (const [k, r] of Object.entries(SET_ROWS)) cells['B' + r] = S[k] ?? null;
       // машины и их госномера: C24:C39, D24:D39
-      const L = data.lists || {}, tr = L.trucks || [], pl = L.plates || {};
+      const L = data.lists || {}, tr = L.trucks || [], pl = L.plates || {}, fl = L.fleet || {};
       if (tr.length) { cells.D23 = 'Davlat raqami'; for (let i = 0; i < 16; i++) { cells['C' + (24 + i)] = tr[i] ?? null; cells['D' + (24 + i)] = (tr[i] && pl[tr[i]]) || null; } }
+      // карточка машины — E:J (как в скрипте таблицы версии 21)
+      if (tr.some(t => fl[t])) {
+        ['Holati', 'Marka', 'Yili', 'Hajm, m³', 'Yuk, kg', 'Izoh'].forEach((h, j) => { cells['EFGHIJ'[j] + 23] = h; });
+        for (let i = 0; i < 16; i++) { const x = (tr[i] && fl[tr[i]]) || {};
+          [x.repair ? 'ta’mirda' : null, x.model || null, x.year ?? null, x.m3 ?? null, x.kg ?? null, x.note || null].forEach((v, j) => { cells['EFGHIJ'[j] + (24 + i)] = v; }); }
+      }
       put(z, P[SH.set], setCells(txt(z, P[SH.set]), cells));
     }
     if (P[SH.ring]) {

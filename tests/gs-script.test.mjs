@@ -18,7 +18,7 @@ const call = (extra = {}) => ({ token: '', login: 'buraq', ai: { action: 'call',
 test('проверка связи: ключ из свойств, модель по умолчанию, инструмент strict и tool_choice на него, запись в журнал', () => {
   const s = loadScript({ props: { ANTHROPIC_API_KEY: 'sk-test' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
   const r = s.post(ping());
-  assert.equal(r.ok, true); assert.equal(r.v, 20); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
+  assert.equal(r.ok, true); assert.equal(r.v, 21); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
   assert.equal(r.mode, 'tool'); assert.equal(r.editorSet, true); assert.deepEqual(r.usage, { in: 120, cache: 0, out: 30 });
   const c = s.calls[0];
   assert.equal(c.url, 'https://api.anthropic.com/v1/messages');
@@ -81,7 +81,7 @@ test('пароль скрипта из свойства TOKEN проверяет
   assert.equal(s.post(ping({ token: 'x' })).error, 'Неверный пароль');
   assert.equal(s.get({ token: 'x' }).error, 'Неверный пароль');
   assert.equal(s.post(ping({ token: 'pw' })).ok, true);
-  assert.equal(s.get({ token: 'pw' }).v, 20);
+  assert.equal(s.get({ token: 'pw' }).v, 21);
 });
 
 test('Opus 5.5 и Fable 5.1 не принимают принудительный tool_choice — схема уходит через output_config.format', () => {
@@ -206,7 +206,7 @@ const noFetch = () => { throw new Error('внешний запрос не дол
 test('версия 19: без свойства TOKEN скрипт никого не пускает — «Задайте TOKEN…», данные и ИИ не отдаются', () => {
   const s = loadScript({ auth: false, props: { ANTHROPIC_API_KEY: 'k', EDITOR_TOKEN: 'ed' }, sheets: book(), fetch: noFetch });
   for (const r of [s.rawGet({}), s.rawGet({ token: 'что-угодно' }), s.rawGet({ resolve: 'https://maps.app.goo.gl/x' }), s.rawPost({ ops: [] }), s.rawPost(ping({ token: '', editor: 'ed' })), s.rawPost({ token: 'x', tg: { action: 'setup' }, editor: 'ed' })]) {
-    assert.equal(r.code, 'nopass', JSON.stringify(r)); assert.match(r.error, /^Задайте TOKEN в свойствах скрипта/); assert.equal(r.v, 20);
+    assert.equal(r.code, 'nopass', JSON.stringify(r)); assert.match(r.error, /^Задайте TOKEN в свойствах скрипта/); assert.equal(r.v, 21);
     assert.equal(r.data, undefined); assert.equal(r.ok, undefined);
   }
   assert.equal(s.calls.length, 0, 'ни ИИ, ни раскрытия ссылок');
@@ -218,7 +218,7 @@ test('версия 19: без свойства TOKEN скрипт никого �
 test('версия 19: TOKEN задан — без пароля и с чужим «Неверный пароль» (code pass); свойство находится и в другом регистре', () => {
   const s = loadScript({ auth: false, props: { ' token ': ' pw \n', EDITOR_TOKEN: 'ed' }, sheets: book(), fetch: noFetch });
   for (const r of [s.rawGet({}), s.rawGet({ token: '' }), s.rawGet({ token: 'PW' }), s.rawPost({ ops: [] }), s.rawPost({ token: 'x', ops: [] })]) {
-    assert.deepEqual([r.error, r.code, r.v, r.data], ['Неверный пароль', 'pass', 20, undefined]);
+    assert.deepEqual([r.error, r.code, r.v, r.data], ['Неверный пароль', 'pass', 21, undefined]);
   }
   const ok = s.rawGet({ token: 'pw' });
   assert.equal(ok.ok, true); assert.ok(ok.data.sheets.Yuborishlar);
@@ -241,7 +241,7 @@ test('версия 19: без EDITOR_TOKEN — отказ ИИ и боту с с
   const s = loadScript({ auth: false, props: { TOKEN: 'pw', ANTHROPIC_API_KEY: 'k', TG_TOKEN: '123:ABC' }, sheets: book(), fetch: noFetch });
   for (const r of [s.rawPost(ping({ token: 'pw' })), s.rawPost(ping({ token: 'pw', editor: 'любой' })), s.rawPost({ token: 'pw', tg: { action: 'setup', url: 'https://script.google.com/macros/s/A/exec' } }),
     s.rawPost({ token: 'pw', editor: '', tg: { action: 'dispatch', date: '2026-09-28' } })]) {
-    assert.equal(r.code, 'noeditor', JSON.stringify(r)); assert.match(r.error, /^Задайте EDITOR_TOKEN в свойствах скрипта/); assert.equal(r.v, 20);
+    assert.equal(r.code, 'noeditor', JSON.stringify(r)); assert.match(r.error, /^Задайте EDITOR_TOKEN в свойствах скрипта/); assert.equal(r.v, 21);
   }
   assert.equal(s.calls.length, 0, 'ни Claude, ни Telegram');
   assert.equal(s.book.sheets['ИИ-журнал'], undefined, 'в журнал ИИ ничего не записано');
@@ -307,4 +307,68 @@ test('версия 19: переадресация на чужой адрес н�
     assert.equal(r.code, 'host', link); assert.match(r.error, new RegExp('ведёт не на карту \\(' + host.replace(/\./g, '\\.') + '\\)'));
   }
   assert.ok(!s.urls().some(u => /evil|169\.254|showcaptcha/.test(u)), 'чужие адреса не запрашивались: ' + s.urls().join(' '));
+});
+
+// ── версия 21: карточка машины на листе Sozlamalar (E:J), переименование машины, машина в ремонте — не в боте ──
+const fleetBook = () => {
+  const set = []; set[22] = ['', '', 'Mashinalar', 'Davlat raqami'];
+  ['Gazel-1', 'Gazel-2', 'Labo'].forEach((t, i) => { set[23 + i] = ['', '', t, i === 1 ? '01B777CC' : '']; });
+  const ship = [[], [], [], ['Sana']], row = (bl, truck) => { const r = Array(16).fill(''); r[2] = bl; r[12] = truck; return r; };
+  ship.push(row('BL-1', 'Gazel-2'), row('BL-2', 'Gazel-1'), row('BL-3', 'Gazel-2'));
+  return { ...book(), Sozlamalar: { rows: set, maxCols: 4 }, Yuborishlar: { rows: ship, maxCols: 21 },
+    Haydovchilar: { rows: [['Telegram ID', 'Ism', 'Mashina', 'Davlat raqami', 'Til', 'Holat', '', '', '', ''], ['501', 'Akmal', 'Gazel-2', '01B777CC', 'ru', 'ruxsat', '', '', '', '{}']], maxCols: 10 } };
+};
+const card = { repair: true, model: 'GAZelle Next', year: 2021, m3: 17.5, kg: 3500, note: 'длинная база' };
+
+test('версия 21: карточка машины — Sozlamalar E:J напротив названия, заголовки в строке 23, сайт получает E:J', () => {
+  const s = loadScript({ sheets: fleetBook() });
+  const r = s.post({ ops: [{ t: 'fleet', v: { 'Gazel-2': card } }] });
+  assert.equal(r.v, 21); assert.deepEqual(r.results[0], { ok: true });
+  const z = s.book.sheets.Sozlamalar.rows;
+  assert.deepEqual(z[22].slice(4, 10), ['Holati', 'Marka', 'Yili', 'Hajm, m³', 'Yuk, kg', 'Izoh']);
+  assert.deepEqual(z[24].slice(2, 10), ['Gazel-2', '01B777CC', 'ta’mirda', 'GAZelle Next', 2021, 17.5, 3500, 'длинная база']);
+  assert.deepEqual(z[23].slice(4, 10), ['', '', '', '', '', ''], 'у Gazel-1 карточка пустая');
+  assert.deepEqual(s.get({}).data.sheets.Sozlamalar[24].slice(2, 10), ['Gazel-2', '01B777CC', 'ta’mirda', 'GAZelle Next', 2021, 17.5, 3500, 'длинная база']);
+  // пустое — стирается
+  s.post({ ops: [{ t: 'fleet', v: { 'Gazel-2': { model: 'GAZelle' } } }] });
+  assert.deepEqual(z[24].slice(4, 10), ['', 'GAZelle', '', '', '', '']);
+});
+
+test('версия 21: чужие данные в E23:J23 — карточка не пишется (code busy)', () => {
+  const b = fleetBook(); b.Sozlamalar.rows[22][6] = 'моя заметка';
+  const s = loadScript({ sheets: b });
+  const r = s.post({ ops: [{ t: 'fleet', v: { 'Gazel-2': card } }] }).results[0];
+  assert.equal(r.code, 'busy'); assert.match(r.error, /E23:J23 заняты/);
+  assert.equal((s.book.sheets.Sozlamalar.rows[24][4] ?? ''), '', 'ничего не записано');
+});
+
+test('версия 21: список машин поменялся — госномер и карточка переезжают вместе с названием', () => {
+  const s = loadScript({ sheets: fleetBook() });
+  s.post({ ops: [{ t: 'fleet', v: { 'Gazel-2': card } }] });
+  s.post({ ops: [{ t: 'trucks', v: ['Labo', 'Gazel-2', 'Gazel-1', 'Kamaz-1'] }] });
+  const z = s.book.sheets.Sozlamalar.rows;
+  assert.deepEqual(z[24].slice(2, 10), ['Gazel-2', '01B777CC', 'ta’mirda', 'GAZelle Next', 2021, 17.5, 3500, 'длинная база']);
+  assert.deepEqual([z[23][2], z[23][3], z[23][4]], ['Labo', '', '']);
+  assert.deepEqual([z[26][2], z[26][3], z[26][4]], ['Kamaz-1', '', '']);
+});
+
+test('версия 21: переименование — в списке (госномер и карточка на месте), в журнале и у водителей бота', () => {
+  const s = loadScript({ sheets: fleetBook() });
+  s.post({ ops: [{ t: 'fleet', v: { 'Gazel-2': card } }] });
+  const r = s.post({ ops: [{ t: 'rename', from: 'Gazel-2', to: 'Gazel-Ali' }] }).results[0];
+  assert.deepEqual(r, { ok: true, ships: 2, drivers: 1 });
+  const z = s.book.sheets.Sozlamalar.rows, y = s.book.sheets.Yuborishlar.rows;
+  assert.deepEqual(z[24].slice(2, 5), ['Gazel-Ali', '01B777CC', 'ta’mirda']);
+  assert.deepEqual(y.slice(4).map(x => x[12]), ['Gazel-Ali', 'Gazel-1', 'Gazel-Ali']);
+  assert.equal(s.book.sheets.Haydovchilar.rows[1][2], 'Gazel-Ali');
+  assert.equal(s.post({ ops: [{ t: 'rename', from: 'Gazel-1', to: 'Gazel-Ali' }] }).results[0].code, 'exists', 'имя занято');
+  assert.equal(s.post({ ops: [{ t: 'rename', from: 'Gazel-9', to: 'Gazel-X' }] }).results[0].code, 'nofrom');
+  assert.equal(z[23][2], 'Gazel-1', 'после ошибок ничего не поменялось');
+});
+
+test('версия 21: машину в ремонте бот водителю не предлагает', () => {
+  const s = loadScript({ sheets: fleetBook() });
+  assert.deepEqual(s.ctx.tgTrucks_(), ['Gazel-1', 'Gazel-2', 'Labo']);
+  s.post({ ops: [{ t: 'fleet', v: { 'Gazel-2': card } }] });
+  assert.deepEqual(s.ctx.tgTrucks_(), ['Gazel-1', 'Labo']);
 });

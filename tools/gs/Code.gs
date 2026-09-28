@@ -43,12 +43,15 @@
  *   переадресациям тоже). Обновление Telegram (?tg=) и фото с камеры водителя проверяются, как раньше, своей подписью.
  * Версия 20: в «Задании» водителю — только число точек и рейсов, без списка. Адрес, телефон и метку следующей точки
  *   водитель видит только после фото (доставки или места) и геолокации предыдущей.
+ * Версия 21: карточка машины — на листе Sozlamalar рядом с названием (C) и госномером (D): E «Holati» (ta’mirda —
+ *   в ремонте), F «Marka», G «Yili», H «Hajm, m³», I «Yuk, kg», J «Izoh». Переименование машины — в списке, журнале
+ *   (Yuborishlar M) и у водителей бота (Haydovchilar C) одной правкой. Машину в ремонте бот водителю не предлагает.
  */
 var TOKEN = '';
-var VERSION = 20; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 21; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
-var COLS = { ship: 16, cli: 25, wh: 8, set: 4, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера машин
+var COLS = { ship: 16, cli: 25, wh: 8, set: 10, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера, E:J — карточка машины
 var SET_ROWS = { isuzuM3: 5, isuzuKg: 6, depotName: 7, depotLat: 8, depotLon: 9, unloadMin: 10, dayStart: 11, speed: 12, aMaxStops: 13, maxPlaces: 14, bSmallM3: 15, bcMaxStops: 16, cM3: 17, cKg: 18, cTrucks: 19, roadK: 20, gazelBase: 43, gazelHeavy: 44, gazelHeavyKg: 45, gazelPtIn: 46, gazelPtOut: 47, laboBase: 48, laboPt: 49, laboM3: 50, laboKg: 51, baseIncludesPts: 52, kamazBase: 53, kamazPt: 54, laboBaseIncludesPts: 55, kamazBaseIncludesPts: 56, gazelM3: 57, gazelKg: 58, bTolM3: 59, bTolKg: 60,
   changanM3: 61, changanKg: 62, changanBase: 63, changanPt: 64, changanBaseIncludesPts: 65, gazelCount: 66, laboCount: 67, changanCount: 68, tripsPerVehicle: 69, freeOutM3: 70, densityMin: 71, densityMax: 72 };
 // подписи новых строк «Sozlamalar»: пишутся, только если в столбце A пусто
@@ -75,6 +78,8 @@ var SET_LABELS = {
 };
 // ro‘yxat «Yuborishlar» M ustunidagi mashinalar: Sozlamalar C24:C39
 var TRUCKS_ROW = 24, TRUCKS_N = 16;
+// карточка машины (версия 21): Sozlamalar E:J напротив названия в C; заголовки — в строке 23
+var FLEET_HEAD = ['Holati', 'Marka', 'Yili', 'Hajm, m³', 'Yuk, kg', 'Izoh'], FLEET_REPAIR = 'ta’mirda';
 
 function props_() { return PropertiesService.getScriptProperties(); }
 // свойство скрипта: точное имя, иначе то же имя в другом регистре или с пробелами («anthropic_api_key », «ANTHROPIC API KEY»)
@@ -399,12 +404,16 @@ function apply_(op) {
     sh = ss.getSheetByName(SH.set);
     var list = (op.v || []).slice(0, TRUCKS_N).map(function (x) { return [String(x)]; });
     if (!sh || !list.length) return { error: 'no trucks' };
-    // госномера (D) держатся за название машины: список поменялся — номера переезжают вместе с названиями
-    var old = sh.getMaxColumns() >= 4 ? sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 2).getValues() : [], pm = {};
-    old.forEach(function (r) { var t = String(r[0]).trim(), n = String(r[1]).trim(); if (t && n) pm[t] = n; });
+    // госномер (D) и карточка машины (E:J) держатся за название: список поменялся — они переезжают вместе с названиями
+    var wide = Math.min(8, sh.getMaxColumns() - 2), old = wide >= 2 ? sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, wide).getValues() : [], pm = {};
+    old.forEach(function (r) { var t = String(r[0]).trim(); if (t && r.slice(1).some(function (x) { return String(x).trim() !== ''; })) pm[t] = r.slice(1); });
     sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).clearContent();
     sh.getRange(TRUCKS_ROW, 3, list.length, 1).setValues(list);
-    if (Object.keys(pm).length) sh.getRange(TRUCKS_ROW, 4, TRUCKS_N, 1).setNumberFormat('@').setValues(sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).getValues().map(function (r) { var t = String(r[0]).trim(); return [t && pm[t] ? pm[t] : '']; }));
+    if (Object.keys(pm).length) {
+      var names = sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).getValues();
+      sh.getRange(TRUCKS_ROW, 4, TRUCKS_N, 1).setNumberFormat('@');   // госномер — текстом («01…» не превращается в число)
+      sh.getRange(TRUCKS_ROW, 4, TRUCKS_N, wide - 1).setValues(names.map(function (r) { var t = String(r[0]).trim(), x = t && pm[t]; return x ? x : new Array(wide - 1).fill(''); }));
+    }
     var ys = ss.getSheetByName(SH.ship);
     if (ys) ys.getRange('M5:M500').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInRange(sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1), true).setAllowInvalid(true).build());
     return { ok: true, n: list.length };
@@ -418,6 +427,8 @@ function apply_(op) {
     sh.getRange(TRUCKS_ROW, 4, TRUCKS_N, 1).setNumberFormat('@').setValues(names.map(function (r) { var t = String(r[0]).trim(); return [t && pv[t] ? String(pv[t]) : '']; }));
     return { ok: true };
   }
+  if (op.t === 'fleet') return fleet_(ss, op.v || {});
+  if (op.t === 'rename') return renameTruck_(ss, String(op.from || '').trim(), String(op.to || '').trim());
   if (op.t === 'set') {
     sh = ss.getSheetByName(SH.set);
     Object.keys(v).forEach(function (k) {
@@ -527,6 +538,46 @@ function aiLog_(body, a, model, r, ms) {
     sh.appendRow([new Date(), cut(body.login, 60), cut(m.file, 200), cut(m.draft, 60), act, a.action === 'log' ? '' : model, cut(m.part, 20),
       u.in || '', u.cache || '', u.out || '', a.action === 'log' ? '' : ms, res, a.action === 'log' ? cut(JSON.stringify(m.data || {}), 4000) : '']);
   } catch (err) { /* журнал не должен ломать ответ */ }
+}
+
+// карточка машины: E:J напротив названия в C (Holati, Marka, Yili, Hajm m³, Yuk kg, Izoh); пустое — стирается
+function fleet_(ss, info) {
+  var sh = ss.getSheetByName(SH.set);
+  if (!sh) return { error: 'no settings' };
+  if (sh.getMaxColumns() < 10) sh.insertColumnsAfter(sh.getMaxColumns(), 10 - sh.getMaxColumns());
+  var head = sh.getRange(TRUCKS_ROW - 1, 5, 1, 6).getValues()[0];
+  if (head.some(function (h, i) { h = String(h).trim(); return h !== '' && h !== FLEET_HEAD[i]; }))
+    return { error: 'На листе Sozlamalar ячейки E23:J23 заняты — карточка машины пишется в E:J строк 23–39. Освободите их', code: 'busy' };
+  sh.getRange(TRUCKS_ROW - 1, 5, 1, 6).setValues([FLEET_HEAD]).setFontWeight('bold');
+  var names = sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).getValues();
+  sh.getRange(TRUCKS_ROW, 5, TRUCKS_N, 6).setValues(names.map(function (r) {
+    var x = info[String(r[0]).trim()] || {}, num = function (v) { return v === '' || v == null || isNaN(Number(v)) ? '' : Number(v); };
+    return [x.repair ? FLEET_REPAIR : '', String(x.model || '').slice(0, 40), num(x.year), num(x.m3), num(x.kg), String(x.note || '').slice(0, 200)];
+  }));
+  return { ok: true };
+}
+// переименовать машину: список (C24:C39 — госномер и карточка остаются в той же строке), журнал (Yuborishlar M), водители бота
+function renameTruck_(ss, from, to) {
+  var sh = ss.getSheetByName(SH.set);
+  if (!sh || !from || !to || from === to) return { error: 'bad rename' };
+  var names = sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).getValues().map(function (r) { return String(r[0]).trim(); });
+  if (names.indexOf(to) >= 0) return { error: 'Машина «' + to + '» уже есть', code: 'exists' };
+  var i = names.indexOf(from);
+  if (i < 0) return { error: 'Нет машины «' + from + '»', code: 'nofrom' };
+  sh.getRange(TRUCKS_ROW + i, 3).setValue(to);
+  var n = 0, ys = ss.getSheetByName(SH.ship);
+  if (ys && ys.getLastRow() >= 5) {
+    var rg = ys.getRange(5, 13, ys.getLastRow() - 4, 1), vals = rg.getValues();
+    vals.forEach(function (r) { if (String(r[0]).trim() === from) { r[0] = to; n++; } });
+    if (n) rg.setValues(vals);
+  }
+  var d = 0, ds = ss.getSheetByName(TG.drivers);
+  if (ds && ds.getLastRow() >= 2) {
+    var dr = ds.getRange(2, 3, ds.getLastRow() - 1, 1), dv = dr.getValues();
+    dv.forEach(function (r) { if (String(r[0]).trim() === from) { r[0] = to; d++; } });
+    if (d) dr.setValues(dv);
+  }
+  return { ok: true, ships: n, drivers: d };
 }
 
 function merge_() { var o = {}; for (var i = 0; i < arguments.length; i++) { var x = arguments[i] || {}; Object.keys(x).forEach(function (k) { o[k] = x[k]; }); } return o; }

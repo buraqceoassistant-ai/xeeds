@@ -1435,12 +1435,12 @@
       </sc-if>
       <section class="dv-card">
         <h3 style="margin:0 0 4px">Машины по видам</h3>
-        <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:8px">Число машин и вместимость — те же настройки, что в «Тарифах и планах»: по ним строятся планы.</div>
+        <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:8px;text-wrap:pretty">Число машин и вместимость вида — те же настройки, что в «Тарифах и планах». Машину добавляют, меняют и удаляют в таблице «Машины» ниже; у машины может быть своя вместимость, машина в ремонте в планы не идёт.</div>
         <div class="dv-kinds">
           <sc-for list="{{ dvKinds }}" as="k">
             <div class="dv-kind">
               <div style="font-weight:500">{{ k.label }}</div>
-              <div class="dv-count"><sc-if value="{{ dvCanFleet }}"><button class="btn btn-ghost" sc-camel-on-click="{{ k.dec }}" aria-label="Меньше">−</button></sc-if><span>{{ k.count }}</span><sc-if value="{{ dvCanFleet }}"><button class="btn btn-ghost" sc-camel-on-click="{{ k.inc }}" aria-label="Больше">+</button></sc-if></div>
+              <div class="dv-count"><span>{{ k.count }}</span><span class="dv-kind-rep">{{ k.repairN }}</span></div>
               <label class="field" style="margin:0"><span style="font-size:12px">м³</span><input class="input" type="number" step="0.1" min="0" value="{{ k.m3 }}" sc-camel-on-change="{{ k.onM3 }}" disabled="{{ dvRo }}"></label>
               <label class="field" style="margin:0"><span style="font-size:12px">кг</span><input class="input" type="number" step="10" min="0" value="{{ k.kg }}" sc-camel-on-change="{{ k.onKg }}" disabled="{{ dvRo }}"></label>
             </div>
@@ -1448,13 +1448,15 @@
         </div>
       </section>
       <section class="dv-card">
-        <h3 style="margin:0 0 4px">Машины</h3>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px"><h3 style="margin:0">Машины</h3>
+          <sc-if value="{{ dvCanFleet }}"><button data-edit class="btn btn-primary dv-add-veh" style="margin-left:auto" sc-camel-on-click="{{ dvAddVeh }}">+ Добавить машину</button></sc-if></div>
         <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:8px;text-wrap:pretty">{{ dvPlateNote }}</div>
-        <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Госномер</sc-raw-th><sc-raw-th>Вместимость</sc-raw-th><sc-raw-th>Водители</sc-raw-th><sc-raw-th>{{ dvVehHead }}</sc-raw-th><sc-raw-th>{{ dvStatHead }}</sc-raw-th></sc-raw-tr></sc-raw-thead>
+        <sc-raw-table class="dv-table"><sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Госномер</sc-raw-th><sc-raw-th>Вместимость</sc-raw-th><sc-raw-th>Водители</sc-raw-th><sc-raw-th>{{ dvVehHead }}</sc-raw-th><sc-raw-th>{{ dvStatHead }}</sc-raw-th><sc-raw-th class="no-print"></sc-raw-th></sc-raw-tr></sc-raw-thead>
           <sc-raw-tbody><sc-for list="{{ dvVehicles }}" as="v"><sc-raw-tr>
-            <sc-raw-td><b style="font-weight:500">{{ v.name }}</b></sc-raw-td>
+            <sc-raw-td><b style="font-weight:500">{{ v.name }}</b><sc-if value="{{ v.repair }}"> <span class="tag tag-red">в ремонте</span></sc-if><sc-if value="{{ v.info }}"><div style="font-size:12px;color:var(--color-neutral-700)">{{ v.info }}</div></sc-if></sc-raw-td>
             <sc-raw-td><input class="input dv-plate-in" value="{{ v.plate }}" placeholder="{{ v.platePh }}" sc-camel-on-change="{{ v.onPlate }}" disabled="{{ dvPlateRo }}" aria-label="Госномер {{ v.name }}"></sc-raw-td>
             <sc-raw-td>{{ v.cap }}</sc-raw-td><sc-raw-td>{{ v.drivers }}</sc-raw-td><sc-raw-td><span class="tag {{ v.todayCls }}">{{ v.today }}</span></sc-raw-td><sc-raw-td>{{ v.stat }}</sc-raw-td>
+            <sc-raw-td class="no-print"><sc-if value="{{ dvCanFleet }}"><button data-edit class="btn btn-ghost" sc-camel-on-click="{{ v.edit }}">Изменить</button></sc-if></sc-raw-td>
           </sc-raw-tr></sc-for></sc-raw-tbody></sc-raw-table>
       </section>
     </main>
@@ -1563,6 +1565,36 @@
           <button class="btn btn-primary" sc-camel-on-click="{{ gsConnect }}">{{ gsConnectLabel }}</button>
         </div>
     </main>
+  </sc-if>
+
+  <sc-if value="{{ isVehDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="z-index:3000" sc-camel-on-click="{{ closeDialogBg }}">
+      <div class="dialog blueprint veh-dialog" style="width:min(620px,100%);background:var(--color-bg)">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="dialog-title">{{ dialogTitle }}</div>
+        <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <sc-if value="{{ vehIsNew }}"><div class="field"><label>Вид машины</label><select class="input" name="kind" value="{{ draft.kind }}" sc-camel-on-change="{{ onDraft }}"><sc-for list="{{ vehKindOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></div></sc-if>
+          <sc-if value="{{ vehIsOld }}"><div class="field"><label>Вид машины</label><input class="input" value="{{ vehKindName }}" disabled></div></sc-if>
+          <div class="field"><label>Название</label><input class="input" name="name" value="{{ draft.name }}" placeholder="{{ vehNamePh }}" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehNameOff }}" maxlength="30"></div>
+          <div class="field"><label>Госномер</label><input class="input dv-plate-in" name="plate" value="{{ draft.plate }}" placeholder="не указан" sc-camel-on-change="{{ onDraft }}" maxlength="16" style="width:100%"></div>
+          <label class="dv-check" style="align-self:end"><input type="checkbox" checked="{{ vehRepair }}" sc-camel-on-change="{{ onVehRepair }}" disabled="{{ vehInfoOff }}"><span>В ремонте<br><small>не идёт в планы и в бот</small></span></label>
+          <div class="field"><label>Марка, модель</label><input class="input" name="model" value="{{ draft.model }}" placeholder="например, GAZelle Next" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehInfoOff }}" maxlength="40"></div>
+          <div class="field"><label>Год</label><input class="input" type="number" name="year" min="1950" max="2100" value="{{ draft.year }}" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehInfoOff }}"></div>
+          <div class="field"><label>Объём, м³</label><input class="input" type="number" step="0.1" min="0" name="m3" value="{{ draft.m3 }}" placeholder="{{ vehM3Ph }}" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehInfoOff }}"></div>
+          <div class="field"><label>Грузоподъёмность, кг</label><input class="input" type="number" step="10" min="0" name="kg" value="{{ draft.kg }}" placeholder="{{ vehKgPh }}" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehInfoOff }}"></div>
+          <div class="field" style="grid-column:1/-1"><label>Примечание</label><input class="input" name="note" value="{{ draft.note }}" placeholder="цвет, длинная база, особенности" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehInfoOff }}" maxlength="200"></div>
+          <div style="grid-column:1/-1;font-size:12px;color:var(--color-neutral-700);text-wrap:pretty">Название начинается с вида машины (Gazel-…, Labo…, Changan…, Kamaz-…) — по нему тариф. Пустые объём и вес — как у вида в «Тарифах и планах». Новое название заменится в журнале и у водителей бота.</div>
+          <sc-if value="{{ vehDrivers }}"><div style="grid-column:1/-1;font-size:13px">{{ vehDrivers }}</div></sc-if>
+          <sc-if value="{{ vehHasNote21 }}"><div style="grid-column:1/-1;font-size:12px;color:var(--color-accent-900);text-wrap:pretty">{{ vehNote21 }}</div></sc-if>
+        </div>
+        <div style="font-size:13px;color:var(--color-accent-900);text-wrap:pretty">{{ dialogError }}</div>
+        <div class="dialog-actions">
+          <sc-if value="{{ canDelete }}"><button data-edit class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ deleteItem }}">Удалить</button></sc-if>
+          <button class="btn btn-secondary" sc-camel-on-click="{{ closeDialog }}">Отмена</button>
+          <button data-edit class="btn btn-primary" sc-camel-on-click="{{ saveVeh }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
   </sc-if>
 
   <sc-if value="{{ isWhDialog }}" hint-placeholder-val="{{ false }}">
@@ -1863,9 +1895,10 @@ class Component extends DCLogic {
 
   // вход «только просмотр» (роль viewer в vault.json): данные не меняются и в таблицу ничего не пишется
   get readOnly() { return !!(window.LogiAuth && window.LogiAuth.role && window.LogiAuth.role() === 'viewer'); }
-  commit(data, fromFile) {
+  // ops — свои правки для таблицы вместо сравнения (переименование машины — одной правкой скрипта, без сотни строк журнала)
+  commit(data, fromFile, ops) {
     if (this.readOnly) return;
-    if (this.gsUrl && !fromFile) this.gsEnqueue(this.diffOps(this.state.data, data));
+    if (this.gsUrl && !fromFile) this.gsEnqueue(ops || this.diffOps(this.state.data, data));
     try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
     this.setState(s => ({ data, ver: s.ver + 1, savedAt: new Date() }));
     if (!fromFile && this.handle && ['linked', 'saved', 'saving', 'error'].includes(this.state.fileStatus)) {
@@ -1937,7 +1970,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 20); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 21); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -2134,14 +2167,14 @@ class Component extends DCLogic {
   // планы считаются один раз на партию, пока не изменились данные и настройки (отчёты за период берут все партии)
   plansFor(date) {
     const { data } = this.state, D = this.derived(), E = window.LogiEngine;
-    const key = D.ver + '|' + JSON.stringify(data.settings);
+    const vehicles = this.fleetVehicles(data), key = D.ver + '|' + JSON.stringify(data.settings) + '|' + JSON.stringify(vehicles);
     if (!this._plans || this._plans.key !== key) this._plans = { key, byDate: new Map() };
     if (this._plans.byDate.has(date)) return this._plans.byDate.get(date);
     const stops = data.shipments.filter(s => s.date === date && !E.NO_PLAN.includes(s.status)).map(s => {
       const c = D.cmap[s.bl] || {};
       return { id: s.id, bl: s.bl, cbm: +s.cbm || 0, kg: +s.kg || 0, places: +s.places || 0, lat: c.lat ?? null, lon: c.lon ?? null, zone: (D.zones[s.bl] || {}).zone, client: c };
     });
-    const res = E.buildPlans(stops, data.settings);
+    const res = E.buildPlans(stops, { ...data.settings, vehicles });   // машины поимённо: своя вместимость, «в ремонте» — не в планах
     res.all = stops;
     this._plans.byDate.set(date, res);
     return res;
@@ -2165,7 +2198,7 @@ class Component extends DCLogic {
       src = 'journal';
       trips = keys.map(k => {
         const t = D.trips[k], rest = k.slice(date.length + 1), j = rest.lastIndexOf('|'), truck = rest.slice(0, j), route = +rest.slice(j + 1) || 1;
-        const stops = t.items.map(stopOf), cap = caps[t.kind] || [0, 0];
+        const stops = t.items.map(stopOf), cap = (data.lists.fleet || {})[truck] ? this.vehCap(data, truck, t.kind) : caps[t.kind] || [0, 0];
         return { name: truck + (route > 1 ? ' · рейс ' + route : ''), truck, route, kind: t.kind, car: truck, stops, price: t.price, cost: t.cost,
           cbm: stops.reduce((a, x) => a + x.cbm, 0), kg: stops.reduce((a, x) => a + x.kg, 0), places: stops.reduce((a, x) => a + x.places, 0), capM3: +cap[0] || 0, capKg: +cap[1] || 0 };
       });
@@ -2310,7 +2343,7 @@ class Component extends DCLogic {
     const ships = L.shipmentsOf(d, ''), pk = JSON.stringify([ships, S, data.clients.length, st.ver]);
     if (!c.plans || c.plansKey !== pk) {
       const stops = ships.map((x, i) => { const cl = cmap[x.bl] || {}; return { id: 'p' + i, bl: x.bl, cbm: x.cbm, kg: x.kg, places: x.places, lat: cl.lat ?? null, lon: cl.lon ?? null, zone: (D.zones[x.bl] || {}).zone, client: cl }; });
-      c.plans = E.buildPlans(stops, S); c.plansKey = pk;
+      c.plans = E.buildPlans(stops, { ...S, vehicles: this.fleetVehicles(data) }); c.plansKey = pk;
     }
     const P = c.plans, kinds = s => ['labo', 'changan', 'gazel', 'kamaz'].filter(k => s[k]).map(k => VEH[k] + ' ' + s[k]).join(' · ');
     out.impPlans = ['A', 'B', 'C', 'X'].map(k => { const s = P[k].sum; return { k, title: PLAN_INFO[k].title, trips: s.trips + ' ' + reys(s.trips), kinds: kinds(s),
@@ -2418,34 +2451,6 @@ class Component extends DCLogic {
     this.commit({ ...data, shipments: data.shipments.map(s => s.date === date && s.truck === from && s.bl === bl && (+s.route || 1) === round && !TG_DONE.includes(s.status) ? { ...s, truck: to, route } : s) });
     this.setState({ dvMsg: { text: bl + ' передана: ' + from + ' → ' + to + ', рейс ' + route + '.', color: 'var(--color-accent)' } });
   }
-  // «+ / −» по виду машин: названия в списке машин (Sozlamalar C24:C39) и число машин для планов
-  dvFleet(kind, delta) {
-    if (this.readOnly) return;
-    const data = this.state.data, S = data.settings, E = window.LogiEngine, K = this.dvKindDefs(S).find(x => x.k === kind), label = VEH[kind];
-    const list = data.lists.trucks.slice(), num = t => +(String(t).match(/-(\d+)$/) || [0, 1])[1], mine = list.filter(t => E.vehicleKind(t) === kind);
-    const warn = text => this.setState({ dvMsg: { text, color: 'var(--color-red)' } });
-    let next = list, gone = null, n;
-    if (delta > 0) {
-      if (list.length >= 16) return warn('В таблице место для 16 названий машин (Sozlamalar C24:C39) — сначала уберите лишнюю.');
-      let i = 1; while (list.includes(label + '-' + i) || (i === 1 && list.includes(label))) i++;
-      const name = label + '-' + i, last = mine.length ? list.indexOf(mine[mine.length - 1]) + 1 : list.findIndex(t => !E.vehicleKind(t));
-      next = list.slice(); next.splice(last < 0 ? next.length : last, 0, name);
-      n = mine.length + 1;
-    } else {
-      if (!mine.length) { if (!K.n) return; n = K.n - 1; }
-      else {
-        gone = mine.slice().sort((a, b) => num(a) - num(b)).pop();
-        const used = data.shipments.filter(s => s.truck === gone && s.date >= isoDay() && !TG_DONE.includes(s.status));
-        if (used.length) return warn(gone + ' стоит в журнале: ' + [...new Set(used.map(s => dLong(s.date)))].join(', ') + ' (' + used.length + ' отгр.) — сначала передайте эти точки другой машине.');
-        if (!confirm('Убрать ' + gone + ' из автопарка? В планах станет на одну машину меньше.')) return;
-        next = list.filter(t => t !== gone); n = mine.length - 1;
-      }
-    }
-    const plates = { ...(data.lists.plates || {}) }; if (gone) delete plates[gone];
-    this.commit({ ...data, settings: { ...S, [K.count]: n }, lists: { ...data.lists, trucks: next, plates } });
-    if (next !== list && this.gsUrl && this.gsVersion >= 5) this.gsEnqueue([{ t: 'trucks', v: next }]);
-    this.setState({ dvMsg: { text: (delta > 0 ? 'Добавлена машина ' + next.find(t => !list.includes(t)) : gone ? gone + ' убрана из автопарка' : 'Машин ' + label + ': ' + n) + '. Планы пересчитаны.', color: 'var(--color-accent)' } });
-  }
   dvPlate(name, value) {
     if (this.readOnly) return;
     const v = String(value || '').toUpperCase().replace(/\s+/g, ' ').trim().slice(0, 16), data = this.state.data, plates = { ...(data.lists.plates || {}) };
@@ -2453,6 +2458,88 @@ class Component extends DCLogic {
     if (v) plates[name] = v; else delete plates[name];
     this.commit({ ...data, lists: { ...data.lists, plates } });
     if (this.gsUrl && this.gsVersion >= 10) this.gsEnqueue([{ t: 'plates', v: plates }]);
+  }
+  // ── Автопарк: карточка машины ──
+  // Машина — строка списка машин (Sozlamalar C24:C39): госномер — D, карточка (в ремонте, марка, год, свой объём и вес,
+  // примечание) — E:J, скрипт версии 21. Вид — по началу названия (Gazel…, Labo…, Changan…, Kamaz…): по нему тариф.
+  // Переименование — одной правкой скрипта: список машин, журнал и водители бота. Машина в ремонте не идёт в планы.
+  fleetVehicles(data) {
+    const E = window.LogiEngine, info = (data.lists && data.lists.fleet) || {};
+    return ((data.lists && data.lists.trucks) || []).filter(t => E.vehicleKind(t))
+      .map(name => { const x = info[name] || {}; return { name, kind: E.vehicleKind(name), m3: +x.m3 || null, kg: +x.kg || null, repair: !!x.repair }; });
+  }
+  // вместимость машины [м³, кг]: своя из карточки или вида из «Тарифов и планов»
+  vehCap(data, name, kind) {
+    const S = data.settings, k = kind || window.LogiEngine.vehicleKind(name), x = ((data.lists.fleet || {})[name]) || {};
+    const d = { gazel: [S.gazelM3, S.gazelKg], labo: [S.laboM3, S.laboKg], changan: [S.changanM3, S.changanKg], kamaz: [S.cM3, S.cKg] }[k] || [0, 0];
+    return [+x.m3 || +d[0] || 0, +x.kg || +d[1] || 0];
+  }
+  vehNextName(list, kind) { const L = VEH[kind]; let i = 1; while (list.includes(L + '-' + i) || (i === 1 && list.includes(L))) i++; return L + '-' + i; }
+  openVehicle(name) {
+    if (this.readOnly) return;
+    const data = this.state.data, x = name ? ((data.lists.fleet || {})[name] || {}) : {};
+    this.setState({ dialog: { type: 'veh', mode: name ? 'edit' : 'new', id: name || null, error: '', draft: name
+      ? { kind: window.LogiEngine.vehicleKind(name), name, plate: (data.lists.plates || {})[name] || '', repair: !!x.repair, model: x.model || '', year: x.year ?? '', m3: x.m3 ?? '', kg: x.kg ?? '', note: x.note || '' }
+      : { kind: 'gazel', name: '', plate: '', repair: false, model: '', year: '', m3: '', kg: '', note: '' } } });
+  }
+  // правки автопарка в таблицу: список машин (версия 5), госномера (10), карточки (21), число машин вида
+  vehOps(next, prev, extra) {
+    const ops = (extra || []).slice(), L = next.lists, P = prev.lists;
+    if (JSON.stringify(L.trucks) !== JSON.stringify(P.trucks) && !ops.some(o => o.t === 'rename') && this.gsVersion >= 5) ops.push({ t: 'trucks', v: L.trucks });
+    if (JSON.stringify(L.plates || {}) !== JSON.stringify(P.plates || {}) && this.gsVersion >= 10) ops.push({ t: 'plates', v: L.plates || {} });
+    if (JSON.stringify(L.fleet || {}) !== JSON.stringify(P.fleet || {}) && this.gsVersion >= 21) ops.push({ t: 'fleet', v: L.fleet || {} });
+    const sv = {}; Object.keys(next.settings).forEach(k => { if (next.settings[k] !== prev.settings[k]) sv[k] = next.settings[k]; });
+    if (Object.keys(sv).length) ops.push({ t: 'set', v: sv });
+    return ops;
+  }
+  saveVehicle(dl) {
+    if (this.readOnly) return;
+    const E = window.LogiEngine, data = this.state.data, S = data.settings, dr = dl.draft, kind = dr.kind, label = VEH[kind], old = dl.id;
+    const err = error => this.setState({ dialog: { ...dl, error } }), list = data.lists.trucks;
+    let name = String(dr.name || '').replace(/\s+/g, ' ').trim();
+    if (!name) name = old || this.vehNextName(list, kind);
+    if (!E.vehicleKind(name)) name = label + '-' + name;   // «Ali» → «Gazel-Ali»
+    if (E.vehicleKind(name) !== kind) return err('Название начинается с вида машины: ' + label + '…');
+    if (name.length > 30) return err('Название — не длиннее 30 знаков.');
+    if (name !== old && list.includes(name)) return err('Машина «' + name + '» уже есть.');
+    const v21 = !this.gsUrl || this.gsVersion >= 21;
+    if (old && name !== old && !v21) return err('Переименовать машину можно с кодом скрипта таблицы версии 21: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.');
+    if (!old && list.length >= 16) return err('В таблице место для 16 названий машин (Sozlamalar C24:C39) — сначала удалите лишнюю.');
+    const num = (v, lo, hi) => { const x = String(v ?? '').replace(',', '.').trim(); if (!x) return null; const n = +x; return isNaN(n) || n < lo || n > hi ? NaN : n; };
+    const m3 = num(dr.m3, 0.1, 200), kg = num(dr.kg, 10, 60000), year = num(dr.year, 1950, 2100);
+    if ([m3, kg, year].some(Number.isNaN)) return err('Проверьте числа: объём 0,1–200 м³, грузоподъёмность 10–60 000 кг, год 1950–2100.');
+    const info = { repair: !!dr.repair, model: String(dr.model || '').trim().slice(0, 40), year, m3, kg, note: String(dr.note || '').trim().slice(0, 200) };
+    const plate = String(dr.plate || '').toUpperCase().replace(/\s+/g, ' ').trim().slice(0, 16);
+    const fleet = { ...(data.lists.fleet || {}) }, plates = { ...(data.lists.plates || {}) };
+    if (old) { delete fleet[old]; delete plates[old]; }
+    if (v21 && (info.repair || info.model || info.year != null || info.m3 != null || info.kg != null || info.note)) fleet[name] = info;
+    else if (!v21 && old && (data.lists.fleet || {})[old]) fleet[name] = data.lists.fleet[old];
+    if (plate) plates[name] = plate;
+    let trucks = list, settings = S;
+    if (!old) {
+      const mine = list.filter(t => E.vehicleKind(t) === kind), at = mine.length ? list.indexOf(mine[mine.length - 1]) + 1 : list.findIndex(t => !E.vehicleKind(t));
+      trucks = list.slice(); trucks.splice(at < 0 ? trucks.length : at, 0, name);
+      settings = { ...S, [this.dvKindDefs(S).find(x => x.k === kind).count]: mine.length + 1 };
+    } else if (name !== old) trucks = list.map(t => t === old ? name : t);
+    const renamed = !!old && name !== old;
+    const next = { ...data, settings, shipments: renamed ? data.shipments.map(s => s.truck === old ? { ...s, truck: name } : s) : data.shipments, lists: { ...data.lists, trucks, plates, fleet } };
+    this.commit(next, false, this.gsUrl ? this.vehOps(next, data, renamed ? [{ t: 'rename', from: old, to: name }] : []) : null);
+    this.setState({ dialog: null, dvMsg: { text: (old ? (renamed ? old + ' → ' + name + ': переименована в списке, журнале и у водителей бота.' : name + ': сохранено.') : 'Добавлена машина ' + name + '.') +
+      (info.repair ? ' В ремонте — в планы не идёт.' : '') + ' Планы пересчитаны.', color: 'var(--color-accent)' } });
+  }
+  deleteVehicle(dl) {
+    if (this.readOnly || !dl.id) return;
+    const E = window.LogiEngine, data = this.state.data, S = data.settings, name = dl.id, kind = E.vehicleKind(name);
+    const used = data.shipments.filter(s => s.truck === name && s.date >= isoDay() && !TG_DONE.includes(s.status));
+    if (used.length) return this.setState({ dialog: { ...dl, error: name + ' стоит в журнале: ' + [...new Set(used.map(s => dLong(s.date)))].join(', ') + ' (' + used.length + ' отгр.) — сначала передайте эти точки другой машине.' } });
+    const drv = ((this.gsTg && this.gsTg.drivers) || []).filter(d => d.truck === name && d.status !== 'rad').map(d => d.name);
+    if (!confirm('Удалить ' + name + ' из автопарка?' + (drv.length ? '\n\nЭту машину выбрал в боте: ' + drv.join(', ') + ' — водителю нужно будет выбрать другую.' : '') + '\n\nВ планах станет на одну машину меньше.')) return;
+    const trucks = data.lists.trucks.filter(t => t !== name), plates = { ...(data.lists.plates || {}) }, fleet = { ...(data.lists.fleet || {}) };
+    delete plates[name]; delete fleet[name];
+    const K = this.dvKindDefs(S).find(x => x.k === kind), settings = K ? { ...S, [K.count]: trucks.filter(t => E.vehicleKind(t) === kind).length } : S;
+    const next = { ...data, settings, lists: { ...data.lists, trucks, plates, fleet } };
+    this.commit(next, false, this.gsUrl ? this.vehOps(next, data) : null);
+    this.setState({ dialog: null, dvMsg: { text: name + ' удалена из автопарка. Планы пересчитаны.', color: 'var(--color-accent)' } });
   }
   dvXlsx(name, sheets) {
     const blob = window.LogiEngine.xlsx(sheets), a = document.createElement('a');
@@ -2481,21 +2568,22 @@ class Component extends DCLogic {
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
     out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу: «Настройки» → «Связь».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 20. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 21. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
       !T ? 'Телеграм-бот не подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (20): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (21): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота»: «Настройки» → «Связь».' :
       !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — «Настройки» → «Связь».' :
       T.tz && !UZ_TZ.includes(T.tz) ? 'Часовой пояс Google Таблицы — ' + T.tz + ', а не Ташкент: время водителей («на линии с …»), «сегодня» и итог дня в 20:00 сдвинуты. ' +
         'Исправьте: в Google Таблице Файл → Настройки → Часовой пояс → «(GMT+05:00) Tashkent» → Сохранить; в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent». Затем «Настройки» → «Связь» → «Переподключить бота».' :
-      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 20
+      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 21
       this.gsVersion < 16 && T.scriptTz && !UZ_TZ.includes(T.scriptTz) ? 'Часовой пояс скрипта — ' + T.scriptTz + ', а не Ташкент: даты партий могут сдвигаться на день назад (04.05.2006 → 03.05.2006). ' +
-        'Обновите код скрипта до 20 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
-      // код ниже 20: скрипту ниже 19 — сначала свойства (без них код 19+ закроет сайт), потом что изменится — по предложению на каждое изменение
-      this.gsVersion < 20 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 20. ' +
+        'Обновите код скрипта до 21 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
+      // код ниже 21: скрипту ниже 19 — сначала свойства (без них код 19+ закроет сайт), потом что изменится — по предложению на каждое изменение
+      this.gsVersion < 21 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 21. ' +
         (this.gsVersion < 19 ? 'Сначала задайте свойства скрипта TOKEN (пароль скрипта) и EDITOR_TOKEN (секрет редактора): Apps Script → ⚙ Настройки проекта → Свойства скрипта; что вписать — «Настройки» → «Связь». Без них новый код не пустит сайт. ' +
           'Потом «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' : '«Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.') +
-        ' Водитель увидит следующую точку только после фото предыдущей: в задании больше нет списка всех точек.' +
+        ' Машину можно будет переименовать, отметить «в ремонте», записать марку, год и свою вместимость: «Настройки» → «Водители и автопарк».' +
+        (this.gsVersion < 20 ? ' Водитель увидит следующую точку только после фото предыдущей: в задании больше нет списка всех точек.' : '') +
         (this.gsVersion < 19 ? ' Без пароля скрипт будет закрыт для всех.' : '') +
         (this.gsVersion < 18 ? ' План больше не будет приходить водителю по нескольку раз.' : '') +
         (this.gsVersion >= 15 && this.gsVersion < 17 ? ' У водителей снова будет прежняя карточка точки: все кнопки под точкой и полное меню внизу.' : '') +
@@ -2634,15 +2722,19 @@ class Component extends DCLogic {
 
     // ── автопарк ──
     const pShip = data.shipments.filter(s => s.date >= from && s.date <= today);
-    out.dvKinds = kinds.map(k => ({ label: k.label, count: k.n, dec: () => this.dvFleet(k.k, -1), inc: () => this.dvFleet(k.k, 1), m3: S[k.m3] ?? '', kg: S[k.kg] ?? '',
-      onM3: e => this.commit({ ...data, settings: { ...S, [k.m3]: e.target.value === '' ? null : +e.target.value } }), onKg: e => this.commit({ ...data, settings: { ...S, [k.kg]: e.target.value === '' ? null : +e.target.value } }) }));
+    const fleetInfo = data.lists.fleet || {}, repairOf = t => !!(fleetInfo[t] || {}).repair;
+    out.dvKinds = kinds.map(k => { const rep = fleetTrucks.filter(t => E.vehicleKind(t) === k.k && repairOf(t)).length; return { label: k.label, count: k.n, repairN: rep ? 'в ремонте: ' + rep : '', m3: S[k.m3] ?? '', kg: S[k.kg] ?? '',
+      onM3: e => this.commit({ ...data, settings: { ...S, [k.m3]: e.target.value === '' ? null : +e.target.value } }), onKg: e => this.commit({ ...data, settings: { ...S, [k.kg]: e.target.value === '' ? null : +e.target.value } }) }; });
+    out.dvAddVeh = () => this.openVehicle(null);
     const dayRows = data.shipments.filter(s => s.date === date);
     const stat = t => { const my = pShip.filter(s => s.truck === t); return { days: new Set(my.map(s => s.date)).size, trips: new Set(my.filter(s => s.route != null && s.route !== '').map(s => s.date + '|' + s.route)).size || new Set(my.map(s => s.date)).size, my }; };
     out.dvVehicles = fleetTrucks.map(t => {
-      const kind = E.vehicleKind(t), cap = capOf(kind), dr = drivers.filter(d => d.truck === t && d.status !== 'rad'), mine = dayRows.filter(s => s.truck === t), cbm = mine.reduce((a, s) => a + (+s.cbm || 0), 0), s = stat(t);
+      const kind = E.vehicleKind(t), vc = this.vehCap(data, t, kind), cap = { capM3: vc[0], capKg: vc[1] }, dr = drivers.filter(d => d.truck === t && d.status !== 'rad'), mine = dayRows.filter(s => s.truck === t), cbm = mine.reduce((a, s) => a + (+s.cbm || 0), 0), s = stat(t);
+      const fi = fleetInfo[t] || {}, own = fi.m3 || fi.kg;
       const botPlate = (dr.find(d => d.plate) || {}).plate || '';
       return { name: t, plate: plates[t] || '', platePh: botPlate ? 'из бота: ' + botPlate : 'не указан', onPlate: e => this.dvPlate(t, e.target.value),
-        cap: kind ? f1(cap.capM3, 1) + ' м³ · ' + f0(cap.capKg) + ' кг' : '—', drivers: dr.map(d => d.name + (d.status === 'ruxsat' ? '' : ' (' + (d.status === 'kutilmoqda' ? 'ждёт' : 'отключён') + ')')).join(', ') || '—',
+        cap: kind ? f1(cap.capM3, 1) + ' м³ · ' + f0(cap.capKg) + ' кг' + (own ? ' (своя)' : '') : '—', repair: !!fi.repair, info: [fi.model, fi.year, fi.note].filter(x => x != null && x !== '').join(' · '),
+        edit: () => this.openVehicle(t), drivers: dr.map(d => d.name + (d.status === 'ruxsat' ? '' : ' (' + (d.status === 'kutilmoqda' ? 'ждёт' : 'отключён') + ')')).join(', ') || '—',
         today: mine.length ? new Set(mine.map(x => x.bl)).size + ' точ. · ' + f1(cbm, 1) + ' м³' + (cap.capM3 ? ' · ' + Math.round(cbm / cap.capM3 * 100) + '%' : '') : 'свободна', todayCls: mine.length ? 'tag-accent' : 'tag-neutral',
         stat: s.days ? s.trips + ' ' + reys(s.trips) + ' · ' + s.days + ' дн.' : '—' };
     });
@@ -2651,7 +2743,7 @@ class Component extends DCLogic {
     out.dvStatHead = 'За ' + (per === 1 ? 'сегодня' : per + ' дней');
     out.dvVehHead = 'Партия ' + dShort(date);
     const fStats = fleetTrucks.map(t => {
-      const s = stat(t), cap = capOf(E.vehicleKind(t)), my = s.my, pts = new Set(my.map(x => x.date + '|' + x.bl)).size, cbm = my.reduce((a, x) => a + (+x.cbm || 0), 0), kg = my.reduce((a, x) => a + (+x.kg || 0), 0);
+      const s = stat(t), vc = this.vehCap(data, t), cap = { capM3: vc[0], capKg: vc[1] }, my = s.my, pts = new Set(my.map(x => x.date + '|' + x.bl)).size, cbm = my.reduce((a, x) => a + (+x.cbm || 0), 0), kg = my.reduce((a, x) => a + (+x.kg || 0), 0);
       const okN = new Set(my.filter(x => x.status === 'Yetkazildi').map(x => x.date + '|' + x.bl)).size, failN = new Set(my.filter(x => x.status === 'Qolib ketgan').map(x => x.date + '|' + x.bl)).size;
       return { name: t, days: s.days, trips: s.trips, stops: pts, cbm, kg, load: s.trips && cap.capM3 ? Math.round(cbm / s.trips / cap.capM3 * 100) : null, ok: okN, fail: failN };
     });
@@ -3762,6 +3854,7 @@ class Component extends DCLogic {
   // по рейсам: объём, вес и места — как в плане, остаток — в последней части, чтобы сумма сошлась.
   planTruck(t, list, S) {
     if (t.noVehicle || !t.car) return null;
+    if (t.carName) return t.carName;   // машина автопарка (своё имя, например после переименования)
     const label = t.vehicle.label, name = label + '-' + t.car, n = { gazel: S.gazelCount, changan: S.changanCount, labo: S.laboCount, kamaz: S.cTrucks }[t.kind] | 0;
     if (list.includes(name)) return name;
     return n <= 1 && t.car === 1 && list.includes(label) ? label : name;   // одна машина вида — «Labo», «Changan»
@@ -3858,7 +3951,7 @@ class Component extends DCLogic {
     const curSub = top === 'reports' ? (st.tab === 'dash' ? 'dash' : st.repKind || 'batch') : st.tab;
     const subtabs = (SUB[top] || []).filter(([k]) => !(k === 'link' && this.readOnly)).map(([k, l]) => ({ l, cls: k === curSub ? 'subtab on' : 'subtab',
       go: () => top === 'reports' ? this.setState(k === 'dash' ? { tab: 'dash' } : { tab: 'reports', repKind: k }) : this.goSettings(k) }));
-    const base = { tabs, subtabs, hasSubtabs: subtabs.length > 0, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isDrivers: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isGsDialog: false, isCheck: false, isFleetSet: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
+    const base = { tabs, subtabs, hasSubtabs: subtabs.length > 0, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isDrivers: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isWhDialog: false, isVehDialog: false, isGsDialog: false, isCheck: false, isFleetSet: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
       fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
       account: () => window.LogiAuth && window.LogiAuth.openAccount(), readOnly: this.readOnly };
     const fs = st.fileStatus, fat = st.fileAt ? hhmm(st.fileAt.getHours() * 60 + st.fileAt.getMinutes()) : '';
@@ -3885,7 +3978,7 @@ class Component extends DCLogic {
     const depot = [S.depotLat, S.depotLon];
     const lists = data.lists;
     const statusOpts = lists.statuses.map(v => ({ v, l: ST[v] || v }));
-    const truckOpts = lists.trucks.map(v => ({ v, l: TR[v] || v }));
+    const truckOpts = lists.trucks.map(v => ({ v, l: (TR[v] || v) + (((lists.fleet || {})[v] || {}).repair ? ' · в ремонте' : '') }));
     const districtOpts = lists.districts.map(v => ({ v, l: v === 'Aniqlanmagan' ? 'Не определён' : v }));
     const dateOpts = D.dates.slice().reverse().map(v => ({ v, l: dLong(v) }));
     const zf = bl => { const z = D.zones[bl] || {}; return { zIn: z.zone === 'in', zOut: z.zone === 'out', zNone: !z.zone, border: !!z.border }; };
@@ -4310,7 +4403,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 20 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 21 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :
@@ -4400,6 +4493,17 @@ class Component extends DCLogic {
         out.gsAsk = !!ask; out.gsAskInfo = ask ? ask.info : '';
         out.gsTakeSheet = () => ask && finish(ask.url, ask.token, 'pull', ask.j);
         out.gsPushSite = () => { if (ask && confirm('Таблица станет такой же, как сайт: отличающиеся строки перезапишутся, строки, которых нет на сайте, удалятся. Продолжить?')) finish(ask.url, ask.token, 'push', ask.j, ask.ops); };
+      } else if (dl.type === 'veh') {
+        // карточка машины («Настройки» → «Водители и автопарк»)
+        const v21 = !this.gsUrl || this.gsVersion >= 21, cap = this.vehCap({ ...data, lists: { ...data.lists, fleet: {} } }, '', dr.kind);
+        const drv = ((this.gsTg && this.gsTg.drivers) || []).filter(d => dl.id && d.truck === dl.id && d.status !== 'rad');
+        Object.assign(out, { isVehDialog: true, dialogTitle: dl.mode === 'new' ? 'Новая машина' : 'Машина ' + dl.id, vehIsNew: dl.mode === 'new', vehIsOld: dl.mode !== 'new', vehKindName: VEH[dr.kind] || '',
+          vehKindOpts: ['gazel', 'labo', 'changan', 'kamaz'].map(v => ({ v, l: VEH[v] })), vehNamePh: dl.mode === 'new' ? this.vehNextName(data.lists.trucks, dr.kind) : dl.id,
+          vehM3Ph: 'как у вида: ' + f1(cap[0], 1), vehKgPh: 'как у вида: ' + f0(cap[1]), vehRepair: !!dr.repair, vehInfoOff: !v21, vehNameOff: !v21 && dl.mode === 'edit',
+          onVehRepair: e => { const on = e.target.checked; this.setState(s => ({ dialog: { ...s.dialog, error: '', draft: { ...s.dialog.draft, repair: on } } })); },
+          vehHasNote21: !v21, vehNote21: 'Марка, год, «в ремонте», своя вместимость и переименование сохраняются в таблице с кодом скрипта версии 21: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.',
+          vehDrivers: drv.length ? 'Водители в боте: ' + drv.map(d => d.name + (d.status === 'ruxsat' ? '' : ' (ждёт)')).join(', ') : '',
+          saveVeh: () => this.saveVehicle(dl), deleteItem: () => this.deleteVehicle(dl) });
       } else if (dl.type === 'wh') {
         out.isWhDialog = true;
         out.dialogTitle = dl.mode === 'new' ? 'Новый доп. склад' : 'Склад ' + (dr.name || dr.bl);

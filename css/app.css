@@ -308,6 +308,7 @@ button.imp-check:hover { background: var(--color-surface); }
 .dv-count { display: flex; align-items: center; gap: 6px; }
 .dv-count > span { font-family: var(--font-heading); font-size: 28px; min-width: 36px; text-align: center; }
 .dv-count .btn { min-width: 36px; padding: 4px 10px; }
+.dv-count > .dv-kind-rep { font-family: inherit; font-size: 12px; min-width: 0; text-align: left; color: var(--color-danger-ink); }
 .dv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .dv-table th { text-align: left; font-weight: 500; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-neutral-700); padding: 8px 10px; border-bottom: 1px solid var(--color-divider); }
 .dv-table td { padding: 8px 10px; border-bottom: 1px solid var(--color-divider); vertical-align: top; }

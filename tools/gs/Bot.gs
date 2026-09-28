@@ -271,7 +271,9 @@ function tgSave_(d) {
 function tgTrucks_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH.set);
   if (!sh) return [];
-  return sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).getValues().map(function (r) { return String(r[0]).trim(); }).filter(function (t) { return t && TG_NOT_TRUCKS.indexOf(t) < 0; });
+  // машину в ремонте (Sozlamalar E = ta’mirda, версия 21) водителю не предлагаем
+  return sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, sh.getMaxColumns() >= 5 ? 3 : 1).getValues().filter(function (r) { return String(r[2] || '').trim() !== FLEET_REPAIR; })
+    .map(function (r) { return String(r[0]).trim(); }).filter(function (t) { return t && TG_NOT_TRUCKS.indexOf(t) < 0; });
 }
 
 // рабочий день водителя: сегодня начат и не закончен; w.day — календарный день, w.date — дата развозимой партии
