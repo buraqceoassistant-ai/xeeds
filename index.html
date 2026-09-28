@@ -1659,12 +1659,17 @@ class Component extends DCLogic {
         delete fresh.defaults;
         if (!fresh.settings.baseIncludesPts) this.firstPointRule(fresh);
         this.capacityFix(fresh.settings);
+        // во встроенном Excel — старая граница ТКАД (без Keles): по умолчанию — уточнённая
+        const oldRing = JSON.stringify(fresh.ring);
+        fresh.ring = window.LogiEngine.TKAD_V2.map(p => p.slice());
+        if (this.once('logi-ring-clean-v5')) this.dropStaleRing();
         this.tpl = tpl; this.fresh = fresh;
         let data = null;
         try { data = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) {}
         if (!data) { try { const old = JSON.parse(localStorage.getItem('logi-site-v1') || 'null'); if (old && old.shipments) data = { ...fresh, clients: old.clients, shipments: old.shipments, settings: { ...fresh.settings, ...old.settings } }; } catch (e) {} }
         if (!data || !data.shipments) data = JSON.parse(JSON.stringify(fresh));
         ['ring', 'lists', 'notes', 'warehouses'].forEach(k => { if (!data[k]) data[k] = fresh[k]; });
+        if (JSON.stringify(data.ring) === oldRing) data.ring = fresh.ring.map(p => p.slice());   // только на экране; граница из таблицы придёт как есть
         data.settings = Object.assign({}, fresh.settings, data.settings || {});
         let ptsFix = false; try { ptsFix = localStorage.getItem('logi-base-pts-v1') === '1'; } catch (e) {}
         if (!ptsFix) { this.firstPointRule(data); try { localStorage.setItem('logi-base-pts-v1', '1'); } catch (e) {} }
@@ -1718,21 +1723,23 @@ class Component extends DCLogic {
   staleNotes(d) {
     d.notes = (d.notes || []).map(s => ({ ...s, items: s.items.filter(i => !/bazaviy narxga kiradimi/i.test(i.what)) }));
   }
-  kelesFix(data) {
-    let done = false; try { done = localStorage.getItem('logi-ring-v4') === '1'; } catch (e) {}
-    if (done || !data.ring || this.readOnly) return data;   // вход «только просмотр» кольцевую в таблицу не пишет
-    const ring = window.LogiEngine.TKAD_V2.map(p => p.slice());
-    try { localStorage.setItem('logi-ring-v4', '1'); } catch (e) {}
-    if (JSON.stringify(ring) === JSON.stringify(data.ring)) return data;
-    try { localStorage.setItem('logi-ring-pending', JSON.stringify(ring)); } catch (e) {}
-    setTimeout(() => {
-      if (this.gsUrl) { if (!this.gsQueue.some(o => o.t === 'ring')) this.gsEnqueue([{ t: 'ring', v: ring }]); else this.gsFlush(); }
-      else if (this.handle && ['linked', 'saved'].includes(this.state.fileStatus)) this.saveToFile();
-    }, 300);
-    return { ...data, ring };
+  // Граница кольцевой в таблице — главная: сайт пишет её туда только после «Редактировать границу» → «Сохранить».
+  // Прежняя одноразовая замена («logi-ring-v4») срабатывала заново на новом устройстве и после «Выйти» и затирала
+  // в таблице границу владельца встроенной линией. Её неотправленные остатки на устройстве (встроенная линия в очереди
+  // записи) убираются один раз; своя правка границы — другая линия — остаётся и уходит в таблицу.
+  dropStaleRing() {
+    const v2 = JSON.stringify(window.LogiEngine.TKAD_V2);
+    try {
+      if (localStorage.getItem('logi-ring-pending') === v2) localStorage.removeItem('logi-ring-pending');
+      const q = JSON.parse(localStorage.getItem('logi-gs-queue') || 'null');
+      if (q && Array.isArray(q.ops)) {
+        const ops = q.ops.filter(o => !(o && o.t === 'ring' && JSON.stringify(o.v) === v2));
+        if (ops.length < q.ops.length) { if (ops.length) localStorage.setItem('logi-gs-queue', JSON.stringify({ ...q, ops })); else localStorage.removeItem('logi-gs-queue'); }
+      }
+      localStorage.removeItem('logi-ring-v4');
+    } catch (e) {}
   }
   setReady(data) {
-    data = this.kelesFix(data);
     clearTimeout(this._autoD); this._autoD = setTimeout(() => this.runAutoDistrict(), 600);
     try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch (e) {}
     const dates = [...new Set(data.shipments.map(s => s.date))].sort();
