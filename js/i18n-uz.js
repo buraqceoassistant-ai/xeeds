@@ -1995,6 +1995,8 @@ window.I18N_UZ = {"BURAQ logistics — отгрузки и клиенты":"BURA
 "Число машин и вместимость — те же настройки, что в «Тарифах и планах»: по ним строятся планы.":"Mashinalar soni va sig‘imi — «Tariflar va rejalar»dagi sozlamalarning o‘zi: rejalar shular bo‘yicha tuziladi.",
 "Подключить заново":"Qayta ulash",
 "Водители в боте: {s} — список, заявки и отключение во вкладке «Водители».":"Botdagi haydovchilar: {s} — ro‘yxat, arizalar va o‘chirish «Haydovchilar» bo‘limida.",
+"Водители в боте:":"Botdagi haydovchilar:",
+"— список, заявки и отключение во вкладке «Водители».":"— ro‘yxat, arizalar va o‘chirish «Haydovchilar» bo‘limida.",
 "с доступом {n}":"ruxsat bilan {n}",
 "с доступом {n}, отключены {n3}":"ruxsat bilan {n}, o‘chirilgan {n3}",
 "с доступом {n}, ждут подтверждения {n2}":"ruxsat bilan {n}, tasdiqlashni kutmoqda {n2}",

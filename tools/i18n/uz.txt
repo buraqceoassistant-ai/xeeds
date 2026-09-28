@@ -2038,6 +2038,8 @@ R{n} — [места|м³|кг]: в документе {n2}, в строке {n3
 Число машин и вместимость — те же настройки, что в «Тарифах и планах»: по ним строятся планы.	Mashinalar soni va sig‘imi — «Tariflar va rejalar»dagi sozlamalarning o‘zi: rejalar shular bo‘yicha tuziladi.
 Подключить заново	Qayta ulash
 Водители в боте: {s} — список, заявки и отключение во вкладке «Водители».	Botdagi haydovchilar: {s} — ro‘yxat, arizalar va o‘chirish «Haydovchilar» bo‘limida.
+Водители в боте:	Botdagi haydovchilar:
+— список, заявки и отключение во вкладке «Водители».	— ro‘yxat, arizalar va o‘chirish «Haydovchilar» bo‘limida.
 с доступом {n}[|, ждут подтверждения {n2}][|, отключены {n3}]	ruxsat bilan {n}[|, tasdiqlashni kutmoqda {n2}][|, o‘chirilgan {n3}]
 Для бота нужен код скрипта таблицы версии 17 (не ниже 9).	Bot uchun jadval skripti kodining 17-versiyasi kerak (9 dan past emas).
 Обновите код скрипта до 17 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 17 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
