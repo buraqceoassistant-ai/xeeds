@@ -699,7 +699,7 @@
           <h3 style="margin:0 0 10px">Сравнение планов</h3>
           <div style="border:1px solid var(--color-divider);overflow-x:auto">
             <sc-raw-table class="table tc">
-              <sc-raw-thead><sc-raw-tr><sc-raw-th>Партия</sc-raw-th><sc-raw-th style="text-align:right">План A</sc-raw-th><sc-raw-th style="text-align:right">План B</sc-raw-th><sc-raw-th style="text-align:right">План C</sc-raw-th><sc-raw-th style="text-align:right">Журнал</sc-raw-th><sc-raw-th>Самый дешёвый</sc-raw-th><sc-raw-th class="no-print"></sc-raw-th></sc-raw-tr></sc-raw-thead>
+              <sc-raw-thead><sc-raw-tr><sc-raw-th>Партия</sc-raw-th><sc-raw-th style="text-align:right">План A</sc-raw-th><sc-raw-th style="text-align:right">План B</sc-raw-th><sc-raw-th style="text-align:right">План C</sc-raw-th><sc-raw-th style="text-align:right">План X</sc-raw-th><sc-raw-th style="text-align:right">Журнал</sc-raw-th><sc-raw-th>Самый дешёвый</sc-raw-th><sc-raw-th class="no-print"></sc-raw-th></sc-raw-tr></sc-raw-thead>
               <sc-raw-tbody>
                 <sc-for list="{{ repEcon }}" as="e">
                   <sc-raw-tr>
@@ -707,6 +707,7 @@
                     <sc-raw-td class="c2" data-label="План A" style="text-align:right;white-space:nowrap">{{ e.a }}</sc-raw-td>
                     <sc-raw-td class="c2" data-label="План B" style="text-align:right;white-space:nowrap">{{ e.b }}</sc-raw-td>
                     <sc-raw-td class="c2" data-label="План C" style="text-align:right;white-space:nowrap">{{ e.c }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="План X" style="text-align:right;white-space:nowrap">{{ e.x }}</sc-raw-td>
                     <sc-raw-td class="c2" data-label="Журнал" style="text-align:right;white-space:nowrap">{{ e.j }}</sc-raw-td>
                     <sc-raw-td class="c2" data-label="Самый дешёвый">{{ e.best }}</sc-raw-td>
                     <sc-raw-td class="c-actions no-print"><div style="display:flex"><button class="btn btn-ghost" sc-camel-on-click="{{ e.open }}">Планы</button></div></sc-raw-td>
@@ -1200,6 +1201,7 @@
             <div class="trip-head" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
               <div style="font-family:var(--font-heading);font-weight:500;font-size:22px;min-width:150px">{{ t.name }}</div>
               <span class="tag tag-outline">{{ t.tariff }}</span>
+              <sc-if value="{{ t.dists }}"><span class="tag tag-accent-2">{{ t.dists }}</span></sc-if>
               <div style="display:flex;gap:18px;font-size:13px;flex-wrap:wrap">
                 <span>{{ t.stopsN }} точ.</span>
                 <span style="display:flex;align-items:center;gap:6px">{{ t.cbm }} м³<span style="display:inline-block;width:60px;height:5px;background:var(--color-neutral-300)"><span class="bar" style="display:block;height:5px;width:{{ t.cbmPct }};background:{{ t.cbmBar }}"></span></span></span>
@@ -1640,7 +1642,9 @@ const TR = { 'Belgilanmagan': 'Не назначена', 'Mijoz ozi oladi': 'К�
 const PLAN_INFO = {
   A: { title: 'A — экономичный', desc: S => 'Самый дешёвый по тарифам без перегруза: как можно меньше рейсов, маршруты по направлениям. Labo, Changan, Gazel и Kamaz. Gazel строго до ' + f1(S.gazelM3, 1) + ' м³ / ' + f0(S.gazelKg) + ' кг, Kamaz — только если груз больше.' },
   B: { title: 'B — Gazel и Labo', desc: S => 'Как можно меньше машин: Gazel и Labo. Gazel можно загрузить с допуском — до ' + f1((+S.gazelM3 || 0) + (+S.bTolM3 || 0), 1) + ' м³ / ' + f0((+S.gazelKg || 0) + (+S.bTolKg || 0)) + ' кг. Kamaz — только если груз больше.' },
-  C: { title: 'C — только Kamaz', desc: () => 'Большие машины делают несколько рейсов, каждая на своей стороне города.' }
+  C: { title: 'C — только Kamaz', desc: () => 'Большие машины делают несколько рейсов, каждая на своей стороне города.' },
+  // план X (пробный): один район — одна машина (districtTrips в js/logi-engine.js)
+  X: { title: 'X — по районам', desc: () => 'Пробный. Каждый район целиком везёт одна машина; районы с малым грузом — вместе, сначала соседние. Район больше машины — остаток едет с машиной соседнего района. Загрузка как в плане A.' }
 };
 const VEH = { labo: 'Labo', changan: 'Changan', gazel: 'Gazel', kamaz: 'Kamaz' };
 // Машины автопарка для журнала (Sozlamalar C24:C39). Госномера придут позже — тогда имена поменяются.
@@ -2309,7 +2313,7 @@ class Component extends DCLogic {
       c.plans = E.buildPlans(stops, S); c.plansKey = pk;
     }
     const P = c.plans, kinds = s => ['labo', 'changan', 'gazel', 'kamaz'].filter(k => s[k]).map(k => VEH[k] + ' ' + s[k]).join(' · ');
-    out.impPlans = ['A', 'B', 'C'].map(k => { const s = P[k].sum; return { k, title: PLAN_INFO[k].title, trips: s.trips + ' ' + reys(s.trips), kinds: kinds(s),
+    out.impPlans = ['A', 'B', 'C', 'X'].map(k => { const s = P[k].sum; return { k, title: PLAN_INFO[k].title, trips: s.trips + ' ' + reys(s.trips), kinds: kinds(s),
       price: P[k].noFleet ? 'нет машин' : s.unpriced && !s.price ? 'нет тарифа' : money(s.price) + (s.unpriced ? ' +' : '') }; });
     out.impPlanNote = (P.noCoords.length ? P.noCoords.length + ' отгр. без координат клиента — в планы не вошли. ' : '') + 'Отгрузок в партии: ' + ships.length + ' (маркировки одного клиента — одна отгрузка).';
     // документ
@@ -2858,16 +2862,17 @@ class Component extends DCLogic {
         }).filter(Boolean);
         const cell = (P, k) => P[k].noFleet ? 'нет машин' : !P[k].sum.trips ? '—' : sumP(P[k].sum.price, P[k].sum.unpriced);
         const full = (P, k) => !P[k].noFleet && P[k].sum.trips > 0 && !P[k].sum.unpriced;
-        let cmp = { n: 0, a: 0, b: 0, skip: 0 }, jc = { n: 0, j: 0, a: 0 };
+        let cmp = { n: 0, a: 0, b: 0, skip: 0 }, jc = { n: 0, j: 0, a: 0 }, cx = { n: 0, a: 0, x: 0 };
         out.repEcon = R.map(r => {
           // самый дешёвый — среди планов с ценой у всех рейсов; если у плана без цены части рейсов уже известная сумма меньше — ответа нет
-          const P = this.plansFor(r.date), ks = ['A', 'B', 'C'].filter(k => full(P, k)), min = ks.length ? ks.reduce((a, k) => P[k].sum.price < P[a].sum.price ? k : a) : null;
-          const best = min && !['A', 'B', 'C'].some(k => !P[k].noFleet && P[k].sum.unpriced && P[k].sum.price > 0 && P[k].sum.price < P[min].sum.price) ? min : null;
+          const P = this.plansFor(r.date), ks = ['A', 'B', 'C', 'X'].filter(k => full(P, k)), min = ks.length ? ks.reduce((a, k) => P[k].sum.price < P[a].sum.price ? k : a) : null;
+          const best = min && !['A', 'B', 'C', 'X'].some(k => !P[k].noFleet && P[k].sum.unpriced && P[k].sum.price > 0 && P[k].sum.price < P[min].sum.price) ? min : null;
           if (full(P, 'A') && full(P, 'B')) { cmp.n++; cmp.a += P.A.sum.price; cmp.b += P.B.sum.price; } else if (P.A.sum.trips || P.B.sum.trips) cmp.skip++;
           if (r.src === 'journal' && !r.sum.unpriced && full(P, 'A')) { jc.n++; jc.j += r.sum.price; jc.a += P.A.sum.price; }
+          if (full(P, 'A') && full(P, 'X')) { cx.n++; cx.a += P.A.sum.price; cx.x += P.X.sum.price; }   // план X (пробный)
           const rawP = k => full(P, k) ? P[k].sum.price : cell(P, k);
-          return { label: dLong(r.date), a: cell(P, 'A'), b: cell(P, 'B'), c: cell(P, 'C'), j: r.src === 'journal' ? sumP(r.sum.price, r.sum.unpriced) : '—', best: best ? 'План ' + best : '—', open: () => this.setState({ tab: 'plans', planDate: r.date }),
-            raw: [dLong(r.date), rawP('A'), rawP('B'), rawP('C'), r.src === 'journal' ? (r.sum.unpriced ? sumP(r.sum.price, r.sum.unpriced) : r.sum.price) : '', best ? 'План ' + best : ''] };
+          return { label: dLong(r.date), a: cell(P, 'A'), b: cell(P, 'B'), c: cell(P, 'C'), x: cell(P, 'X'), j: r.src === 'journal' ? sumP(r.sum.price, r.sum.unpriced) : '—', best: best ? 'План ' + best : '—', open: () => this.setState({ tab: 'plans', planDate: r.date }),
+            raw: [dLong(r.date), rawP('A'), rawP('B'), rawP('C'), rawP('X'), r.src === 'journal' ? (r.sum.unpriced ? sumP(r.sum.price, r.sum.unpriced) : r.sum.price) : '', best ? 'План ' + best : ''] };
         });
         const econ = [];
         if (cmp.n) { const d = cmp.b - cmp.a, rel = Math.abs(d) / Math.max(cmp.a, cmp.b);
@@ -2875,6 +2880,8 @@ class Component extends DCLogic {
             : d < 0 ? 'План B дешевле плана A на ' + money(-d) + ' (' + pct(rel) + ') за ' + cmp.n + ' парт.: B грузит Gazel сверх кузова (допуск +' + f1(S.bTolM3, 1) + ' м³ / +' + f0(S.bTolKg) + ' кг), A — строго по кузову.'
             : 'Планы A и B стоят одинаково за ' + cmp.n + ' парт.'); }
         if (cmp.skip) econ.push('Не сравнивали ' + cmp.skip + ' парт.: в них есть рейсы без тарифа (Kamaz).');
+        if (cx.n) econ.push(cx.x - cx.a > 0.5 ? 'План X (по районам) дороже плана A на ' + money(cx.x - cx.a) + ' (' + pct((cx.x - cx.a) / cx.a) + ') за ' + cx.n + ' парт. — цена того, что район везёт одна машина.'
+          : cx.a - cx.x > 0.5 ? 'План X (по районам) дешевле плана A на ' + money(cx.a - cx.x) + ' за ' + cx.n + ' парт.' : 'Планы A и X стоят одинаково за ' + cx.n + ' парт.');
         if (R.length && R.every(r => { const P = this.plansFor(r.date); return !full(P, 'C'); })) econ.push('План C (только Kamaz) не с чем сравнить: у Kamaz нет тарифа. Заполните его во вкладке «Тарифы».');
         econ.push(jc.n ? 'По журналу ' + jc.n + ' парт. стоили ' + money(jc.j) + ', план A для них — ' + money(jc.a) + (jc.j - jc.a > 0.5 ? ': по плану вышло бы дешевле на ' + money(jc.j - jc.a) + '.' : jc.a - jc.j > 0.5 ? ': по журналу дешевле на ' + money(jc.a - jc.j) + '.' : ': одинаково.')
           : 'Сравнение с журналом появится, когда планы будут приняты («Планы» → «Принять план»).');
@@ -2927,7 +2934,7 @@ class Component extends DCLogic {
     } else {
       sheets.push({ name: 'Итоги', rows: kp.concat([[]]).concat(o.repFleetNotes.concat(o.repEconNotes).map(n => [n.text])) });
       sheets.push({ name: 'Машины', rows: [['Машина', 'В парке', 'Рейсов', 'Дней с рейсами', 'Больше всего рейсов за день', 'Дата', 'Машин в тот день', 'Можно рейсов в день', 'Не хватало (партий)', 'Загрузка м³, %', 'Загрузка кг, %', 'Загружены меньше половины']].concat(o.repFleet.map(f => f.raw)) });
-      sheets.push({ name: 'Планы', rows: [['Партия', 'План A', 'План B', 'План C', 'Журнал', 'Самый дешёвый']].concat(o.repEcon.map(e => e.raw)) });
+      sheets.push({ name: 'Планы', rows: [['Партия', 'План A', 'План B', 'План C', 'План X', 'Журнал', 'Самый дешёвый']].concat(o.repEcon.map(e => e.raw)) });
       name = 'avtopark_' + o.repPeriodKey;
     }
     const blob = E.xlsx(sheets), a = document.createElement('a');
@@ -3014,7 +3021,7 @@ class Component extends DCLogic {
     f.districts = Object.entries(byD).sort((a, b) => b[1].price - a[1].price || b[1].cbm - a[1].cbm).slice(0, 20)
       .map(([name, o]) => ({ district: name, points: o.pts.size, cbm: r1(o.cbm), price: r0(o.price), notPaid: r0(o.notPaid), pricePerM3: o.cbm > 0 ? r0(o.price / o.cbm) : null }));
     const planVal = (P, k) => P[k].noFleet ? 'нет машин' : !P[k].sum.trips ? null : P[k].sum.unpriced ? 'рейсов без тарифа: ' + P[k].sum.unpriced : r0(P[k].sum.price);
-    f.plans = R.map(r => { const P = this.plansFor(r.date); return { date: r.date, planA: planVal(P, 'A'), planB: planVal(P, 'B'), planC: planVal(P, 'C'), tripsA: P.A.sum.trips,
+    f.plans = R.map(r => { const P = this.plansFor(r.date); return { date: r.date, planA: planVal(P, 'A'), planB: planVal(P, 'B'), planC: planVal(P, 'C'), planXbyDistricts: planVal(P, 'X'), tripsA: P.A.sum.trips,
       journal: r.src !== 'journal' ? null : r.sum.unpriced ? 'рейсов без тарифа: ' + r.sum.unpriced : r0(r.sum.price), tripsJournal: r.src === 'journal' ? r.sum.trips : null }; });
     f.settings = {};
     this.settingDefs().filter(g => !['Склад отправки', 'Импорт манифестов'].includes(g.title))
@@ -3159,7 +3166,7 @@ class Component extends DCLogic {
   vizModel() {
     const st = this.state;
     if (!st.ready || !st.planDate || !window.LogiViz) return null;
-    const P = this.plansFor(st.planDate), key = ['A', 'B', 'C'].includes(st.planKey) ? st.planKey : 'A';
+    const P = this.plansFor(st.planDate), key = ['A', 'B', 'C', 'X'].includes(st.planKey) ? st.planKey : 'A';
     if (this._vizM && this._vizM.P === P && this._vizM.key === key) return this._vizM;
     const plan = P[key], lays = plan.trips.map(t => window.LogiViz.layout(t));
     this._vizM = { P, key, plan, lays, id: (this._vizM ? this._vizM.id : 0) + 1 };
@@ -3297,7 +3304,7 @@ class Component extends DCLogic {
     const sheets = [{ name: 'Отгрузки', rows: ship }, { name: 'Клиенты', rows: cl }, { name: 'Настройки', rows: st }];
     if (this.state.planDate) {
       const P = this.plansFor(this.state.planDate);
-      ['A', 'B', 'C'].forEach(k => {
+      ['A', 'B', 'C', 'X'].forEach(k => {
         const rows = [['Рейс', '№', 'BL код', 'Клиент', 'Район', 'Получатель', 'Тел.', 'CBM', 'KG', 'Прибытие', 'Зона', 'Тариф', 'Цена рейса', 'Маршрут Яндекс']];
         P[k].trips.forEach(t => t.stops.forEach((s, j) => rows.push([t.name, j + 1, s.bl, (s.client.brand || '') + ' ' + (s.client.name || ''), s.client.district || '', s.client.receiver || '', s.client.receiverTel || '', s.cbm, s.kg, hhmm(t.arrivals[j]), s.zone === 'out' ? 'Снаружи' : 'Внутри', j === 0 ? t.price.label : '', j === 0 && t.price.total != null ? t.price.total : '', j === 0 ? E.yRoute([S.depotLat, S.depotLon], t.stops.map(x => [x.lat, x.lon])) : ''])));
         sheets.push({ name: 'План ' + k + ' ' + dShort(this.state.planDate), rows });
@@ -4014,7 +4021,7 @@ class Component extends DCLogic {
       out.ringReset = () => { if (confirm('Вернуть уточнённую границу ТКАД (по карте, с Keles)?')) { this.ringDraft = E.TKAD_V2.map(p => p.slice()); this.setState(s => ({ ringEditVer: (s.ringEditVer || 0) + 1 })); } };
       out.mapLoadingText = window.L ? '' : (st.mapError ? 'Не удалось загрузить библиотеку карты — проверьте интернет' : 'Загрузка карты…');
       out.mapBaseOpts = [['yandex', 'Яндекс'], ['gis', '2ГИС'], ['ysat', 'Спутник'], ['esri', 'Esri']].map(([k, l]) => ({ l, go: () => { try { localStorage.setItem('logi-map-base', k); } catch (e) {} this.setState({ mapBase: k }); }, bg: st.mapBase === k ? 'var(--color-accent)' : 'transparent', fg: st.mapBase === k ? 'var(--color-bg)' : 'var(--color-text)' }));
-      out.mapPlanOpts = [['none', 'Без'], ['A', 'A'], ['B', 'B'], ['C', 'C']].map(([k, l]) => ({ l, go: () => this.setState({ mapPlan: k }), bg: st.mapPlan === k ? 'var(--color-accent)' : 'transparent', fg: st.mapPlan === k ? 'var(--color-bg)' : 'var(--color-text)' }));
+      out.mapPlanOpts = [['none', 'Без'], ['A', 'A'], ['B', 'B'], ['C', 'C'], ['X', 'X']].map(([k, l]) => ({ l, go: () => this.setState({ mapPlan: k }), bg: st.mapPlan === k ? 'var(--color-accent)' : 'transparent', fg: st.mapPlan === k ? 'var(--color-bg)' : 'var(--color-text)' }));
       if (st.mapDate === 'all') {
         const wc = data.clients.filter(c => c.lat != null);
         out.mapStats = [{ label: 'Клиентов', value: data.clients.length }, { label: 'На карте', value: wc.length }, { label: 'Снаружи', value: wc.filter(c => (D.zones[c.bl] || {}).zone === 'out').length }, { label: 'Без коорд.', value: data.clients.length - wc.length }];
@@ -4065,11 +4072,11 @@ class Component extends DCLogic {
     if (st.tab === 'plans' && st.planDate) {
       const P = this.plansFor(st.planDate);
       // план C свёрнут, пока его не откроют; «самый дешёвый» — среди показанных планов, где у всех рейсов есть цена
-      const shown = st.planC ? ['A', 'B', 'C'] : ['A', 'B'], planKey = shown.includes(st.planKey) ? st.planKey : 'A';
+      const shown = st.planC ? ['A', 'B', 'X', 'C'] : ['A', 'B', 'X'], planKey = shown.includes(st.planKey) ? st.planKey : 'A';   // план X (пробный)
       const full = shown.filter(k => P[k].sum.trips && !P[k].sum.unpriced), minP = full.length ? Math.min(...full.map(k => P[k].sum.price)) : null;
       const kindsOf = s => ['labo', 'changan', 'gazel', 'kamaz'].filter(k => s[k]).map(k => VEH[k] + ' ' + s[k]).join(' · ');
       out.planCols = shown.length;
-      const costs = {}; ['A', 'B', 'C'].forEach(k => { costs[k] = this.costOf(P[k].trips.map(t => E.costSplit(t.stops, t.price, S))); });
+      const costs = {}; ['A', 'B', 'C', 'X'].forEach(k => { costs[k] = this.costOf(P[k].trips.map(t => E.costSplit(t.stops, t.price, S))); });
       out.planCards = shown.map(k => { const s = P[k].sum, sel = planKey === k, noPrice = s.unpriced && !s.price, c = costs[k];
         return { title: PLAN_INFO[k].title, desc: PLAN_INFO[k].desc(S), trips: s.trips, kinds: kindsOf(s), real: f0(s.real) + ' км', outside: s.outside + ' · ' + f1(s.outsideCbm, 1) + ' м³',
           price: P[k].noFleet ? 'нет машин' : noPrice ? 'нет тарифа' : money(s.price) + (s.unpriced ? ' +' : ''),
@@ -4099,6 +4106,10 @@ class Component extends DCLogic {
         notes.push('Не хватает машин: ' + Object.entries(nv).map(([k, c]) => VEH[k] + ' — ещё ' + c + ' ' + reys(c) + ' (в автопарке ' + (fleetN[k] || 0) + ' × ' + (S.tripsPerVehicle || 1) + ')').join(', ') + '. Добавьте машины или рейсы на машину во вкладке «Тарифы».'); }
       if (plan.sum.over) notes.push('Не помещается ни в одну машину и не делится: ' + plan.trips.filter(t => t.over).map(t => t.stops[0].bl).join(', ') + '. Проверьте вместимость машин во вкладке «Тарифы».');
       if (plan.noFleet) notes.push('Для этого плана нет машин: задайте объём и грузоподъёмность Kamaz во вкладке «Тарифы».');
+      // план X (пробный): районы, которые не поместились в одну машину
+      const dnX = d => !d || d === 'Aniqlanmagan' ? 'Не определён' : d;
+      (plan.districts || []).forEach(x => notes.push('Район ' + dnX(x.district) + ' больше одной машины: ' + x.trips + ' ' + reys(x.trips) +
+        (x.big ? ', из них груз только для Kamaz — ' + x.big : '') + (x.neighbor != null ? '; остаток едет с машиной района ' + dnX(x.neighbor) : '') + '.'));
       out.planNotes = notes.map(text => ({ text })); out.planHasNotes = notes.length > 0;
       // «Принять план»: записан ли план в журнал — машины и номера рейсов совпадают
       { const byId = new Map(data.shipments.map(s => [s.id, s])), { parts } = this.planAssign(plan, data), ids = Object.keys(parts);
@@ -4123,7 +4134,7 @@ class Component extends DCLogic {
         let prev = depot;
         const nM3 = v.nomM3 ?? v.m3, nKg = v.nomKg ?? v.kg, upM3 = t.cbm > nM3 + 1e-6, upKg = t.kg > nKg + 1e-6;   // сверх кузова — за счёт допуска Gazel в плане B
         const tc = E.costSplit(t.stops, t.price, S);
-        return { costNote: this.costNote(tc), name: t.name, tariff: t.price.label + (t.over ? ' · ПЕРЕГРУЗ' : (upM3 || upKg) ? ' · с допуском' : '') + (t.noVehicle ? ' · НЕТ МАШИНЫ' : ''), stopsN: new Set(t.stops.map(s => s.bl)).size,
+        return { dists: planKey === 'X' ? 'Районы: ' + [...new Set(t.stops.map(x => dnX(x.client.district)))].join(', ') : '', costNote: this.costNote(tc), name: t.name, tariff: t.price.label + (t.over ? ' · ПЕРЕГРУЗ' : (upM3 || upKg) ? ' · с допуском' : '') + (t.noVehicle ? ' · НЕТ МАШИНЫ' : ''), stopsN: new Set(t.stops.map(s => s.bl)).size,
           cbm: f1(t.cbm, 2) + ' из ' + f1(nM3, 1) + (v.tolM3 ? ' (+' + f1(v.tolM3, 1) + ')' : ''), kg: f0(t.kg) + ' из ' + f0(nKg) + (v.tolKg ? ' (+' + f0(v.tolKg) + ')' : ''),
           cbmPct: Math.min(100, t.cbm / nM3 * 100).toFixed(0) + '%', kgPct: Math.min(100, t.kg / nKg * 100).toFixed(0) + '%',
           cbmBar: upM3 || t.over ? 'var(--color-accent-900)' : 'var(--color-accent)', kgBar: upKg || t.over ? 'var(--color-accent-900)' : 'var(--color-accent)',
@@ -4148,7 +4159,7 @@ class Component extends DCLogic {
       Object.assign(out, { planDate: st.planDate, onVizDate: e => this.setState({ planDate: e.target.value, vizTrip: 'all', vizStep: 0, vizSel: null }),
         vizTripOpts: [], vizIsAll: false, vizIsOne: false, vizSummary: '', vizNote: '', vizTitle: '',
         vizHint: 'Вращать — пальцем или мышью · масштаб — щипком или колесом · нажмите на груз — покажет точку' });
-      out.vizPlanOpts = ['A', 'B', 'C'].map(k => { const on = M ? M.key === k : st.planKey === k;
+      out.vizPlanOpts = ['A', 'B', 'C', 'X'].map(k => { const on = M ? M.key === k : st.planKey === k;
         return { l: 'План ' + k, go: () => this.setState({ planKey: k, vizTrip: 'all', vizStep: 0, vizSel: null }), bg: on ? 'var(--color-accent)' : 'transparent', fg: on ? 'var(--color-bg)' : 'var(--color-text)' }; });
       out.vizViews = [['3d', '3D'], ['side', 'Сбоку'], ['top', 'Сверху'], ['back', 'Сзади']].map(([k, l]) => ({ l, go: () => this.setState(s => ({ vizView: k, vizViewN: (s.vizViewN || 0) + 1 })),
         bg: st.vizView === k ? 'var(--color-accent)' : 'var(--color-bg)', fg: st.vizView === k ? 'var(--color-bg)' : 'var(--color-text)' }));

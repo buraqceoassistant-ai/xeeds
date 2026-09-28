@@ -459,6 +459,77 @@
     return out;
   }
 
+  // ---------- план X (пробный): один район — одна машина ----------
+  // Точки группируются по району клиента; без района — отдельная группа. Район, который помещается в одну машину, едет
+  // целиком одним рейсом. Район больше машины: полные рейсы — из точек, дальних от соседнего района, а остаток (точки,
+  // ближайшие к соседу) едет с машиной соседнего района, если вместе помещаются. Потом районы объединяются в один рейс,
+  // пока это дешевле (тариф + немного за километры, как в плане A): сначала соседние (X_NEAR ближайших, центры не дальше
+  // X_KM км), затем, если у машины осталось место, — и дальние.
+  // Загрузка — как в плане A: строго по кузову, самая дешёвая машина, Kamaz — только для груза больше Gazel.
+  // Чтобы убрать план: эта функция, строка X в buildPlans и места «план X» в index.html (поиск по «план X»).
+  const X_NEAR = 3, X_KM = 10;
+  function districtTrips(items, fleet, maxStops, S, depot, notes) {
+    if (!items.length) return [];
+    const { ev } = evaluator(items, fleet, maxStops, S, depot);
+    const mk = st => ev(st) || (st.length === 1 ? overTrip(st[0], fleet, S, depot) : null);
+    const dOf = s => { const d = String((s.client || {}).district || '').trim(); return d && d !== 'Aniqlanmagan' ? d : ''; };
+    const center = st => [st.reduce((a, s) => a + s.lat, 0) / st.length, st.reduce((a, s) => a + s.lon, 0) / st.length];
+    const regular = fleet.filter(v => v.priced && !v.onlyIfNeeded);
+    const needsBig = s => !regular.some(v => fitsIn(load([s]), v) && (!small(v) || known(s)));
+    const byD = new Map();
+    items.forEach(s => { const k = dOf(s); if (!byD.has(k)) byD.set(k, []); byD.get(k).push(s); });
+    const cen = new Map([...byD].map(([k, st]) => [k, center(st)]));
+    const nearOf = k => [...cen.keys()].filter(x => x !== k).sort((a, b) => km(cen.get(k), cen.get(a)) - km(cen.get(k), cen.get(b)));
+    const fixed = [], groups = [];   // fixed — полные рейсы больших районов; groups — район (или его остаток) одним рейсом
+    for (const [d, st] of byD) {
+      if (ev(st)) { groups.push({ d: [d], st }); continue; }
+      const note = { district: d, trips: 0, neighbor: null, big: 0 };
+      notes.push(note);
+      // груз, который помещается только в Kamaz, — своими рейсами, как в плане A
+      const big = st.filter(needsBig), rest = st.filter(s => !needsBig(s));
+      if (big.length) partition(sweepOrder(big), fleet, maxStops, S, depot, ev).forEach(t => { fixed.push(t); note.trips++; note.big++; });
+      if (!rest.length) continue;
+      const nb = nearOf(d), to = nb.length ? cen.get(nb[0]) : depot;
+      let left = rest.slice().sort((a, b) => km(to, [b.lat, b.lon]) - km(to, [a.lat, a.lon]));   // сначала дальние от соседа
+      while (left.length && !ev(left)) {
+        let cur = [];
+        left.forEach(s => { if (ev(cur.concat([s]))) cur.push(s); });
+        if (!cur.length) cur = [left[0]];   // не помещается ни в одну машину — рейс с пометкой «перегруз»
+        fixed.push(mk(cur)); note.trips++;
+        left = left.filter(s => !cur.includes(s));
+      }
+      if (left.length) groups.push({ d: [d], st: left, part: true, near: nb, note });
+    }
+    // остаток большого района — с машиной ближайшего соседнего района, с которым помещается в одну машину
+    groups.filter(g => g.part).forEach(g => {
+      const n = g.near.slice(0, X_NEAR).map(x => groups.find(h => h !== g && h.d.includes(x))).find(h => h && ev(h.st.concat(g.st)));
+      g.note.trips++;
+      if (!n) return;
+      n.st = n.st.concat(g.st); n.d = n.d.concat(g.d); g.note.neighbor = n.d[0];
+      groups.splice(groups.indexOf(g), 1);
+    });
+    // районы — в один рейс, пока это дешевле: сначала соседние, потом (far) любые
+    let ts = groups.map(g => ({ d: g.d, st: g.st, t: mk(g.st) })).filter(g => g.t);
+    for (const far of [false, true]) for (;;) {
+      const cs = ts.map(g => center(g.st));
+      let best = null;
+      for (let a = 0; a < ts.length; a++) {
+        const nbs = ts.map((_, b) => b).filter(b => b !== a).sort((x, y) => km(cs[a], cs[x]) - km(cs[a], cs[y])).slice(0, far ? ts.length : X_NEAR);
+        for (const b of nbs) {
+          if ((!far && km(cs[a], cs[b]) > X_KM) || ts[a].t.over || ts[b].t.over) continue;
+          const m = ev(ts[a].st.concat(ts[b].st));
+          if (!m) continue;
+          const gain = ts[a].t.val + ts[b].t.val - m.val;
+          if (gain > EPS && (!best || gain > best.gain + EPS)) best = { a, b, m, gain };
+        }
+      }
+      if (!best) break;
+      const A = ts[best.a], B = ts[best.b];
+      ts = ts.filter((_, i) => i !== best.a && i !== best.b).concat([{ d: A.d.concat(B.d), st: A.st.concat(B.st), t: best.m }]);
+    }
+    return fixed.concat(ts.map(g => g.t));
+  }
+
   function buildPlans(stopsAll, S) {
     const depot = [S.depotLat, S.depotLon];
     const withC = stopsAll.filter(s => s.lat != null), noC = stopsAll.filter(s => s.lat == null);
@@ -508,6 +579,8 @@
     const B = plan(lab(['labo', 'gazel', 'kamaz']), (items, fleet) => cheapest(items, fleet, S.bcMaxStops || 99, S, depot),   // тот же поиск, свои правила
       { onlyIfNeeded: ['kamaz'], tol: { gazel: { m3: S.bTolM3, kg: S.bTolKg } } });   // Gazel с допуском
     const C = plan(['kamaz'], (items, fleet) => kamazRuns(items, fleet, S, depot));
+    const xNotes = [], X = plan(lab(['labo', 'changan', 'gazel', 'kamaz']), (items, fleet) => districtTrips(items, fleet, S.aMaxStops || 99, S, depot, xNotes), { onlyIfNeeded: ['kamaz'] });   // план X (пробный): загрузка как в A
+    X.districts = xNotes;
     const sum = trips => {
       const priced = trips.filter(t => t.price.total != null), n = k => trips.filter(t => t.kind === k).length;
       return {
@@ -523,7 +596,7 @@
       };
     };
     const out = { noCoords: noC };
-    [['A', A], ['B', B], ['C', C]].forEach(([k, p]) => { out[k] = { ...p, sum: sum(p.trips) }; });
+    [['A', A], ['B', B], ['C', C], ['X', X]].forEach(([k, p]) => { out[k] = { ...p, sum: sum(p.trips) }; });
     return out;
   }
 
