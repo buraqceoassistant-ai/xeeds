@@ -52,9 +52,13 @@
  *   Одна машина — один водитель: у прежнего водителя этой машины она снимается, он без машины, пока не назначат новую.
  *   Водитель в рабочем дне получает точки новой машины; без машины точек и начала работы нет.
  *   Ошибка скрипта (или таблица занята дольше 25 с) — сайту текстом, а не страницей Google («Failed to fetch»).
+ * Версия 24: одна отклонённая правка не останавливает остальные. Если таблица не принимает ячейку (проверка данных,
+ *   защищённый диапазон), эта правка не записывается (уже записанные ячейки её строки возвращаются к прежним), в ответе —
+ *   { error, code: 'cell' }, остальные правки порции записываются. Правка клиента с прежними значениями (was) пишет
+ *   только изменённые ячейки — телефоны не переписываются, когда меняется район.
  */
 var TOKEN = '';
-var VERSION = 23; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 24; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 var COLS = { ship: 16, cli: 25, wh: 8, set: 10, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера, E:J — карточка машины
@@ -168,7 +172,10 @@ function post_(e) {
   lock.waitLock(25000);
   var results = [];
   try {
-    (body.ops || []).forEach(function (op) { results.push(apply_(op)); });
+    // правка, которую таблица не приняла, — ошибкой в ответе; остальные правки порции записываются (версия 24)
+    (body.ops || []).forEach(function (op) {
+      try { results.push(apply_(op)); } catch (err) { results.push({ error: String((err && err.message) || err).slice(0, 400), code: 'cell' }); }
+    });
     SpreadsheetApp.flush();
     try { tgAfterOps_(body.ops, body.more || body.quiet); } catch (err) { console.error('Бот после правок: ' + ((err && err.message) || err)); }   // водителям — если их точки изменились
   } finally { lock.releaseLock(); }
@@ -320,14 +327,24 @@ function fixShipDates_(ss) {
   return n;
 }
 
+// Ячейки строки из map (undefined — не трогать). Если таблица не принимает ячейку (проверка данных, защищённый
+// диапазон), уже записанные ячейки этой строки возвращаются к прежним значениям — правка не остаётся записанной
+// наполовину; ошибка — с листом и строкой.
 function setRow_(sh, row, map, textCols) {
-  Object.keys(map).forEach(function (c) {
-    var v = map[c];
-    if (v === undefined) return;
-    var r = sh.getRange(row, Number(c));
-    if (textCols && textCols.indexOf(Number(c)) >= 0) r.setNumberFormat('@');
-    r.setValue(v === null ? '' : v);
-  });
+  var cols = Object.keys(map).map(Number).filter(function (c) { return map[c] !== undefined; }), done = [];
+  if (!cols.length) return;
+  var old = sh.getRange(row, 1, 1, Math.max.apply(null, cols)).getValues()[0];
+  try {
+    cols.forEach(function (c) {
+      var v = map[c], r = sh.getRange(row, c);
+      if (textCols && textCols.indexOf(c) >= 0) r.setNumberFormat('@');
+      r.setValue(v === null ? '' : v);
+      done.push(c);
+    });
+  } catch (err) {
+    done.forEach(function (c) { try { sh.getRange(row, c).setValue(old[c - 1]); } catch (e2) { /* прежнее значение тоже не принимается — оставить */ } });
+    throw new Error(sh.getName() + ', строка ' + row + ': ' + ((err && err.message) || err));
+  }
 }
 
 function ensureF_(sh, row, tplRow, cols) {
@@ -388,13 +405,17 @@ function apply_(op) {
     sh = ss.getSheetByName(SH.cli);
     row = op.key ? findByA_(sh, op.key) : 0;
     if (op.t === 'cli.delete') { if (row) sh.deleteRow(row); return { row: row }; }
+    // есть строка и прежние значения (сайт, версия 24) — только изменённые поля: правка района не переписывает телефоны
+    var was = row && op.was, cv = function (k) { return !was || String(was[k] == null ? '' : was[k]) !== String(v[k] == null ? '' : v[k]) ? v[k] : undefined; };
     if (!row) row = lastRow_(sh, 1, 5) + 1;
-    if (v.marks !== undefined) {   // маркировки — столбец Y: добавить столбец и подпись, если их ещё нет
+    if (cv('marks') !== undefined) {   // маркировки — столбец Y: добавить столбец и подпись, если их ещё нет
       if (sh.getMaxColumns() < 25) sh.insertColumnsAfter(sh.getMaxColumns(), 25 - sh.getMaxColumns());
       var hc = sh.getRange(4, 25); if (String(hc.getValue()).trim() === '') hc.setValue('Markirovkalar');
     }
-    setRow_(sh, row, { 1: v.bl, 2: v.brand, 3: v.name, 4: v.tel1, 5: v.tel2, 6: v.receiver, 7: v.receiverTel, 8: v.district, 9: v.address, 11: num_(v.lat), 12: num_(v.lon), 15: v.note, 24: v.manualZone, 25: v.marks }, [4, 5, 7, 25]);
-    if (v.link !== undefined) {
+    var lat = cv('lat'), lon = cv('lon');
+    setRow_(sh, row, { 1: cv('bl'), 2: cv('brand'), 3: cv('name'), 4: cv('tel1'), 5: cv('tel2'), 6: cv('receiver'), 7: cv('receiverTel'), 8: cv('district'), 9: cv('address'),
+      11: lat === undefined ? undefined : num_(lat), 12: lon === undefined ? undefined : num_(lon), 15: cv('note'), 24: cv('manualZone'), 25: cv('marks') }, [4, 5, 7, 25]);
+    if (cv('link') !== undefined) {
       var r = sh.getRange(row, 10);
       if (v.link) r.setRichTextValue(SpreadsheetApp.newRichTextValue().setText('Xaritada ochish').setLinkUrl(v.link).build());
       else r.clearContent();

@@ -18,7 +18,7 @@ const call = (extra = {}) => ({ token: '', login: 'buraq', ai: { action: 'call',
 test('проверка связи: ключ из свойств, модель по умолчанию, инструмент strict и tool_choice на него, запись в журнал', () => {
   const s = loadScript({ props: { ANTHROPIC_API_KEY: 'sk-test' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
   const r = s.post(ping());
-  assert.equal(r.ok, true); assert.equal(r.v, 23); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
+  assert.equal(r.ok, true); assert.equal(r.v, 24); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
   assert.equal(r.mode, 'tool'); assert.equal(r.editorSet, true); assert.deepEqual(r.usage, { in: 120, cache: 0, out: 30 });
   const c = s.calls[0];
   assert.equal(c.url, 'https://api.anthropic.com/v1/messages');
@@ -81,7 +81,7 @@ test('пароль скрипта из свойства TOKEN проверяет
   assert.equal(s.post(ping({ token: 'x' })).error, 'Неверный пароль');
   assert.equal(s.get({ token: 'x' }).error, 'Неверный пароль');
   assert.equal(s.post(ping({ token: 'pw' })).ok, true);
-  assert.equal(s.get({ token: 'pw' }).v, 23);
+  assert.equal(s.get({ token: 'pw' }).v, 24);
 });
 
 test('Opus 5.5 и Fable 5.1 не принимают принудительный tool_choice — схема уходит через output_config.format', () => {
@@ -206,7 +206,7 @@ const noFetch = () => { throw new Error('внешний запрос не дол
 test('версия 19: без свойства TOKEN скрипт никого не пускает — «Задайте TOKEN…», данные и ИИ не отдаются', () => {
   const s = loadScript({ auth: false, props: { ANTHROPIC_API_KEY: 'k', EDITOR_TOKEN: 'ed' }, sheets: book(), fetch: noFetch });
   for (const r of [s.rawGet({}), s.rawGet({ token: 'что-угодно' }), s.rawGet({ resolve: 'https://maps.app.goo.gl/x' }), s.rawPost({ ops: [] }), s.rawPost(ping({ token: '', editor: 'ed' })), s.rawPost({ token: 'x', tg: { action: 'setup' }, editor: 'ed' })]) {
-    assert.equal(r.code, 'nopass', JSON.stringify(r)); assert.match(r.error, /^Задайте TOKEN в свойствах скрипта/); assert.equal(r.v, 23);
+    assert.equal(r.code, 'nopass', JSON.stringify(r)); assert.match(r.error, /^Задайте TOKEN в свойствах скрипта/); assert.equal(r.v, 24);
     assert.equal(r.data, undefined); assert.equal(r.ok, undefined);
   }
   assert.equal(s.calls.length, 0, 'ни ИИ, ни раскрытия ссылок');
@@ -218,7 +218,7 @@ test('версия 19: без свойства TOKEN скрипт никого �
 test('версия 19: TOKEN задан — без пароля и с чужим «Неверный пароль» (code pass); свойство находится и в другом регистре', () => {
   const s = loadScript({ auth: false, props: { ' token ': ' pw \n', EDITOR_TOKEN: 'ed' }, sheets: book(), fetch: noFetch });
   for (const r of [s.rawGet({}), s.rawGet({ token: '' }), s.rawGet({ token: 'PW' }), s.rawPost({ ops: [] }), s.rawPost({ token: 'x', ops: [] })]) {
-    assert.deepEqual([r.error, r.code, r.v, r.data], ['Неверный пароль', 'pass', 23, undefined]);
+    assert.deepEqual([r.error, r.code, r.v, r.data], ['Неверный пароль', 'pass', 24, undefined]);
   }
   const ok = s.rawGet({ token: 'pw' });
   assert.equal(ok.ok, true); assert.ok(ok.data.sheets.Yuborishlar);
@@ -241,7 +241,7 @@ test('версия 19: без EDITOR_TOKEN — отказ ИИ и боту с с
   const s = loadScript({ auth: false, props: { TOKEN: 'pw', ANTHROPIC_API_KEY: 'k', TG_TOKEN: '123:ABC' }, sheets: book(), fetch: noFetch });
   for (const r of [s.rawPost(ping({ token: 'pw' })), s.rawPost(ping({ token: 'pw', editor: 'любой' })), s.rawPost({ token: 'pw', tg: { action: 'setup', url: 'https://script.google.com/macros/s/A/exec' } }),
     s.rawPost({ token: 'pw', editor: '', tg: { action: 'dispatch', date: '2026-09-28' } })]) {
-    assert.equal(r.code, 'noeditor', JSON.stringify(r)); assert.match(r.error, /^Задайте EDITOR_TOKEN в свойствах скрипта/); assert.equal(r.v, 23);
+    assert.equal(r.code, 'noeditor', JSON.stringify(r)); assert.match(r.error, /^Задайте EDITOR_TOKEN в свойствах скрипта/); assert.equal(r.v, 24);
   }
   assert.equal(s.calls.length, 0, 'ни Claude, ни Telegram');
   assert.equal(s.book.sheets['ИИ-журнал'], undefined, 'в журнал ИИ ничего не записано');
@@ -323,7 +323,7 @@ const card = { repair: true, model: 'GAZelle Next', year: 2021, m3: 17.5, kg: 35
 test('версия 21: карточка машины — Sozlamalar E:J напротив названия, заголовки в строке 23, сайт получает E:J', () => {
   const s = loadScript({ sheets: fleetBook() });
   const r = s.post({ ops: [{ t: 'fleet', v: { 'Gazel-2': card } }] });
-  assert.equal(r.v, 23); assert.deepEqual(r.results[0], { ok: true });
+  assert.equal(r.v, 24); assert.deepEqual(r.results[0], { ok: true });
   const z = s.book.sheets.Sozlamalar.rows;
   assert.deepEqual(z[22].slice(4, 10), ['Holati', 'Marka', 'Yili', 'Hajm, m³', 'Yuk, kg', 'Izoh']);
   assert.deepEqual(z[24].slice(2, 10), ['Gazel-2', '01B777CC', 'ta’mirda', 'GAZelle Next', 2021, 17.5, 3500, 'длинная база']);
@@ -376,14 +376,54 @@ test('версия 21: машину в ремонте бот водителю н
 // ошибка скрипта — сайту текстом (иначе Google отдаёт свою страницу, а сайт видит только «Failed to fetch»)
 test('ошибка кода или таблицы — ответ JSON с текстом ошибки (code script); таблица занята дольше 25 с — code busy', () => {
   const s = loadScript({ props: { TOKEN: 'pw' }, sheets: book() });
-  delete s.book.sheets.Yuborishlar;   // лист удалили — запись отгрузки падает
-  const r = s.post({ token: 'pw', ops: [{ t: 'ship.upsert', v: { date: '2026-09-29', bl: 'BL-1' } }] });
-  assert.equal(r.code, 'script', JSON.stringify(r)); assert.match(r.error, /^Ошибка скрипта таблицы: /); assert.equal(r.v, 23);
   s.ctx.dump_ = () => { throw new Error('Service Spreadsheets failed'); };
-  assert.deepEqual(s.get({ token: 'pw' }), { error: 'Ошибка скрипта таблицы: Service Spreadsheets failed', code: 'script', v: 23 });
+  const r = s.post({ token: 'pw', ops: [] });
+  assert.deepEqual(r, { error: 'Ошибка скрипта таблицы: Service Spreadsheets failed', code: 'script', v: 24 });
+  assert.deepEqual(s.get({ token: 'pw' }), { error: 'Ошибка скрипта таблицы: Service Spreadsheets failed', code: 'script', v: 24 });
   s.ctx.LockService.getScriptLock = () => ({ waitLock() { throw new Error('Lock timeout: another process was holding the lock for too long.'); }, releaseLock() {} });
   const b = s.post({ token: 'pw', ops: [] });
   assert.deepEqual([b.code, b.error], ['busy', 'Таблица занята другой записью — сайт повторит сам через полминуты']);
   // пароль по-прежнему проверяется до всего остального
   assert.equal(s.post({ token: 'чужой', ops: [] }).code, 'pass');
+});
+
+// версия 24: правка, которую таблица не приняла (проверка данных «отклонять ввод»), не останавливает остальные
+const valBook = () => {
+  const b = book();
+  b.Mijozlar.maxCols = 25;
+  b.Mijozlar.rows.push(['BL-1', 'NOVA', 'Aziz', '+998900000001', '+998900000011', '', '', 'Chilonzor', 'Bunyodkor 1']);   // строка 5
+  b.Mijozlar.rows.push(['BL-2', 'STAR', 'Bobur', '+998900000002', '', '', '', '', '']);   // строка 6
+  return b;
+};
+const cli = (bl, x = {}) => ({ bl, brand: '', name: '', tel1: '', tel2: '', receiver: '', receiverTel: '', district: '', address: '', lat: '', lon: '', note: '', manualZone: '', link: '', marks: '', ...x });
+test('версия 24: ячейку не приняла проверка данных — эта правка не записана (строка как была), остальные записаны; ответ code cell с листом и строкой', () => {
+  const s = loadScript({ props: { TOKEN: 'pw' }, sheets: valBook() });
+  const M = s.book.sheets.Mijozlar, OK = ['+998900000011', '+998900000022'];
+  M.reject = (r, c, x) => c === 5 && x !== '' && !OK.includes(String(x)) ? 'В ячейке E' + r + ' нарушены правила проверки данных. Укажите одно из следующих значений: ' + OK.join(', ') + '.' : null;
+  const was2 = cli('BL-2', { brand: 'STAR', name: 'Bobur', tel1: '+998900000002' });
+  const r = s.post({ token: 'pw', ops: [
+    { t: 'cli.upsert', key: 'BL-2', was: was2, v: { ...was2, name: 'Bobur A', tel2: '+998977777777', district: 'Sergeli' } },   // телефон не из списка
+    { t: 'cli.upsert', v: cli('BL-3', { name: 'Dilshod', tel1: '+998900000003', tel2: '+998900000099' }) },   // новый клиент, телефон не из списка
+    { t: 'ship.upsert', v: { date: '2026-09-29', bl: 'BL-1', cbm: 1, kg: 10, places: 1, truck: 'Gazel-1', route: 1, status: 'Rejada', note: '' } }] });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.results[0].code, 'cell'); assert.match(r.results[0].error, /^Mijozlar, строка 6: В ячейке E6 нарушены правила проверки данных/);
+  assert.match(r.results[1].error, /^Mijozlar, строка 7: В ячейке E7 /);
+  assert.equal(r.results[2].row, 5, 'отгрузка записана');
+  assert.deepEqual(M.rows[5].slice(0, 9), ['BL-2', 'STAR', 'Bobur', '+998900000002', '', '', '', '', ''], 'строка клиента — как была (имя не записано наполовину)');
+  assert.ok(!(M.rows[6] || []).some(x => x !== '' && x != null), 'новый клиент не остался записанным наполовину: ' + JSON.stringify(M.rows[6]));
+  assert.equal(s.book.sheets.Yuborishlar.rows[4][2], 'BL-1');
+});
+test('версия 24: правка клиента с прежними значениями пишет только изменённые ячейки — телефон не переписывается', () => {
+  const s = loadScript({ props: { TOKEN: 'pw' }, sheets: valBook() });
+  const M = s.book.sheets.Mijozlar, cols = [];
+  M.reject = (r, c) => { cols.push(c); return c === 5 ? 'В ячейке E' + r + ' нарушены правила проверки данных.' : null; };   // E целиком «под проверкой»
+  const was1 = cli('BL-1', { brand: 'NOVA', name: 'Aziz', tel1: '+998900000001', tel2: '+998900000011', district: 'Chilonzor', address: 'Bunyodkor 1' });
+  const r = s.post({ token: 'pw', ops: [{ t: 'cli.upsert', key: 'BL-1', was: was1, v: { ...was1, district: 'Yunusobod', lat: 41.36, lon: 69.28 } }] });
+  assert.deepEqual(r.results[0], { row: 5 }, JSON.stringify(r.results));
+  assert.deepEqual(cols.sort((a, b) => a - b), [8, 11, 12], 'только район и координаты');
+  assert.deepEqual([M.rows[4][4], M.rows[4][7], M.rows[4][10]], ['+998900000011', 'Yunusobod', 41.36]);
+  // без was (старый сайт) и новый клиент — все поля, как раньше
+  cols.length = 0; M.reject = (r, c) => { cols.push(c); return null; };
+  s.post({ token: 'pw', ops: [{ t: 'cli.upsert', key: 'BL-1', v: { ...was1, district: 'Sergeli' } }] });
+  assert.ok([1, 2, 3, 4, 5, 8].every(c => cols.includes(c)), 'без was — вся строка: ' + cols.join());
 });

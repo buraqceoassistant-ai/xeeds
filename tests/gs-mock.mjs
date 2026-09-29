@@ -14,7 +14,8 @@ class Range {
   getValues() { return Array.from({ length: this.nr }, (_, i) => Array.from({ length: this.nc }, (_, j) => this.cell(i, j))); }
   getValue() { return this.cell(0, 0); }
   setValues(v) { v.forEach((row, i) => row.forEach((x, j) => this.sh.set(this.r + i, this.c + j, x))); return this; }
-  setValue(x) { this.sh.set(this.r, this.c, x); return this; }
+  // проверка данных «отклонять ввод»: sh.reject(r, c, x) → текст ошибки Google или ничего
+  setValue(x) { const no = this.sh.reject && this.sh.reject(this.r, this.c, x); if (no) throw new Error(no); this.sh.set(this.r, this.c, x); return this; }
   clearContent() { for (let i = 0; i < this.nr; i++) for (let j = 0; j < this.nc; j++) this.sh.set(this.r + i, this.c + j, ''); return this; }
   setNumberFormat() { return this; }
   setFontWeight() { return this; }
@@ -30,6 +31,7 @@ class Sheet {
   getRange(r, c, nr, nc) { if (c + (nc || 1) - 1 > this.maxCols) throw new Error('Координаты вне листа'); return new Range(this, r, c, nr, nc); }
   getLastRow() { for (let i = this.rows.length; i > 0; i--) if (this.rows[i - 1].some(v => v !== '' && v != null)) return i; return 0; }
   getMaxColumns() { return this.maxCols; }
+  getName() { return this.name; }
   insertColumnsAfter(after, n) { this.maxCols += n; }
   appendRow(row) { this.set(this.getLastRow() + 1, 1, row[0]); const r = this.getLastRow(); row.forEach((x, j) => this.set(r, j + 1, x)); }
   setFrozenRows(n) { this.frozen = n; }
