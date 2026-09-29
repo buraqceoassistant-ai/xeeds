@@ -76,9 +76,10 @@
         <div style="width:8px;height:8px;border:1.5px solid var(--color-accent-700);background:{{ fileDot }}"></div>
         <div style="display:flex;flex-direction:column;line-height:1.25;min-width:0;flex:1 1 200px">
           <span style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fileTitle }}</span>
-          <span style="font-size:12px;color:{{ fileNoteColor }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ fileNote }}</span>
+          <span class="{{ fileNoteCls }}" style="font-size:12px;color:{{ fileNoteColor }}">{{ fileNote }}</span>
         </div>
         <div class="app-strip-actions" style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:0 0 auto">
+          <sc-if value="{{ gsPage }}"><a class="btn btn-secondary" style="white-space:nowrap;text-decoration:none" href="{{ gsUrlOpen }}" target="_blank" rel="noopener" title="Ссылка скрипта таблицы: если скрипт работает, там будет короткий ответ со словом error и номером версии">Открыть скрипт</a></sc-if>
           <sc-if value="{{ gsErr }}"><button data-edit class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ gsRetry }}">Отправить снова</button></sc-if>
           <sc-if value="{{ gsMode }}"><button class="btn btn-ghost" style="white-space:nowrap" sc-camel-on-click="{{ gsPullNow }}">Обновить из таблицы</button></sc-if>
           <button data-edit class="btn btn-secondary" style="white-space:nowrap" sc-camel-on-click="{{ openGs }}">{{ gsLabel }}</button>
@@ -1514,6 +1515,19 @@
             <div style="font-size:12px;color:var(--color-accent-900);margin-top:4px;text-wrap:pretty">С версии 19 скрипт без пароля закрыт. <b>До</b> обновления кода: Apps Script → ⚙ Настройки проекта → Свойства скрипта → <b>TOKEN</b> = пароль скрипта (как в поле «Пароль скрипта» ниже) и <b>EDITOR_TOKEN</b> = секрет редактора (ниже, «ИИ-импорт манифестов» → «Показать секрет») → «Сохранить свойства скрипта». Иначе новый код не пустит сайт.</div></li>
           <li>Скопируйте ссылку веб-приложения (заканчивается на <b>/exec</b>) и вставьте сюда:</li>
         </ol>
+        <details class="gs-help" style="font-size:13px;border:1px solid var(--color-divider);padding:10px 14px">
+          <summary style="cursor:pointer;font-weight:500">Сайт пишет «Скрипт таблицы не отвечает» — что делать</summary>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;text-wrap:pretty">
+            <div>Откройте ссылку веб-приложения (…/exec) в браузере — кнопка «Открыть скрипт» в полосе над страницей. Что там написано:</div>
+            <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
+              <li><b>Короткий ответ со словами error и v</b> — скрипт работает (например, «Неверный пароль» и номер версии). Нажмите «Отправить снова»; не помогло — проверьте интернет.</li>
+              <li><b>«Требуется авторизация» (Authorization is required)</b> — в Apps Script выберите вверху функцию authorize → ▶ Выполнить → разрешите доступ, отметьте все галочки.</li>
+              <li><b>Вход в Google или «Нет доступа»</b> — Развернуть → Управление развертываниями → ✎ → «У кого есть доступ»: «Все» → Развернуть.</li>
+              <li><b>«Не удалось открыть файл» или «Страница не найдена»</b> — ссылка устарела: развертывание удалили или создали новое. Развернуть → Управление развертываниями → скопируйте ссылку действующего (…/exec) и вставьте ниже.</li>
+              <li><b>Ошибка с текстом (TypeError, ReferenceError, SyntaxError…)</b> — код вставлен не полностью: «Скопировать код» → в Apps Script удалите всё → вставьте → Сохранить → Развернуть → Управление развертываниями → ✎ → Версия: новая.</li>
+            </ul>
+          </div>
+        </details>
         <div class="form-grid form-grid-1" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,200px);gap:12px">
           <div class="field"><label>Ссылка веб-приложения</label><input class="input" name="url" value="{{ draft.url }}" sc-camel-on-change="{{ onDraft }}" placeholder="https://script.google.com/macros/s/…/exec"></div>
           <div class="field"><label>Пароль скрипта (свойство TOKEN)</label><input class="input" name="token" value="{{ draft.token }}" sc-camel-on-change="{{ onDraft }}" placeholder="как в свойстве TOKEN"></div>
@@ -1964,7 +1978,7 @@ class Component extends DCLogic {
     return Object.keys(fill).length ? [{ t: 'set', v: fill }] : [];
   }
   gsApply(j, first) {
-    if (!j || j.error || !j.data) { const d = this.gsDeny(j), e = new Error(d || (j && j.error) || 'Пустой ответ'); e.deny = !!d; throw e; }
+    if (!j || j.error || !j.data) { const d = this.gsDeny(j), e = new Error(d || (j && j.error) || 'Пустой ответ'); e.deny = !!d; e.code = j && j.code; throw e; }
     if (this._gsFirst) { first = true; this._gsFirst = false; }
     const data = window.XlsxIO.fromSheets(j.data);
     this.staleNotes(data);
@@ -1988,7 +2002,7 @@ class Component extends DCLogic {
       if (first) this.setReady(data);
       else { const dates = new Set(data.shipments.map(s => s.date)); this.setState(s => ({ data, ver: s.ver + 1, jDate: s.jDate === 'all' || dates.has(s.jDate) ? s.jDate : 'all' })); }
     }
-    this.setState({ gsStatus: 'ok', gsName: j.data.name || 'Google Таблица', gsAt: new Date(), gsMsg: '' });
+    this.setState({ gsStatus: 'ok', gsName: j.data.name || 'Google Таблица', gsAt: new Date(), gsMsg: '', gsWhy: '' });
     if (!same) { clearTimeout(this._autoD); this._autoD = setTimeout(() => this.runAutoDistrict(), 600); }
     this.gsEnqueue(mig);
   }
@@ -2002,7 +2016,7 @@ class Component extends DCLogic {
       const j = await r.json();
       if (this.gsUrl !== url) { this._gsBusy = false; return this.gsUrl && this.gsPull(true); }   // таблицу сменили, пока шёл запрос
       if (!this.gsQueue.length) this.gsApply(j, first);
-    } catch (e) { if (this.gsUrl === url) this.setState({ gsStatus: 'error', gsMsg: e.deny ? e.message : 'Нет связи с Google Таблицей: ' + (e.message || e) }); }
+    } catch (e) { if (this.gsUrl === url) await this.gsFail(e, url, false); }
     this._gsBusy = false;
     if (this.gsQueue.length) this.gsFlush();
   }
@@ -2018,7 +2032,7 @@ class Component extends DCLogic {
       const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: this.gsToken, ops, tgdays: this.tgDays(), more: this.gsQueue.length > ops.length, quiet: !!this._gsQuiet || (this._tgHold || 0) > Date.now() }) });
       const j = await r.json();
       if (this.gsUrl !== url) { this._gsBusy = false; return this.gsUrl && this.gsPull(true); }   // таблицу сменили, пока шёл запрос
-      if (j.error) { const d = this.gsDeny(j), er = new Error(d || j.error); er.deny = !!d; throw er; }
+      if (j.error) { const d = this.gsDeny(j), er = new Error(d || j.error); er.deny = !!d; er.code = j.code; throw er; }
       if ((j.results || []).some(x => x && x.error === 'unknown op')) this.gsOldScript = true;
       this.gsQueue.splice(0, ops.length); this.gsSaveQueue();
       this._gsBusy = false;
@@ -2027,9 +2041,26 @@ class Component extends DCLogic {
     } catch (e) {
       this._gsBusy = false;
       if (this.gsUrl !== url) return this.gsUrl && this.gsPull(true);
-      // пароль или секрет: дело не в связи — только понятный текст, что сделать (правки ждут на устройстве)
-      this.setState({ gsStatus: 'error', gsMsg: e.deny ? e.message : 'Не удалось записать в Google Таблицу — изменения сохранены на устройстве и уйдут, когда появится связь. ' + (e.message || '') });
+      await this.gsFail(e, url, true);
     }
+  }
+  // сбой запроса к скрипту таблицы — понятный текст, что случилось и что сделать. Пароль или секрет — только текст о них.
+  // «Failed to fetch» (TypeError): либо нет сети, либо Google вместо данных отдал свою страницу — ошибка кода скрипта,
+  // нужны разрешения или вход, ссылка устарела. Запрос без CORS отличает одно от другого: страница Google приходит,
+  // без сети — нет. Правки остаются в очереди на устройстве и уходят сами (опрос каждые 30 с).
+  async gsFail(e, url, write) {
+    const keep = write ? ' Правки сохранены на этом устройстве и уйдут сами, когда скрипт ответит.' : '';
+    let msg, why = '';
+    if (e.deny) msg = e.message;
+    else if (e.code === 'busy') msg = 'Таблица занята другой записью — повторю через полминуты.' + keep;
+    else if (e instanceof SyntaxError) { why = 'page'; msg = ''; }   // ответ прочитан, но это не данные, а страница Google
+    else if (e instanceof TypeError) {
+      why = 'net';
+      if (navigator.onLine !== false) try { await fetch(url + (url.includes('?') ? '&' : '?') + 'ping=' + Date.now(), { mode: 'no-cors', cache: 'no-store' }); why = 'page'; } catch (x) { why = 'net'; }
+      if (why === 'net') msg = 'Нет связи с Google — проверьте интернет на этом устройстве.' + keep;
+    } else msg = (write ? 'Не удалось записать в Google Таблицу: ' : 'Нет связи с Google Таблицей: ') + (e.message || e) + (/[.!?]$/.test(e.message || '') ? '' : '.') + keep;
+    if (why === 'page') msg = 'Скрипт таблицы не отвечает: вместо данных Google показывает свою страницу (ошибка в коде скрипта, нужны разрешения или ссылка устарела). Нажмите «Открыть скрипт» — там написано, что не так.' + keep;
+    if (this.gsUrl === url) this.setState({ gsStatus: 'error', gsMsg: msg, gsWhy: why });
   }
   diffOps(prev, next) {
     const ops = [], dels = [];
@@ -3999,11 +4030,12 @@ class Component extends DCLogic {
       fileNoteColor: fs === 'error' ? 'var(--color-accent-900)' : 'var(--color-neutral-700)', fileErr: fs === 'error' && !!this.handle,
       showConnect: !['linked', 'saved', 'saving'].includes(fs), connectLabel: fs === 'needPerm' ? 'Подключить снова' : 'Подключить Excel-файл',
       showReload: ['linked', 'saved'].includes(fs) && !!this.handle, showDisconnect: !!this.handle, exportLabel: st.exporting ? 'Собираю…' : 'Скачать Excel',
-      loadError: st.loadError || '', hasLoadError: !!st.loadError, openGs: this.openGs, gsLabel: 'Google Таблица', gsPullNow: () => this.gsPull(), gsRetry: () => this.gsFlush(), gsMode: false, gsErr: false });
+      loadError: st.loadError || '', hasLoadError: !!st.loadError, openGs: this.openGs, gsLabel: 'Google Таблица', gsPullNow: () => this.gsPull(), gsRetry: () => this.gsFlush(), gsMode: false, gsErr: false, gsPage: false, gsUrlOpen: '', fileNoteCls: 'strip-note' });
     if (this.gsUrl) {
       const gs = st.gsStatus, gat = st.gsAt ? hhmm(st.gsAt.getHours() * 60 + st.gsAt.getMinutes()) : '';
       Object.assign(base, {
         gsMode: true, showConnect: false, showReload: false, showDisconnect: false, fileErr: false, gsErr: gs === 'error' && this.gsQueue.length > 0,
+        gsPage: gs === 'error' && st.gsWhy === 'page', gsUrlOpen: this.gsUrl, fileNoteCls: gs === 'error' ? 'strip-note strip-note-err' : 'strip-note',
         fileTitle: 'Google Таблица: ' + (st.gsName || '…'),
         fileNote: gs === 'loading' ? 'Загружаю данные из таблицы…' : gs === 'saving' ? 'Записываю изменения в таблицу…' : gs === 'error' ? st.gsMsg : this.gsOldScript || this.gsScriptOld ? 'Обновите код скрипта в таблице: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → Управление развертываниями → ✎ → Версия: новая. Без этого часть настроек не записывается в таблицу' + (this.gsVersion && this.gsVersion < 19 ? '. До обновления кода задайте свойства скрипта TOKEN и EDITOR_TOKEN («Настройки» → «Связь»), иначе новый код не пустит сайт' : '') : 'Синхронизировано ' + gat + (this.gsShared ? ' · одна таблица на всех устройствах' : ' · только на этом устройстве') + (this.readOnly ? ' · только просмотр' : ' · правки сразу уходят в таблицу') + ', новые строки подтягиваются каждые 30 сек',
         fileDot: gs === 'error' ? 'transparent' : 'var(--color-accent)', fileNoteColor: gs === 'error' ? 'var(--color-accent-900)' : 'var(--color-neutral-700)', gsLabel: 'Настройки связи' });

@@ -377,3 +377,7 @@ input.set-input[type="text"] { text-align: left !important; }
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px;
   border: 1px solid var(--color-red); border-radius: var(--radius-lg); background: var(--color-surface);
 }
+
+/* полоса «Google Таблица»: подпись в одну строку; ошибка — целиком, в несколько строк */
+.strip-note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strip-note-err { white-space: normal; text-wrap: pretty; }

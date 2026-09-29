@@ -372,3 +372,18 @@ test('версия 21: машину в ремонте бот водителю н
   s.post({ ops: [{ t: 'fleet', v: { 'Gazel-2': card } }] });
   assert.deepEqual(s.ctx.tgTrucks_(), ['Gazel-1', 'Labo']);
 });
+
+// ошибка скрипта — сайту текстом (иначе Google отдаёт свою страницу, а сайт видит только «Failed to fetch»)
+test('ошибка кода или таблицы — ответ JSON с текстом ошибки (code script); таблица занята дольше 25 с — code busy', () => {
+  const s = loadScript({ props: { TOKEN: 'pw' }, sheets: book() });
+  delete s.book.sheets.Yuborishlar;   // лист удалили — запись отгрузки падает
+  const r = s.post({ token: 'pw', ops: [{ t: 'ship.upsert', v: { date: '2026-09-29', bl: 'BL-1' } }] });
+  assert.equal(r.code, 'script', JSON.stringify(r)); assert.match(r.error, /^Ошибка скрипта таблицы: /); assert.equal(r.v, 23);
+  s.ctx.dump_ = () => { throw new Error('Service Spreadsheets failed'); };
+  assert.deepEqual(s.get({ token: 'pw' }), { error: 'Ошибка скрипта таблицы: Service Spreadsheets failed', code: 'script', v: 23 });
+  s.ctx.LockService.getScriptLock = () => ({ waitLock() { throw new Error('Lock timeout: another process was holding the lock for too long.'); }, releaseLock() {} });
+  const b = s.post({ token: 'pw', ops: [] });
+  assert.deepEqual([b.code, b.error], ['busy', 'Таблица занята другой записью — сайт повторит сам через полминуты']);
+  // пароль по-прежнему проверяется до всего остального
+  assert.equal(s.post({ token: 'чужой', ops: [] }).code, 'pass');
+});

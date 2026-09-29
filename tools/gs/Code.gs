@@ -51,6 +51,7 @@
  * Версия 23: владелец сам выбирает, кто на какой машине: на сайте («Водители» и заявка) — действие бота truck.
  *   Одна машина — один водитель: у прежнего водителя этой машины она снимается, он без машины, пока не назначат новую.
  *   Водитель в рабочем дне получает точки новой машины; без машины точек и начала работы нет.
+ *   Ошибка скрипта (или таблица занята дольше 25 с) — сайту текстом, а не страницей Google («Failed to fetch»).
  */
 var TOKEN = '';
 var VERSION = 23; // сайт сверяет версию и просит обновить код, если он старый
@@ -134,15 +135,28 @@ function authorize() {
   Logger.log('Разрешения выданы: таблица и внешние запросы работают (Claude API ответил ' + code + '). Теперь на сайте — «Проверить ИИ».');
 }
 
+// Ошибка в коде или в таблице — сайту текстом. Без этого Google вместо ответа показывает свою страницу, и сайт видит
+// только «Failed to fetch», как будто нет связи. Таблица занята другой записью дольше 25 с — «busy»: сайт повторит сам.
+function scriptErr_(err) {
+  var m = String((err && err.message) || err || '');
+  if (/lock|блокир/i.test(m)) return { error: 'Таблица занята другой записью — сайт повторит сам через полминуты', code: 'busy', v: VERSION };
+  return { error: 'Ошибка скрипта таблицы: ' + m.slice(0, 300), code: 'script', v: VERSION };
+}
+
 function doGet(e) {
-  var p = (e && e.parameter) || {}, deny = access_(p.token);
-  if (deny) return json_(deny);
-  if (p.resolve || p.geo) return json_(locate_(p));
-  return json_({ ok: true, v: VERSION, data: dump_(p.tgdays) });
+  try {
+    var p = (e && e.parameter) || {}, deny = access_(p.token);
+    if (deny) return json_(deny);
+    if (p.resolve || p.geo) return json_(locate_(p));
+    return json_({ ok: true, v: VERSION, data: dump_(p.tgdays) });
+  } catch (err) { return json_(scriptErr_(err)); }
 }
 
 function doPost(e) {
   if (e && e.parameter && e.parameter.tg) return tgWebhook_(e);   // обновление от Telegram (ссылка с секретом бота)
+  try { return post_(e); } catch (err) { return json_(scriptErr_(err)); }
+}
+function post_(e) {
   var raw = (e && e.postData && e.postData.contents) || '{}', body = {};
   try { body = JSON.parse(raw); } catch (err) { return json_({ error: 'Плохой запрос' }); }
   if (body.tgphoto) return json_(tgPhotoUpload_(body.tgphoto));   // фото с камеры водителя: вход по подписи Telegram
