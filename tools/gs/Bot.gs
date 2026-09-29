@@ -68,7 +68,7 @@ var TX = {
     askLocStart: 'Ishni boshlash uchun joylashuvingizni yuboring 👇', askLocEnd: 'Ishni tugatish uchun joylashuvingizni yuboring 👇', askLoc: 'Joylashuvingizni yuboring 👇',
     needLoc: 'Pastdagi «📍 Joylashuvni yuborish» tugmasini bosing.',
     noStops: 'Bugun {truck} uchun manzillar yo‘q. Reja jurnalga yozilgach, «📍 Joriy manzil» tugmasini bosing.',
-    stop: '📦 {i}/{n} manzil · {round}-reys', client: 'Mijoz', addr: 'Manzil', recv: 'Qabul qiluvchi', tel: 'Tel', cargo: '{places} joy · {cbm} m³ · {kg} kg', note: 'Izoh', noCoords: 'Xaritada nuqta yo‘q — manzil bo‘yicha boring.',
+    stop: '📦 {i}/{n} manzil · {round}-reys', client: 'Mijoz', addr: 'Manzil', from: 'Qayerdan', to: 'Qayerga', noAddr: 'manzil ko‘rsatilmagan', recv: 'Qabul qiluvchi', tel: 'Tel', cargo: '{places} joy · {cbm} m³ · {kg} kg', note: 'Izoh', noCoords: 'Xaritada nuqta yo‘q — manzil bo‘yicha boring.',
     bOk: '✅ Yetkazildi', bFail: '❌ Yetkazilmadi',
     askPhoto: '📷 Yukni suratga oling 👇',
     askPhotoChat: 'Yetkazilgan yukning rasmini yuboring (bir yoki bir nechta), keyin «✅ Tayyor» tugmasini bosing.',
@@ -86,7 +86,7 @@ var TX = {
     notWorking: 'Avval «🚚 Ishni boshlash» tugmasini bosing.', already: 'Ish kuni allaqachon boshlangan.',
     stale: 'Bu tugma eskirgan — joriy manzil pastda.', staleNow: 'Bu tugma eskirgan — joriy manzil:', changed: '⚠️ Bugungi reyslaringiz o‘zgardi.', busy: 'Avval joriy manzilni yakunlang.',
     unknown: 'Tugmalardan foydalaning 👇',
-    assign: '📋 Topshiriq: {date} partiyasi\n🚚 {truck} · {n} ta manzil{rounds}\n\nBoshlash uchun «🚚 Ishni boshlash» tugmasini bosing — bot birinchi manzilni yuboradi. Keyingisi faqat yetkazish rasmidan keyin keladi.', assignRounds: ' · {r} ta reys',
+    assign: '📋 Topshiriq: {date} partiyasi\n🚚 {truck} · {n} ta manzil{rounds}{from}\n\nBoshlash uchun «🚚 Ishni boshlash» tugmasini bosing — bot birinchi manzilni yuboradi. Keyingisi faqat yetkazish rasmidan keyin keladi.', assignRounds: ' · {r} ta reys',
     assignNow: '📋 Yangi topshiriq: {date} partiyasi — {n} ta manzil. Birinchi manzil pastda 👇',
     assignChanged: '⚠️ Topshiriq o‘zgardi.', round: '{round}-reys', msg: '📩 Rahbardan xabar:\n{text}',
     bProblem: '⚠️ Muammo', askProblem: 'Nima bo‘ldi?', probAsk: 'Qisqacha yozing va rasm yuboring (ixtiyoriy), keyin joylashuvni yuboring 👇',
@@ -116,7 +116,7 @@ var TX = {
     askLocStart: 'Чтобы начать работу, отправьте геолокацию 👇', askLocEnd: 'Чтобы закончить работу, отправьте геолокацию 👇', askLoc: 'Отправьте геолокацию 👇',
     needLoc: 'Нажмите кнопку «📍 Отправить геолокацию» внизу.',
     noStops: 'На сегодня у {truck} точек нет. Когда план запишут в журнал, нажмите «📍 Текущая точка».',
-    stop: '📦 Точка {i} из {n} · рейс {round}', client: 'Клиент', addr: 'Адрес', recv: 'Получатель', tel: 'Тел', cargo: '{places} мест · {cbm} м³ · {kg} кг', note: 'Примечание', noCoords: 'Точки на карте нет — езжайте по адресу.',
+    stop: '📦 Точка {i} из {n} · рейс {round}', client: 'Клиент', addr: 'Адрес', from: 'Откуда', to: 'Куда', noAddr: 'адрес не указан', recv: 'Получатель', tel: 'Тел', cargo: '{places} мест · {cbm} м³ · {kg} кг', note: 'Примечание', noCoords: 'Точки на карте нет — езжайте по адресу.',
     bOk: '✅ Доставлено', bFail: '❌ Не доставлено',
     askPhoto: '📷 Сфотографируйте груз 👇',
     askPhotoChat: 'Отправьте фото доставленного груза (одно или несколько), затем нажмите «✅ Готово».',
@@ -134,7 +134,7 @@ var TX = {
     notWorking: 'Сначала нажмите «🚚 Начать работу».', already: 'Рабочий день уже начат.',
     stale: 'Эта кнопка устарела — текущая точка ниже.', staleNow: 'Эта кнопка устарела — вот текущая точка:', changed: '⚠️ Ваши рейсы на сегодня изменились.', busy: 'Сначала завершите текущую точку.',
     unknown: 'Пользуйтесь кнопками 👇',
-    assign: '📋 Задание: партия {date}\n🚚 {truck} · точек: {n}{rounds}\n\nЧтобы начать, нажмите «🚚 Начать работу» — бот пришлёт первую точку. Следующая придёт только после фото доставки.', assignRounds: ' · рейсов: {r}',
+    assign: '📋 Задание: партия {date}\n🚚 {truck} · точек: {n}{rounds}{from}\n\nЧтобы начать, нажмите «🚚 Начать работу» — бот пришлёт первую точку. Следующая придёт только после фото доставки.', assignRounds: ' · рейсов: {r}',
     assignNow: '📋 Новое задание: партия {date} — точек: {n}. Первая точка ниже 👇',
     assignChanged: '⚠️ Задание изменилось.', round: 'рейс {round}', msg: '📩 Сообщение от руководителя:\n{text}',
     bProblem: '⚠️ Проблема', askProblem: 'Что случилось?', probAsk: 'Коротко опишите и пришлите фото (по желанию), затем отправьте геолокацию 👇',
@@ -669,6 +669,28 @@ function tgSetStatus_(d, status, who) {
 }
 
 // ── рабочий день ──
+// склад отправки для водителя (версия 22): название (Sozlamalar B7) и адрес по координатам склада — геокодер Google,
+// один раз на язык: хранится в свойстве TG_DEPOT_ADDR, пока координаты склада те же. Геокодер недоступен — только название.
+function tgDepotText_(L) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH.set);
+  if (!sh) return '';
+  var name = String(sh.getRange(SET_ROWS.depotName, 2).getValue() || '').trim(), ll = tgDepot_(), addr = '';
+  if (ll) {
+    var p = props_(), at = ll.join(','), lang = L === 'ru' ? 'ru' : 'uz', memo = {};
+    try { memo = JSON.parse(p.getProperty('TG_DEPOT_ADDR') || '{}'); } catch (err) { memo = {}; }
+    if (memo.at !== at) memo = { at: at };
+    if (memo[lang] === undefined) {
+      try {
+        var g = Maps.newGeocoder().setLanguage(lang).reverseGeocode(ll[0], ll[1]);
+        var res = (g.results || []).filter(function (x) { return (x.types || []).indexOf('plus_code') < 0; })[0];   // без «9GHQ+X2»
+        memo[lang] = res ? String(res.formatted_address || '').replace(/,\s*(Uzbekistan|Oʻzbekiston|O‘zbekiston|Ўзбекистон|Узбекистан)$/i, '') : '';
+        p.setProperty('TG_DEPOT_ADDR', JSON.stringify(memo));
+      } catch (err) { memo[lang] = ''; }
+    }
+    addr = memo[lang] || '';
+  }
+  return name && addr && addr.indexOf(name) < 0 ? name + ' — ' + addr : name || addr;
+}
 function tgDepot_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH.set);
   if (!sh) return null;
@@ -726,7 +748,9 @@ function tgCard_(d, s, stops) {
   var L = d.lang, inRound = stops.filter(function (x) { return x.round === s.round; }), done = inRound.filter(function (x) { return !x.open; }).length, c = s.c;
   var lines = [tx_(L, 'stop', { i: done + 1, n: inRound.length, round: s.round }), '',
     '🏷 ' + s.bl + (c.brand || c.name ? ' · ' + [c.brand, c.name].filter(Boolean).join(' — ') : '')];
-  if (c.district || c.address) lines.push('📍 ' + [c.district, c.address].filter(Boolean).join(', '));
+  var from = tgDepotText_(L);
+  if (from) lines.push('🏭 ' + tx_(L, 'from') + ': ' + from);
+  lines.push('📍 ' + tx_(L, 'to') + ': ' + ([c.district, c.address].filter(Boolean).join(', ') || tx_(L, 'noAddr')));
   if (c.receiver || c.recvTel) lines.push('👤 ' + tx_(L, 'recv') + ': ' + [c.receiver, c.recvTel].filter(Boolean).join(' · '));
   if (c.tel1 && c.tel1 !== c.recvTel) lines.push('☎️ ' + tx_(L, 'tel') + ': ' + c.tel1);
   lines.push('📦 ' + tx_(L, 'cargo', { places: s.places, cbm: tgFmt_(s.cbm), kg: tgFmt_(s.kg) }));
@@ -892,7 +916,8 @@ function tgAssignText_(d, date, stops) {
   var open = stops.filter(function (x) { return x.open; }), rounds = {};
   open.forEach(function (x) { rounds[x.round] = 1; });
   var r = Object.keys(rounds).length;
-  return tx_(d.lang, 'assign', { date: tgDmy_(date), truck: d.truck, n: open.length, rounds: r > 1 ? tx_(d.lang, 'assignRounds', { r: r }) : '' });
+  var from = tgDepotText_(d.lang);
+  return tx_(d.lang, 'assign', { date: tgDmy_(date), truck: d.truck, n: open.length, rounds: r > 1 ? tx_(d.lang, 'assignRounds', { r: r }) : '', from: from ? '\n🏭 ' + tx_(d.lang, 'from') + ': ' + from : '' });
 }
 // «Отправить» с сайта: водителям (всем с точками в партии или выбранным) — задание; тем, кто уже работает, — сразу первая точка.
 // «Всем» (ids пусто) не повторяет водителю тот же план: кто уже получил эту партию с теми же точками (утром или раньше)

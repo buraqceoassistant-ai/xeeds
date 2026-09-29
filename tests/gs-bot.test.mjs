@@ -65,7 +65,7 @@ const connect = t => t.s.post({ token: '', tg: { action: 'setup', url: 'https://
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 21); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 22); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
@@ -178,7 +178,7 @@ test('рабочий день: геолокация → ближайшая то�
   assert.deepEqual([day[0], day[2], day[3], day[4]], [TODAY, 'Gazel-2', '09:00', DEPOT.join(',')]);
   // первая точка — ближайшая к складу: BL-901 (две строки журнала — одна точка, груз сложен)
   const card = t.tg.sent.filter(x => x.method === 'sendMessage' && x.chat_id === '501').map(x => x.text).find(x => /Точка/.test(x));
-  assert.match(card, /📦 Точка 1 из 2 · рейс 1/); assert.match(card, /🏷 BL-901 · NOVA — Aziz/); assert.match(card, /📍 Chilonzor, Bunyodkor 1/);
+  assert.match(card, /📦 Точка 1 из 2 · рейс 1/); assert.match(card, /🏷 BL-901 · NOVA — Aziz/); assert.match(card, /📍 Куда: Chilonzor, Bunyodkor 1/);
   assert.match(card, /👤 Получатель: Aziz · \+998900000001/); assert.match(card, /📦 12 мест · 1,5 м³ · 250 кг/);
   assert.deepEqual([t.last('sendLocation', 501).latitude, t.last('sendLocation', 501).longitude], [41.31, 69.21]);
   // «Доставлено»: без фото нельзя
@@ -353,7 +353,7 @@ test('«Отправить» партию с сайта: задание — чи
   assert.deepEqual(r2.sent.map(x => x.n), [1]);
   // одним сообщением с карточкой первой точки (версия 18; раньше — «Новое задание» отдельно)
   const last1 = t.texts(501).filter(x => /Новое задание/.test(x)).pop();
-  assert.match(last1, /^📋 Новое задание: партия 26\.09\.2026 — точек: 1\. Первая точка ниже 👇\n\n📦 Точка 1 из 1 · рейс 1\n\n🏷 BL-904\n📦 5 мест/);
+  assert.match(last1, /^📋 Новое задание: партия 26\.09\.2026 — точек: 1\. Первая точка ниже 👇\n\n📦 Точка 1 из 1 · рейс 1\n\n🏷 BL-904\n📍 Куда: адрес не указан\n📦 5 мест/);
   // партия без водителя в боте — в пропущенных
   const r3 = t.s.post({ token: '', tg: { action: 'dispatch', date: '2026-09-25' } });
   assert.ok(r3.skipped.some(x => x.truck === 'Gazel-2' && x.why === 'нет точек') || r3.sent.length === 1);
@@ -469,7 +469,7 @@ test('фото только с камеры: кнопка открывает dri
   assert.equal(up({}, initData({ id: 501 }, { token: 'чужой' })).code, 'auth', 'подпись другим токеном');
   assert.equal(up({}, initData({ id: 501 }, { at: Date.UTC(2026, 8, 24) / 1000 })).code, 'auth', 'подпись старше суток');
   assert.equal(up({ key: 'BL-902|1' }).code, 'stage', 'снимок не той точки');
-  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 21 }, 'проверка связи со страницы камеры');
+  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 22 }, 'проверка связи со страницы камеры');
   assert.equal(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-902|1', ping: 1 } }).code, 'stage');
   const r = up({ ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -880,7 +880,7 @@ test('версия 17: кнопки карточки версии 15, остав
   assert.match(t.texts(501).slice(-2).join('\n'), /BL-901/);
   // камера с карточки версии 15: проверка связи не меняет шаг, снимок — как «Доставлено»
   const cam = extra => t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ...extra } });
-  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 21 });
+  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 22 });
   assert.equal(cam({ key: 'BL-902|1', img: JPEG }).code, 'stage', 'не та точка');
   const r = cam({ img: JPEG, ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -1012,4 +1012,33 @@ test('версия 20: следующая точка — только после
   z.s.post({ token: '', tg: { action: 'dispatch', date: TODAY } });
   const a = z.last('sendMessage', 501).text;
   assert.match(a, /^📋 Topshiriq: 26\.09\.2026 partiyasi\n🚚 Gazel-2 · 3 ta manzil · 2 ta reys\n\n.*Keyingisi faqat yetkazish rasmidan keyin keladi\.$/s); assert.doesNotMatch(a, /BL-9/);
+});
+
+// версия 22: откуда и куда — склад отправки (название и адрес по координатам) и адрес клиента
+test('версия 22: водителю — «Откуда» (склад отправки и его адрес) и «Куда» (адрес клиента) в задании и в карточке точки', () => {
+  const t = approved(), calls = [];
+  t.s.book.sheets.Sozlamalar.rows[6] = ['', 'Chuqursoy sklad'];
+  const addr = { ru: 'улица Чукурсой 5, Ташкент, Узбекистан', uz: 'Chuqursoy ko‘chasi 5, Toshkent, Oʻzbekiston' };
+  let fail = false;
+  t.s.ctx.Maps.newGeocoder = () => { let lang; const g = { setLanguage: l => { lang = l; return g; },
+    reverseGeocode: (a, b) => { if (fail) throw new Error('quota'); calls.push([lang, a, b]); return { results: [{ types: ['plus_code'], formatted_address: '9GHQ+X2' }, { types: ['street_address'], formatted_address: addr[lang] }] }; } }; return g; };
+  const r = t.s.post({ tg: { action: 'dispatch', date: TODAY } });
+  assert.deepEqual(r.sent.map(x => x.truck), ['Gazel-2'], JSON.stringify(r));
+  const a = t.last('sendMessage', 501).text;
+  assert.match(a, /^📋 Задание: партия 26\.09\.2026\n🚚 Gazel-2 · точек: 3 · рейсов: 2\n🏭 Откуда: Chuqursoy sklad — улица Чукурсой 5, Ташкент\n\nЧтобы начать/, a);
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  const card = t.texts(501).filter(x => /Точка 1 из/.test(x)).pop();
+  assert.match(card, /🏷 BL-9\d\d[^\n]*\n🏭 Откуда: Chuqursoy sklad — улица Чукурсой 5, Ташкент\n📍 Куда: (Chilonzor, Bunyodkor 1|Yunusobod, Amir Temur 2)\n/, card);
+  assert.deepEqual(calls, [['ru', DEPOT[0], DEPOT[1]]], 'адрес склада — один раз, дальше из памяти');
+  // по-узбекски — свой адрес, один раз
+  assert.equal(t.s.ctx.tgDepotText_('uz'), 'Chuqursoy sklad — Chuqursoy ko‘chasi 5, Toshkent');
+  assert.equal(t.s.ctx.tgDepotText_('uz'), 'Chuqursoy sklad — Chuqursoy ko‘chasi 5, Toshkent');
+  assert.equal(calls.length, 2);
+  // склад переехал — адрес заново; геокодер недоступен — только название
+  t.s.book.sheets.Sozlamalar.rows[7] = ['', 41.35];
+  fail = true;
+  assert.equal(t.s.ctx.tgDepotText_('ru'), 'Chuqursoy sklad');
+  fail = false;
+  assert.equal(t.s.ctx.tgDepotText_('ru'), 'Chuqursoy sklad — улица Чукурсой 5, Ташкент');
+  assert.deepEqual(calls[2], ['ru', 41.35, DEPOT[1]]);
 });
