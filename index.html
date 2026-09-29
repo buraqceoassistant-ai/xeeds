@@ -1024,7 +1024,8 @@
       <sc-if value="{{ dvHasPending }}">
         <section class="dv-card" style="border-color:var(--color-accent-2)">
           <h3 style="margin:0 0 8px">Новые водители — ждут подтверждения</h3>
-          <sc-for list="{{ dvPending }}" as="d"><div class="tg-driver"><div style="flex:1;min-width:0"><b style="font-weight:500">{{ d.name }}</b> · {{ d.truck }} · {{ d.plate }}<div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></div>
+          <sc-for list="{{ dvPending }}" as="d"><div class="tg-driver"><div style="flex:1;min-width:0"><b style="font-weight:500">{{ d.name }}</b><sc-if value="{{ d.noTruckSel }}"> · {{ d.truck }} · {{ d.plate }}</sc-if><div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></div>
+            <sc-if value="{{ d.canTruck }}"><select class="input dv-truck-sel" value="{{ d.truckVal }}" sc-camel-on-change="{{ d.onTruck }}" disabled="{{ dvBusy }}" aria-label="Машина"><sc-for list="{{ d.truckOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></sc-if>
             <sc-if value="{{ dvCanDrv }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.allow }}" disabled="{{ dvBusy }}">Разрешить</button><button class="btn btn-ghost" sc-camel-on-click="{{ d.deny }}" disabled="{{ dvBusy }}">Отклонить</button></sc-if></div></sc-for>
         </section>
       </sc-if>
@@ -1032,11 +1033,12 @@
       <!-- список водителей -->
       <section class="dv-card dv-list-card">
         <h3 style="margin:0 0 8px">Водители</h3>
+        <sc-if value="{{ dvTruckHint }}"><div style="font-size:13px;color:var(--color-neutral-700);margin:-2px 0 8px;text-wrap:pretty">Кто на какой машине — выберите в столбце «Машина». Одна машина — один водитель: прежний водитель этой машины останется без машины, пока вы не назначите другую.</div></sc-if>
         <sc-if value="{{ dvHasList }}">
           <sc-raw-table class="dv-table dv-list"><sc-raw-thead><sc-raw-tr><sc-raw-th>Водитель</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Сейчас</sc-raw-th><sc-raw-th>Точек в партии</sc-raw-th><sc-raw-th>Доставлено</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
             <sc-raw-tbody><sc-for list="{{ dvList }}" as="d"><sc-raw-tr>
               <sc-raw-td class="dv-l-name"><div class="dv-driver"><span class="dv-dot" style="background:{{ d.dot }}"></span><b style="font-weight:500">{{ d.name }}</b></div><div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></sc-raw-td>
-              <sc-raw-td data-label="Машина">{{ d.truck }}<sc-if value="{{ d.hasPlate }}"> <span class="dv-plate">{{ d.plate }}</span></sc-if></sc-raw-td>
+              <sc-raw-td data-label="Машина"><sc-if value="{{ d.canTruck }}"><sc-raw-select class="input dv-truck-sel" value="{{ d.truckVal }}" sc-camel-on-change="{{ d.onTruck }}" disabled="{{ dvBusy }}" aria-label="Машина"><sc-for list="{{ d.truckOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></sc-if><sc-if value="{{ d.noTruckSel }}">{{ d.truck }}<sc-if value="{{ d.hasPlate }}"> <span class="dv-plate">{{ d.plate }}</span></sc-if></sc-if></sc-raw-td>
               <sc-raw-td data-label="Сейчас">{{ d.state }}</sc-raw-td>
               <sc-raw-td data-label="Точек в партии">{{ d.pts }}</sc-raw-td>
               <sc-raw-td data-label="Доставлено">{{ d.done }}</sc-raw-td>
@@ -1970,7 +1972,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 22); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 23); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -2417,6 +2419,23 @@ class Component extends DCLogic {
       this.setState({ dvBusy: false, [key]: { text: done(j), color: 'var(--color-accent)' } });
     } catch (e) { this.setState({ dvBusy: false, [key]: { text: e.message || String(e), color: 'var(--color-red)' } }); }
   }
+  // кто на какой машине (скрипт 23): выбор в списке водителей. Одна машина — один водитель: прежний водитель этой машины
+  // остаётся без машины, пока не назначат другую. Отказ в окне — выбор возвращается к прежней машине.
+  dvTruckTaken(d, truck) {
+    const all = (this.gsTg && this.gsTg.drivers) || [];
+    return truck ? all.filter(x => x.id !== d.id && x.truck === truck && (x.status === 'ruxsat' || x.status === 'kutilmoqda')).map(x => x.name) : [];
+  }
+  dvTakenNote(names) { return names.length ? '\n\nСейчас на этой машине: ' + names.join(', ') + (names.length > 1 ? ' — останутся без машины, пока вы не назначите другую.' : ' — останется без машины, пока вы не назначите другую.') : ''; }
+  dvSetTruck(d, truck, el) {
+    const cur = d.truck || '';
+    if (truck === cur) return;
+    const taken = this.dvTruckTaken(d, truck), live = !!(d.today && d.today.started && !d.today.ended);
+    const q = (truck ? 'Назначить машину ' + truck + ' водителю ' + d.name + '?' : 'Снять машину ' + cur + ' с водителя ' + d.name + '? Пока вы не назначите другую, водитель не получит точек.') +
+      this.dvTakenNote(taken) + (live && truck ? '\n\nВодитель на линии: бот сразу пришлёт точки новой машины, текущая точка останется у прежней.' : '');
+    if (!confirm(q)) { if (el) el.value = cur; return; }
+    this.dvRun('Назначаю машину…', { action: 'truck', id: d.id, truck }, j => (truck ? d.name + ': машина ' + truck + '. Водителю пришло сообщение.' : d.name + ': машина снята. Водителю пришло сообщение.') +
+      ((j.freed || []).length ? ' Без машины: ' + j.freed.join(', ') + '.' : ''));
+  }
   // «Позже» на вопрос «Отправить водителям сейчас?»: правки журнала ушли в таблицу тихо — пустая запись (скрипт 18)
   // говорит скрипту сообщить об изменениях тем водителям, у кого задание уже было
   async gsTgRelease() {
@@ -2556,6 +2575,13 @@ class Component extends DCLogic {
     const kinds = this.dvKindDefs(S), capOf = k => kinds.find(x => x.k === k) || { capM3: 0, capKg: 0 };
     const log = ((T && T.log) || []).slice(), days = ((T && T.days) || []).slice();
     const plates = data.lists.plates || {}, plateOf = t => plates[t] || (ok.find(d => d.truck === t && d.plate) || {}).plate || '';
+    // выбор машины водителю (скрипт 23): «— без машины» и машины автопарка, кроме «в ремонте»; у занятой — кто на ней
+    const fleet = data.lists.fleet || {}, canTruck = !ro && this.gsVersion >= 23 && !!T;
+    const truckFree = data.lists.trucks.filter(t => t && !TG_NOT_TRUCKS.includes(t) && !(fleet[t] || {}).repair);
+    const truckOptsFor = (d, cur) => [{ v: '', l: '— без машины' }].concat((cur && !truckFree.includes(cur) ? [cur] : []).concat(truckFree).map(t => {
+      const p = plateOf(t), on = ok.filter(x => x.id !== d.id && x.truck === t).map(x => x.name);
+      return { v: t, l: t + (p ? ' · ' + p : '') + ((fleet[t] || {}).repair ? ' · в ремонте' : '') + (on.length ? ' — ' + on.join(', ') : '') };
+    }));
     const TABS = [['day', 'Кто что везёт'], ['deliv', 'Лента доставок']];
     Object.assign(out, {
       dvTabs: TABS.map(([k, l]) => ({ l, go: () => set({ dvTab: k }), bg: st.dvTab === k ? 'var(--color-accent-2)' : 'transparent', fg: st.dvTab === k ? 'var(--color-on-brand)' : 'var(--color-text)' })),
@@ -2568,21 +2594,22 @@ class Component extends DCLogic {
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
     out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу: «Настройки» → «Связь».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 22. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 23. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
       !T ? 'Телеграм-бот не подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (22): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (23): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота»: «Настройки» → «Связь».' :
       !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — «Настройки» → «Связь».' :
       T.tz && !UZ_TZ.includes(T.tz) ? 'Часовой пояс Google Таблицы — ' + T.tz + ', а не Ташкент: время водителей («на линии с …»), «сегодня» и итог дня в 20:00 сдвинуты. ' +
         'Исправьте: в Google Таблице Файл → Настройки → Часовой пояс → «(GMT+05:00) Tashkent» → Сохранить; в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent». Затем «Настройки» → «Связь» → «Переподключить бота».' :
-      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 22
+      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 23
       this.gsVersion < 16 && T.scriptTz && !UZ_TZ.includes(T.scriptTz) ? 'Часовой пояс скрипта — ' + T.scriptTz + ', а не Ташкент: даты партий могут сдвигаться на день назад (04.05.2006 → 03.05.2006). ' +
-        'Обновите код скрипта до 22 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
+        'Обновите код скрипта до 23 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
       // код ниже 22: скрипту ниже 19 — сначала свойства (без них код 19+ закроет сайт), потом что изменится — по предложению на каждое изменение
-      this.gsVersion < 22 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 22. ' +
+      this.gsVersion < 23 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 23. ' +
         (this.gsVersion < 19 ? 'Сначала задайте свойства скрипта TOKEN (пароль скрипта) и EDITOR_TOKEN (секрет редактора): Apps Script → ⚙ Настройки проекта → Свойства скрипта; что вписать — «Настройки» → «Связь». Без них новый код не пустит сайт. ' +
           'Потом «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' : '«Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.') +
-        ' Водитель увидит, откуда забирать груз и куда везти: склад отправки с адресом и адрес клиента — в задании и в карточке точки.' +
+        ' Вы сами сможете выбирать, кто на какой машине: в списке водителей и при подтверждении заявки.' +
+        (this.gsVersion < 22 ? ' Водитель увидит, откуда забирать груз и куда везти: склад отправки с адресом и адрес клиента — в задании и в карточке точки.' : '') +
         (this.gsVersion < 21 ? ' Машину можно будет переименовать, отметить «в ремонте», записать марку, год и свою вместимость: «Настройки» → «Водители и автопарк».' : '') +
         (this.gsVersion < 20 ? ' Водитель увидит следующую точку только после фото предыдущей: в задании больше нет списка всех точек.' : '') +
         (this.gsVersion < 19 ? ' Без пароля скрипт будет закрыт для всех.' : '') +
@@ -2665,9 +2692,17 @@ class Component extends DCLogic {
       ],
       dvHasNoTruck: noTruck.length > 0, dvNoTruck: 'В партии ' + dLong(date) + ' без машины ' + noTruck.length + ' отгр. (' + [...new Set(noTruck.map(s => s.bl))].slice(0, 8).join(', ') + (noTruck.length > 8 ? '…' : '') + ') — водитель их не получит. Назначьте машины: «Планы» → «Принять план» или в журнале.',
       dvGoPlans: () => set({ tab: 'plans', planDate: date }),
-      dvPending: drivers.filter(d => d.status === 'kutilmoqda').map(d => ({ name: d.name, truck: d.truck, plate: d.plate || '—', sub: [d.user, d.at ? 'заявка ' + d.at : '', d.lang === 'ru' ? 'русский' : 'узбекский'].filter(Boolean).join(' · '),
-        allow: () => this.dvRun('Открываю доступ…', { action: 'driver', id: d.id, status: 'ruxsat' }, () => d.name + ': доступ открыт, водителю пришло сообщение.'),
-        deny: () => { if (confirm('Отклонить заявку ' + d.name + '?')) this.dvRun('Отклоняю…', { action: 'driver', id: d.id, status: 'rad' }, () => d.name + ': заявка отклонена.'); } })),
+      dvPending: drivers.filter(d => d.status === 'kutilmoqda').map(d => { const pick = ((st.dvPendTruck || {})[d.id] != null ? st.dvPendTruck[d.id] : d.truck) || ''; return { name: d.name, truck: d.truck || '—', plate: d.plate || '—', sub: [d.user, d.at ? 'заявка ' + d.at : '', d.lang === 'ru' ? 'русский' : 'узбекский'].filter(Boolean).join(' · '),
+        canTruck, noTruckSel: !canTruck, truckVal: pick, truckOpts: truckOptsFor(d, pick), onTruck: e => set({ dvPendTruck: { ...(st.dvPendTruck || {}), [d.id]: e.target.value } }),
+        allow: () => {
+          if (canTruck) {
+            const taken = this.dvTruckTaken(d, pick);
+            if (!pick && !confirm('Машина не выбрана: водитель не сможет начать работу, пока вы её не назначите. Разрешить?')) return;
+            if (taken.length && !confirm('Разрешить работу водителю ' + d.name + ' на машине ' + pick + '?' + this.dvTakenNote(taken))) return;
+          }
+          this.dvRun('Открываю доступ…', { action: 'driver', id: d.id, status: 'ruxsat', ...(canTruck ? { truck: pick } : {}) }, j => d.name + ': доступ открыт, водителю пришло сообщение.' + ((j.freed || []).length ? ' Без машины: ' + j.freed.join(', ') + '.' : ''));
+        },
+        deny: () => { if (confirm('Отклонить заявку ' + d.name + '?')) this.dvRun('Отклоняю…', { action: 'driver', id: d.id, status: 'rad' }, () => d.name + ': заявка отклонена.'); } }; }),
       dvMapRef: this.dvMapRef,
       dvMapNote: 'Точки партии: синие — доставлено, красные — не доставлено, тёмные — ещё везут; 🚚 — где водитель отметился последний раз.'
     });
@@ -2678,11 +2713,12 @@ class Component extends DCLogic {
       out.dvList = ok.map(d => {
         const n = (byTruck[d.truck] || {})._n || { stops: 0, ok: 0, fail: 0, open: 0 }, ln = drvLine(d), plate = plateOf(d.truck) || d.plate || '';
         return { name: d.name, sub: [d.user, d.lang === 'ru' ? 'русский' : 'узбекский'].filter(Boolean).join(' · '), truck: d.truck || '—', plate, hasPlate: !!plate, dot: ln.dot, state: ln.state,
+          canTruck, noTruckSel: !canTruck, truckVal: d.truck || '', truckOpts: truckOptsFor(d, d.truck), onTruck: e => this.dvSetTruck(d, e.target.value, e.target),
           pts: n.stops ? f0(n.stops) : '—', done: n.stops ? n.ok + ' из ' + n.stops + (n.fail ? ', не доставлено ' + n.fail : '') : '—', _o: order(d.truck),
           canSend: can && n.open > 0, send: () => this.dvDispatch(date, [d], [d.truck]), canWrite: can, write: () => this.dvWrite([d.id], d.name),
-          canOff: !ro && v9 && !!T, off: () => { if (confirm('Отключить водителя ' + d.name + ' (' + d.truck + ')? Бот перестанет показывать ему точки.')) this.dvRun('Отключаю…', { action: 'driver', id: d.id, status: 'o‘chirilgan' }, () => d.name + ': доступ закрыт.'); } };
+          canOff: !ro && v9 && !!T, off: () => { if (confirm('Отключить водителя ' + d.name + ' (' + (d.truck || '—') + ')? Бот перестанет показывать ему точки.')) this.dvRun('Отключаю…', { action: 'driver', id: d.id, status: 'o‘chirilgan' }, () => d.name + ': доступ закрыт.'); } };
       }).sort((a, b) => a._o - b._o || a.name.localeCompare(b.name));
-      out.dvHasList = out.dvList.length > 0; out.dvNoList = !out.dvList.length;
+      out.dvHasList = out.dvList.length > 0; out.dvNoList = !out.dvList.length; out.dvTruckHint = canTruck && out.dvHasList;
       out.dvNoListText = !T ? 'Водители появятся здесь, когда бот будет подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».' :
         'В боте пока нет водителей с доступом. Ссылка для водителей — «Настройки» → «Связь»: водитель открывает её, нажимает «Старт» и регистрируется, заявка появится здесь.';
       out.dvOff = drivers.filter(d => d.status === 'rad' || d.status === 'o‘chirilgan').map(d => ({ name: d.name, truck: d.truck || '—', label: d.status === 'rad' ? 'отклонён' : 'отключён',
@@ -3483,7 +3519,7 @@ class Component extends DCLogic {
       body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', tg, tgdays: this.tgDays(), site: location.origin + location.pathname.replace(/[^/]*$/, ''), hook: this.gsUrl }) });
     const j = await r.json();
     { const d = this.gsDeny(j); if (d) throw new Error(d); }   // пароль или секрет — раньше проверки версии
-    const need = ['settings', 'carry'].includes(tg.action) ? 12 : tg.action === 'dispatcher' ? 11 : ['dispatch', 'message', 'summary'].includes(tg.action) ? 10 : 9;   // отправка партии, сообщения, итог дня — с 10; диспетчер — с 11; настройки бота и перенос — с 12
+    const need = tg.action === 'truck' || (tg.action === 'driver' && tg.truck != null) ? 23 : ['settings', 'carry'].includes(tg.action) ? 12 : tg.action === 'dispatcher' ? 11 : ['dispatch', 'message', 'summary'].includes(tg.action) ? 10 : 9;   // отправка партии, сообщения, итог дня — с 10; диспетчер — с 11; настройки бота и перенос — с 12; машина водителя — с 23
     if (!(j.v >= need)) throw new Error('Для этого нужен код скрипта таблицы версии ' + need + ' (сейчас ' + (j.v || 'старее 8') + '): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия развертывания');
     if (j.error && /external_request|UrlFetchApp\.fetch/.test(j.error)) throw new Error('Скрипту таблицы не разрешены внешние запросы: в Apps Script выберите функцию authorize → ▶ Выполнить → отметьте все галочки → Продолжить.');
     if (j.error) throw new Error(j.error);
@@ -4404,7 +4440,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 22 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 23 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :

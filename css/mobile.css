@@ -243,6 +243,7 @@
   .ai-rep-cols { grid-template-columns: minmax(0, 1fr); }
   .dv-stop { flex-wrap: wrap; }
   .dv-move { max-width: none; flex: 1 1 100%; }
+  .dv-truck-sel, .tg-driver .dv-truck-sel { max-width: none; width: 100%; flex: 1 1 100%; }
   .dv-map { height: 340px; }
   .dv-set { grid-template-columns: minmax(0, 1fr); }
   .dv-kinds { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -254,6 +255,7 @@
 /* «Водители»: список водителей на телефоне — карточками (подпись ячейки — из data-label) */
 @media screen and (max-width: 700px) {
   .dv-list, .dv-list tbody, .dv-list tr, .dv-list td { display: block; width: auto; }
+  .dv-list { min-width: 0; }   /* карточками — по ширине экрана, без прокрутки таблицы вбок */
   .dv-list thead { display: none; }
   .dv-list tr { padding: 10px 0; border-bottom: 1px solid var(--color-divider); }
   .dv-list td { padding: 2px 0 !important; border: 0 !important; }

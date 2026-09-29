@@ -65,7 +65,7 @@ const connect = t => t.s.post({ token: '', tg: { action: 'setup', url: 'https://
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 22); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 23); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
@@ -103,10 +103,10 @@ test('обновление без секрета или с чужим — не �
   assert.deepEqual(out, { html: 'ok' }); assert.equal(t.tg.sent.length, n);
 });
 
-function register(t, id = 501, lang = 'ru', truckIdx = 1) {
+function register(t, id = 501, lang = 'ru', truckIdx = 1, name = 'Akmal Karimov') {
   t.msg(id, '/start');
   t.cb(id, 'lang:' + lang);
-  t.msg(id, 'Akmal Karimov');
+  t.msg(id, name);
   t.cb(id, 'trk:' + truckIdx);
   t.msg(id, '01a 123-bc');
   t.cb(id, 'reg:send');
@@ -469,7 +469,7 @@ test('фото только с камеры: кнопка открывает dri
   assert.equal(up({}, initData({ id: 501 }, { token: 'чужой' })).code, 'auth', 'подпись другим токеном');
   assert.equal(up({}, initData({ id: 501 }, { at: Date.UTC(2026, 8, 24) / 1000 })).code, 'auth', 'подпись старше суток');
   assert.equal(up({ key: 'BL-902|1' }).code, 'stage', 'снимок не той точки');
-  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 22 }, 'проверка связи со страницы камеры');
+  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 23 }, 'проверка связи со страницы камеры');
   assert.equal(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-902|1', ping: 1 } }).code, 'stage');
   const r = up({ ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -880,7 +880,7 @@ test('версия 17: кнопки карточки версии 15, остав
   assert.match(t.texts(501).slice(-2).join('\n'), /BL-901/);
   // камера с карточки версии 15: проверка связи не меняет шаг, снимок — как «Доставлено»
   const cam = extra => t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ...extra } });
-  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 22 });
+  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 23 });
   assert.equal(cam({ key: 'BL-902|1', img: JPEG }).code, 'stage', 'не та точка');
   const r = cam({ img: JPEG, ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -1041,4 +1041,59 @@ test('версия 22: водителю — «Откуда» (склад отп�
   fail = false;
   assert.equal(t.s.ctx.tgDepotText_('ru'), 'Chuqursoy sklad — улица Чукурсой 5, Ташкент');
   assert.deepEqual(calls[2], ['ru', 41.35, DEPOT[1]]);
+});
+
+// версия 23: кто на какой машине — выбирает владелец на сайте; одна машина — один водитель
+test('версия 23: машину назначает сайт — у прежнего водителя она снимается; в рабочем дне — точки новой машины; без машины работу не начать', () => {
+  const t = withPlates(approved());
+  t.s.book.sheets.Sozlamalar.set(26, 4, '01 A 333 CC');
+  register(t, 502, 'ru', 2, 'Bobur Aliev'); t.cb(900, 'allow:502', t.group);
+  const drv = () => Object.fromEntries(t.s.get({}).data.tg.drivers.map(d => [d.id, [d.truck, d.plate]]));
+  assert.deepEqual(drv(), { 501: ['Gazel-2', '01A 123 BC'], 502: ['Gazel-3', '01 A 333 CC'] });
+  // 501 в работе на Gazel-2, на шаге «фото»
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  const cur = t.s.get({}).data.tg.drivers.find(d => d.id === '501').today.cur.bl;
+  t.cb(501, 'ok:' + cur + '|1');
+  // сайт: 501 — на Gazel-3; Bobur без машины
+  const r = t.s.post({ tg: { action: 'truck', id: '501', truck: 'Gazel-3' } });
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.deepEqual(r.freed, ['Bobur Aliev']);
+  assert.deepEqual(drv(), { 501: ['Gazel-3', '01 A 333 CC'], 502: ['', ''] }, 'госномер — из автопарка');
+  assert.equal(t.last('sendMessage', 502).text, '🚚 Машина Gazel-3 больше не за вами. Новую назначит диспетчер.');
+  assert.match(t.texts(501).filter(x => /назначена машина/.test(x)).pop(), /^🚚 Вам назначена машина: Gazel-3 · 01 A 333 CC\n\n📦 Точка 1 из 1 · рейс 1\n[\s\S]*BL-904/, 'шаг на старой машине сброшен — точка новой');
+  assert.deepEqual(t.s.get({}).data.tg.drivers.find(d => d.id === '501').today.cur, { bl: 'BL-904', round: 1 });
+  assert.deepEqual(t.status(cur), t.status(cur).map(() => 'Rejada'), 'точка старой машины осталась открытой');
+  // без машины: работу не начать, «Отправить» — «нет машины»
+  t.msg(502, '🚚 Начать работу');
+  assert.equal(t.last('sendMessage', 502).text, '🚚 У вас пока нет машины. Обратитесь к диспетчеру.');
+  const dr = t.s.post({ tg: { action: 'dispatch', date: TODAY } });
+  assert.ok(dr.skipped.some(x => x.name === 'Bobur Aliev' && x.why === 'нет машины'), JSON.stringify(dr.skipped));
+  assert.ok(dr.skipped.some(x => x.truck === 'Gazel-2' && x.why === 'нет водителя в боте'), JSON.stringify(dr.skipped));
+  // нет в автопарке или в ремонте — отказ, ничего не меняется
+  assert.match(t.s.post({ tg: { action: 'truck', id: '502', truck: 'Gazel-9' } }).error, /^Машины «Gazel-9» нет в автопарке или она в ремонте/);
+  const set = t.s.book.sheets.Sozlamalar; set.maxCols = 10; set.set(24, 5, 'ta’mirda');
+  assert.match(t.s.post({ tg: { action: 'truck', id: '502', truck: 'Gazel-1' } }).error, /в ремонте/);
+  assert.equal(t.s.post({ tg: { action: 'truck', id: '999', truck: 'Gazel-2' } }).error, 'Нет такого водителя');
+  // снять машину: водитель в работе остаётся без точек
+  const n = t.s.post({ tg: { action: 'truck', id: '501', truck: '' } });
+  assert.deepEqual([n.ok, n.freed], [true, []]);
+  assert.equal(t.last('sendMessage', 501).text, '🚚 Машина Gazel-3 больше не за вами. Новую назначит диспетчер.');
+  assert.deepEqual(drv(), { 501: ['', ''], 502: ['', ''] });
+  t.msg(501, '📍 Текущая точка');
+  assert.equal(t.last('sendMessage', 501).text, '🚚 У вас пока нет машины. Обратитесь к диспетчеру.');
+  // заявка: сайт подтверждает с другой машиной; у заявки с той же машиной она снимается
+  register(t, 503, 'uz', 1, 'Dilshod Umarov');   // Gazel-1 в ремонте — в кнопках Gazel-2, Gazel-3, …: выбрал Gazel-3
+  register(t, 504, 'ru', 0, 'Sardor Nazarov');   // Gazel-2
+  const a = t.s.post({ tg: { action: 'driver', id: '503', status: 'ruxsat', truck: 'Gazel-2' } });
+  assert.deepEqual([a.ok, a.freed], [true, ['Sardor Nazarov']], JSON.stringify(a));
+  assert.deepEqual(t.texts(503).slice(-2), ['Ruxsat berildi ✅ Ish kuningizni «🚚 Ishni boshlash» tugmasi bilan boshlang.', '🚚 Sizga mashina biriktirildi: Gazel-2 · 01 A 222 BB']);
+  assert.ok(!t.texts(504).some(x => /Машина/.test(x)), 'водителю с заявкой не пишем');
+  const inf = Object.fromEntries(t.s.get({}).data.tg.drivers.map(d => [d.id, [d.truck, d.status]]));
+  assert.deepEqual([inf[503], inf[504]], [['Gazel-2', 'ruxsat'], ['', 'kutilmoqda']]);
+  // подтверждение без машины на сайте (старый сайт) — машина из заявки; отказ по машине — статус не меняется
+  assert.match(t.s.post({ tg: { action: 'driver', id: '504', status: 'ruxsat', truck: 'Gazel-9' } }).error, /Gazel-9/);
+  assert.equal(t.s.get({}).data.tg.drivers.find(d => d.id === '504').status, 'kutilmoqda');
+  // тот же водитель, та же машина — без сообщений
+  const k = t.tg.sent.length;
+  assert.deepEqual(t.s.post({ tg: { action: 'truck', id: '503', truck: 'Gazel-2' } }).freed, []);
+  assert.equal(t.tg.sent.filter(x => x.method === 'sendMessage').length, t.tg.sent.slice(0, k).filter(x => x.method === 'sendMessage').length);
 });

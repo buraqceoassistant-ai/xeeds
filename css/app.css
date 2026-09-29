@@ -300,6 +300,8 @@ button.imp-check:hover { background: var(--color-surface); }
 .dv-stop { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
 .dv-stop > .tag { flex: none; margin-top: 1px; }
 .dv-move { width: auto; max-width: 150px; font-size: 12px; padding: 4px 8px; flex: none; }
+.dv-truck-sel { width: 250px; max-width: 100%; min-height: 30px; padding: 3px 6px; font-size: 13px; }
+.tg-driver .dv-truck-sel { flex: none; }
 .dv-photos { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; margin-top: 2px; }
 .dv-photos a { color: var(--color-accent); white-space: nowrap; }
 .dv-map { height: 460px; border: 1px solid var(--color-divider); }

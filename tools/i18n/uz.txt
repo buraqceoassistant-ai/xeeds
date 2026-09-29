@@ -2237,10 +2237,29 @@ X — по районам	X — tumanlar bo‘yicha
 например, GAZelle Next	masalan, GAZelle Next
 
 # ── версия 22: откуда и куда (бот) ──
-Для бота нужен код скрипта таблицы версии 22 (не ниже 9).	Bot uchun jadval skripti kodining 22-versiyasi kerak (9 dan past emas).
-Обновите код скрипта до 22 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 22 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
-Скрипт таблицы версии {n}: для бота нужна версия 22. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 22-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
-Скрипт таблицы версии ?: для бота нужна версия 22. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 22-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
-Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (22): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Haydovchilarga partiya yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (22) yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
-Обновите код до 22.	Kodni 22-versiyaga yangilang.
+Для бота нужен код скрипта таблицы версии 23 (не ниже 9).	Bot uchun jadval skripti kodining 23-versiyasi kerak (9 dan past emas).
+Обновите код скрипта до 23 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 23 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Скрипт таблицы версии {n}: для бота нужна версия 23. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 23-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
+Скрипт таблицы версии ?: для бота нужна версия 23. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 23-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
+Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (23): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Haydovchilarga partiya yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (23) yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Обновите код до 23.	Kodni 23-versiyaga yangilang.
 Водитель увидит, откуда забирать груз и куда везти: склад отправки с адресом и адрес клиента — в задании и в карточке точки.	Haydovchi yukni qayerdan olish va qayerga olib borishni ko‘radi: jo‘natish ombori manzili bilan va mijoz manzili — topshiriqda va manzil kartasida.
+
+# ── версия 23: кто на какой машине ──
+— без машины	— mashinasiz
+Кто на какой машине — выберите в столбце «Машина». Одна машина — один водитель: прежний водитель этой машины останется без машины, пока вы не назначите другую.	Kim qaysi mashinada — «Mashina» ustunida tanlang. Bitta mashina — bitta haydovchi: bu mashinaning oldingi haydovchisi siz boshqasini biriktirmaguningizcha mashinasiz qoladi.
+Назначить машину {s} водителю {s2}?	{s} mashinasi {s2} haydovchisiga biriktirilsinmi?
+Сейчас на этой машине: {s} — останется без машины, пока вы не назначите другую.	Hozir bu mashinada: {s} — siz boshqasini biriktirmaguningizcha mashinasiz qoladi.
+Сейчас на этой машине: {s} — останутся без машины, пока вы не назначите другую.	Hozir bu mashinada: {s} — siz boshqasini biriktirmaguningizcha mashinasiz qolishadi.
+Водитель на линии: бот сразу пришлёт точки новой машины, текущая точка останется у прежней.	Haydovchi yo‘lda: bot darhol yangi mashina manzillarini yuboradi, joriy manzil oldingi mashinada qoladi.
+Снять машину {s} с водителя {s2}?	{s} mashinasi {s2} haydovchisidan olinsinmi?
+Пока вы не назначите другую, водитель не получит точек.	Siz boshqasini biriktirmaguningizcha haydovchi manzil olmaydi.
+Назначаю машину…	Mashina biriktiryapman…
+{s}: машина {s2}.	{s}: {s2} mashinasi.
+{s}: машина снята.	{s}: mashina olindi.
+Водителю пришло сообщение.	Haydovchiga xabar bordi.
+Разрешить работу водителю {s} на машине {s2}?	{s} haydovchisiga {s2} mashinasida ishlashga ruxsat berilsinmi?
+Машина не выбрана: водитель не сможет начать работу, пока вы её не назначите.	Mashina tanlanmagan: siz biriktirmaguningizcha haydovchi ishni boshlay olmaydi.
+Разрешить?	Ruxsat berilsinmi?
+Вы сами сможете выбирать, кто на какой машине: в списке водителей и при подтверждении заявки.	Kim qaysi mashinada ekanini o‘zingiz tanlay olasiz: haydovchilar ro‘yxatida va arizani tasdiqlashda.
+Машины «{s}» нет в автопарке или она в ремонте	«{s}» mashinasi avtoparkda yo‘q yoki ta’mirda

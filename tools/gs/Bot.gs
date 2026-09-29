@@ -68,6 +68,8 @@ var TX = {
     askLocStart: 'Ishni boshlash uchun joylashuvingizni yuboring 👇', askLocEnd: 'Ishni tugatish uchun joylashuvingizni yuboring 👇', askLoc: 'Joylashuvingizni yuboring 👇',
     needLoc: 'Pastdagi «📍 Joylashuvni yuborish» tugmasini bosing.',
     noStops: 'Bugun {truck} uchun manzillar yo‘q. Reja jurnalga yozilgach, «📍 Joriy manzil» tugmasini bosing.',
+    truckSet: '🚚 Sizga mashina biriktirildi: {truck}', truckOff: '🚚 {truck} mashinasi endi sizga biriktirilmagan. Yangisini dispetcher biriktiradi.',
+    noTruck: '🚚 Sizda hozircha mashina yo‘q. Dispetcherga murojaat qiling.',
     stop: '📦 {i}/{n} manzil · {round}-reys', client: 'Mijoz', addr: 'Manzil', from: 'Qayerdan', to: 'Qayerga', noAddr: 'manzil ko‘rsatilmagan', recv: 'Qabul qiluvchi', tel: 'Tel', cargo: '{places} joy · {cbm} m³ · {kg} kg', note: 'Izoh', noCoords: 'Xaritada nuqta yo‘q — manzil bo‘yicha boring.',
     bOk: '✅ Yetkazildi', bFail: '❌ Yetkazilmadi',
     askPhoto: '📷 Yukni suratga oling 👇',
@@ -116,6 +118,8 @@ var TX = {
     askLocStart: 'Чтобы начать работу, отправьте геолокацию 👇', askLocEnd: 'Чтобы закончить работу, отправьте геолокацию 👇', askLoc: 'Отправьте геолокацию 👇',
     needLoc: 'Нажмите кнопку «📍 Отправить геолокацию» внизу.',
     noStops: 'На сегодня у {truck} точек нет. Когда план запишут в журнал, нажмите «📍 Текущая точка».',
+    truckSet: '🚚 Вам назначена машина: {truck}', truckOff: '🚚 Машина {truck} больше не за вами. Новую назначит диспетчер.',
+    noTruck: '🚚 У вас пока нет машины. Обратитесь к диспетчеру.',
     stop: '📦 Точка {i} из {n} · рейс {round}', client: 'Клиент', addr: 'Адрес', from: 'Откуда', to: 'Куда', noAddr: 'адрес не указан', recv: 'Получатель', tel: 'Тел', cargo: '{places} мест · {cbm} м³ · {kg} кг', note: 'Примечание', noCoords: 'Точки на карте нет — езжайте по адресу.',
     bOk: '✅ Доставлено', bFail: '❌ Не доставлено',
     askPhoto: '📷 Сфотографируйте груз 👇',
@@ -391,6 +395,7 @@ function tgHandle_(u) {
 function tgStartAsk_(d, w) {
   var L = d.lang;
   if (w && w.started) return tgSend_(d.id, tx_(L, 'already'), tgMenu_(L)) && tgCurrent_(d, w);
+  if (!d.truck) return tgSend_(d.id, tx_(L, 'noTruck'), tgMenu_(L));
   var a = tgAssigned_(d);
   d.st.work = { day: tgNow_('yyyy-MM-dd'), date: a ? a.date : tgNow_('yyyy-MM-dd'), stage: 'startLoc' }; tgSave_(d);
   return tgSend_(d.id, tx_(L, 'askLocStart'), tgLocKb_(L));
@@ -667,6 +672,45 @@ function tgSetStatus_(d, status, who) {
   if (status === 'ruxsat') tgSend_(d.id, tx_(d.lang, 'approved'), tgMenu_(d.lang));
   else tgSend_(d.id, tx_(d.lang, status === 'rad' ? 'rejected' : 'off'), { remove_keyboard: true });
 }
+// машина водителя — с сайта (версия 23): владелец выбирает, кто на какой машине. Одна машина — один водитель: у другого
+// водителя этой машины (подтверждённого или с заявкой) она снимается — водитель без машины, пока не назначат новую.
+// truck '' — снять машину. Госномер — из автопарка (Sozlamalar D). Ответ: имена водителей, с которых сняли машину.
+function tgTruckErr_(truck) {
+  truck = String(truck || '').trim();
+  return truck && tgTrucks_().indexOf(truck) < 0 ? 'Машины «' + truck + '» нет в автопарке или она в ремонте' : '';
+}
+function tgSetTruck_(d, truck) {
+  truck = String(truck || '').trim();
+  var err = tgTruckErr_(truck), freed = [];
+  if (err) return { error: err };
+  if (truck) tgDrivers_().forEach(function (x) {
+    if (x.id === d.id || x.truck !== truck || (x.status !== 'ruxsat' && x.status !== 'kutilmoqda')) return;
+    x.truck = ''; x.plate = ''; freed.push(x.name);
+    if (x.status === 'ruxsat') tgTruckMoved_(x, tx_(x.lang, 'truckOff', { truck: truck }));
+    else tgSave_(x);
+  });
+  if (truck === d.truck) return { freed: freed };
+  var old = d.truck;
+  d.truck = truck; d.plate = truck ? tgPlates_()[truck] || '' : '';
+  if (d.status === 'ruxsat') tgTruckMoved_(d, truck ? tx_(d.lang, 'truckSet', { truck: truck + (d.plate ? ' · ' + d.plate : '') }) : tx_(d.lang, 'truckOff', { truck: old }));
+  else tgSave_(d);
+  return { freed: freed };
+}
+// водителю сменили машину: в рабочем дне — точки новой машины с начала (шаг на старой машине сброшен, точка осталась
+// открытой у старой машины), без машины — только сообщение; задание партии — пересчитано по новой машине
+function tgTruckMoved_(x, head) {
+  var w = tgWork_(x), a = tgAssigned_(x), L = x.lang, st = tgStops_(x.truck, (w && w.date) || (a && a.date) || '');
+  if (w && w.started) {
+    w.round = null; w.cur = null; w.stage = null; w.wait = null; w.photos = []; w.photoLL = null; w.result = null; w.reason = null;
+    if (x.truck) return tgNext_(x, w, head);
+    w.sig = tgSig_(st); tgSave_(x);
+    return tgSend_(x.id, head, tgMenu_(L));
+  }
+  if (a) a.sig = tgSig_(st);
+  tgSave_(x);
+  if (a && st.some(function (s) { return s.open; })) return tgSend_(x.id, head + '\n\n' + tgAssignText_(x, a.date, st), tgMenu_(L));
+  return tgSend_(x.id, head, tgMenu_(L));
+}
 
 // ── рабочий день ──
 // склад отправки для водителя (версия 22): название (Sozlamalar B7) и адрес по координатам склада — геокодер Google,
@@ -713,6 +757,7 @@ function tgData_() {
 }
 // точки машины на дату: строки журнала этой машины, по клиенту и номеру рейса; клиент — адрес, получатель, координаты
 function tgStops_(truck, date) {
+  if (!truck) return [];   // водитель без машины (версия 23): иначе совпали бы строки журнала без машины
   var D = tgData_(), tz = D.tz, out = {}, order = [];
   D.rows.forEach(function (r, i) {
     var dt = r[0] instanceof Date ? day_(r[0], tz) : String(r[0]).slice(0, 10);
@@ -763,6 +808,7 @@ function tgCard_(d, s, stops) {
 function tgNext_(d, w, head) {
   var L = d.lang, stops = tgStops_(d.truck, w.date), h = head ? head + '\n\n' : '';
   w.sig = tgSig_(stops);
+  if (!d.truck) { w.cur = null; tgSave_(d); return tgSend_(d.id, h + tx_(L, 'noTruck'), tgMenu_(L)); }
   if (!stops.length) { w.cur = null; tgSave_(d); return tgSend_(d.id, h + tx_(L, 'noStops', { truck: d.truck }), tgMenu_(L)); }
   var round = w.round || Math.min.apply(null, stops.filter(function (s) { return s.open; }).map(function (s) { return s.round; }).concat([99]));
   if (round === 99) { w.cur = null; tgSave_(d); return tgSend_(d.id, h + tx_(L, 'allDone'), tgMenu_(L)); }
@@ -893,7 +939,7 @@ function tgAfterOps_(ops, hold) {
 function tgChanged_(skip) {
   TG_MEMO = null;
   tgDrivers_().forEach(function (d) {
-    if (d.status !== 'ruxsat' || skip[d.id]) return;
+    if (d.status !== 'ruxsat' || skip[d.id] || !d.truck) return;
     var w = tgWork_(d), a = tgAssigned_(d);
     if (w && w.started) {
       var sig = tgSig_(tgStops_(d.truck, w.date));
@@ -930,6 +976,7 @@ function tgDispatch_(date, ids, auto) {
   var one = !!(ids && ids.length), done = {};
   var targets = one ? drivers.filter(function (d) { return ids.indexOf(d.id) >= 0; }) : drivers;
   targets.forEach(function (d) {
+    if (!d.truck) { if (!auto) skipped.push({ id: d.id, name: d.name, truck: '', why: 'нет машины' }); return; }
     var stops = tgStops_(d.truck, date), open = stops.filter(function (x) { return x.open; }), sig = tgSig_(stops);
     if (!open.length) { if (!auto) skipped.push({ id: d.id, name: d.name, truck: d.truck, why: 'нет точек' }); return; }
     var w = tgWork_(d), a0 = tgAssigned_(d), who = { id: d.id, name: d.name, truck: d.truck, n: open.length };
@@ -977,7 +1024,7 @@ function tgSummaryText_(day) {
   var put = function (t) { return (byTruck[t] = byTruck[t] || { truck: t, names: [], ok: 0, fail: 0, left: 0, start: '', end: '', dates: {} }); };
   rec.days.filter(function (x) { return x.day === day; }).forEach(function (x) { var o = put(x.truck); if (o.names.indexOf(x.name) < 0) o.names.push(x.name); o.start = o.start || x.start; o.end = x.end || o.end; o.dates[x.date || day] = 1; });
   rec.log.filter(function (x) { return String(x.t).slice(0, 10) === day; }).forEach(function (x) { var o = put(x.truck); if (o.names.indexOf(x.name) < 0) o.names.push(x.name); o[x.ok ? 'ok' : 'fail']++; o.dates[x.date] = 1; });
-  tgDrivers_().forEach(function (d) { var a = d.st && d.st.assign; if (d.status === 'ruxsat' && a && a.day === day && !a.used) { var o = put(d.truck); if (o.names.indexOf(d.name) < 0) o.names.push(d.name); o.dates[a.date] = 1; o.noStart = true; } });
+  tgDrivers_().forEach(function (d) { var a = d.st && d.st.assign; if (d.status === 'ruxsat' && d.truck && a && a.day === day && !a.used) { var o = put(d.truck); if (o.names.indexOf(d.name) < 0) o.names.push(d.name); o.dates[a.date] = 1; o.noStart = true; } });
   var list = Object.keys(byTruck).sort().map(function (k) { return byTruck[k]; });
   if (!list.length) return '';
   TG_MEMO = null;
@@ -1313,11 +1360,20 @@ function tgSite_(body) {
     return { ok: true, v: VERSION, text: tx };
   }
   if (a.action === 'driver') {
-    var d = tgDriver_(a.id);
+    var d = tgDriver_(a.id), fr = [];
     if (!d) return { error: 'Нет такого водителя', v: VERSION };
     if (['ruxsat', 'rad', 'o‘chirilgan'].indexOf(a.status) < 0) return { error: 'Неизвестный статус', v: VERSION };
+    var give = a.status === 'ruxsat' && a.truck != null, te = give ? tgTruckErr_(a.truck) : '';   // заявка с машиной, выбранной на сайте
+    if (te) return { error: te, v: VERSION };
     tgSetStatus_(d, a.status, 'сайт');
-    return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
+    if (give) fr = tgSetTruck_(d, a.truck).freed;
+    return { ok: true, v: VERSION, freed: fr, tg: tgInfo_(body.tgdays) };
+  }
+  if (a.action === 'truck') {
+    var dt = tgDriver_(a.id);
+    if (!dt || dt.status === 'yangi') return { error: 'Нет такого водителя', v: VERSION };
+    var tr = tgSetTruck_(dt, a.truck);
+    return tr.error ? { error: tr.error, v: VERSION } : { ok: true, v: VERSION, freed: tr.freed, tg: tgInfo_(body.tgdays) };
   }
   return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
 }
