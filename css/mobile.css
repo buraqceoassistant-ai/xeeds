@@ -252,8 +252,9 @@
   .dv-table { min-width: 640px; }
 }
 
-/* «Водители»: список водителей на телефоне — карточками (подпись ячейки — из data-label) */
-@media screen and (max-width: 700px) {
+/* «Водители»: список водителей на телефоне и планшете — карточками (подпись ячейки — из data-label). До 960 px:
+   таблица с выбором машины и тремя кнопками на планшете (820 px) была шире экрана */
+@media screen and (max-width: 960px) {
   .dv-list, .dv-list tbody, .dv-list tr, .dv-list td { display: block; width: auto; }
   .dv-list { min-width: 0; }   /* карточками — по ширине экрана, без прокрутки таблицы вбок */
   .dv-list thead { display: none; }
@@ -261,6 +262,8 @@
   .dv-list td { padding: 2px 0 !important; border: 0 !important; }
   .dv-list td[data-label]::before { content: attr(data-label) ": "; color: var(--color-neutral-700); font-size: 12px; }
   .dv-list-acts { text-align: left; white-space: normal; padding-top: 6px !important; }
+}
+@media screen and (max-width: 700px) {
   .dv-send-btn { width: 100%; }
   .subtabs-in { padding: 8px 12px; }
 }

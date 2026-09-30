@@ -2305,3 +2305,9 @@ X — по районам	X — tumanlar bo‘yicha
 Понятно	Tushunarli
 автопарк	avtopark
 настройки	sozlamalar
+
+# ── скорость: отложенная загрузка кода скрипта ──
+Код скрипта ещё загружается — нажмите через секунду.	Skript kodi hali yuklanmoqda — bir soniyadan keyin bosing.
+Загружаю код…	Kodni yuklayapman…
+Вышла новая версия сайта	Saytning yangi versiyasi chiqdi
+Обновить	Yangilash

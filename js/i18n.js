@@ -164,7 +164,8 @@
     sh = sh || {}; sh[a] = r; shownAttr.set(el, sh); liveAttr.add(el);
     el.setAttribute(a, r);
   }
-  function walk(root) {
+  // noMarks — из наблюдателя: кнопки языка отмечаются один раз на пачку изменений, а не на каждый новый узел
+  function walk(root, noMarks) {
     if (!root) return;
     if (root.nodeType === 3) { doText(root); return; }
     if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
@@ -172,7 +173,7 @@
     while ((n = w.nextNode())) doText(n);
     if (root.nodeType === 1) ATTRS.forEach(function (a) { if (root.hasAttribute(a)) doAttr(root, a); });
     if (root.querySelectorAll) root.querySelectorAll(ATTR_SEL).forEach(function (el) { ATTRS.forEach(function (a) { if (el.hasAttribute(a)) doAttr(el, a); }); });
-    marks(root);
+    if (!noMarks) marks(root);
   }
   function restore() {
     liveText.forEach(function (n) { if (shownText.get(n) === n.nodeValue) n.nodeValue = origText.get(n); shownText.delete(n); });
@@ -189,17 +190,37 @@
     var list = root && root.querySelectorAll ? root.querySelectorAll('[data-lang-set]') : [];
     Array.prototype.forEach.call(list, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-lang-set') === lang)); });
   }
+  // Кнопки языка отмечаются один раз на пачку изменений: раньше — на каждый добавленный узел поиском по его родителю,
+  // и таблица на 800 строк (каждая строка — узел в том же родителе) перерисовывалась секундами (рост квадратичный)
   var mo = new MutationObserver(function (list) {
-    if (lang !== 'uz' && !AUDIT) { list.forEach(function (m) { if (m.type === 'childList') m.addedNodes.forEach(function (x) { if (x.nodeType === 1) marks(x.parentNode || x); }); }); return; }
+    var grew = false;
+    if (lang !== 'uz' && !AUDIT) {
+      for (var i = 0; i < list.length && !grew; i++) if (list[i].type === 'childList') for (var j = 0; j < list[i].addedNodes.length; j++) if (list[i].addedNodes[j].nodeType === 1) { grew = true; break; }
+      if (grew) marks(document);
+      return;
+    }
     list.forEach(function (m) {
       if (m.type === 'characterData') doText(m.target);
       else if (m.type === 'attributes') doAttr(m.target, m.attributeName);
-      else m.addedNodes.forEach(walk);
+      else m.addedNodes.forEach(function (x) { if (x.nodeType === 1) grew = true; walk(x, true); });
     });
+    if (grew) marks(document);
   });
   // мелкие правки старых записей (например, «данные пользователя») не переводятся: только видимые строки сайта
+  // словарь по-русски не загружен (index.html) — при переходе на узбекский загрузить и потом перевести
+  var dictReady = !!window.I18N_UZ;
+  function withDict(cb) {
+    if (dictReady || window.I18N_UZ) { if (!dictReady) { load(window.I18N_UZ); dictReady = true; } cb(); return; }
+    var sc = document.createElement('script');
+    sc.src = 'js/i18n-uz.js';
+    sc.onload = function () { load(window.I18N_UZ); dictReady = true; cb(); };
+    sc.onerror = function () { cb(); };
+    document.head.appendChild(sc);
+  }
   function set(l) {
     if (l !== 'uz' && l !== 'ru') return;
+    if (l === 'uz' && !dictReady && !window.I18N_UZ) { withDict(function () { set(l); }); return; }
+    if (!dictReady && window.I18N_UZ) { load(window.I18N_UZ); dictReady = true; }
     var was = lang; lang = l;
     try { localStorage.setItem(KEY, l); } catch (e) { /* закрытый режим */ }
     document.documentElement.setAttribute('lang', l);
@@ -221,7 +242,7 @@
   });
 
   window.I18N = { get lang() { return lang; }, set: set, t: t, missing: missing, load: load, onChange: [] };
-  load(window.I18N_UZ);
+  if (window.I18N_UZ) load(window.I18N_UZ);
   document.documentElement.setAttribute('lang', lang);
   mo.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
   // отчёты в Excel (LogiEngine.xlsx) — на языке сайта: листы, заголовки и подписи; файл данных журнала не трогаем

@@ -108,6 +108,10 @@ html.locked, html.locked body { overflow: hidden; }
   background: var(--color-bg); border: 1px solid var(--color-divider); box-shadow: var(--shadow-md);
   font-family: var(--font-body);
 }
+/* «Вышла новая версия сайта · Обновить» — слева внизу, чтобы не закрывать «Установить приложение» */
+.new-version { z-index: 5100; right: auto; left: max(16px, env(safe-area-inset-left)); padding: 6px 6px 6px 14px; gap: 8px; }   /* поверх окна входа (5000) */
+.new-version-text { font-size: 13px; }
+@media screen and (max-width: 520px) { .new-version { right: max(16px, env(safe-area-inset-right)); } .new-version-text { flex: 1; } }
 
 /* ── Плавность: переходы кнопок, появление вкладок и окон, полоски заполнения ──
    Анимируются только прозрачность и сдвиг (их рисует видеокарта, без подтормаживаний).

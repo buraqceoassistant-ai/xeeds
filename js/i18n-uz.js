@@ -2265,4 +2265,8 @@ window.I18N_UZ = {"BURAQ logistics — отгрузки и клиенты":"BURA
 "Внесите правку снова.":"O‘zgartirishni qayta kiriting.",
 "Понятно":"Tushunarli",
 "автопарк":"avtopark",
-"настройки":"sozlamalar"};
+"настройки":"sozlamalar",
+"Код скрипта ещё загружается — нажмите через секунду.":"Skript kodi hali yuklanmoqda — bir soniyadan keyin bosing.",
+"Загружаю код…":"Kodni yuklayapman…",
+"Вышла новая версия сайта":"Saytning yangi versiyasi chiqdi",
+"Обновить":"Yangilash"};

@@ -17,7 +17,11 @@
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/mobile.css">
 <!-- язык сайта (русский / узбекский): словарь и перевод поверх страницы — до приложения, чтобы окна и первый экран были на выбранном языке -->
-<script src="js/i18n-uz.js"></script>
+<script>/* узбекский словарь (250 КБ) — сразу только если сайт по-узбекски или идёт проверка словаря; по-русски он
+   загружается при нажатии «UZ» (js/i18n.js) — первый экран открывается быстрее */
+(function () { var l = '', a = ''; try { l = localStorage.getItem('buraq-lang') || ''; a = localStorage.getItem('buraq-i18n-audit') || ''; } catch (e) {}
+  if (l !== 'uz' && l !== 'ru') l = /^uz\b/i.test(navigator.language || '') ? 'uz' : 'ru';
+  if (l === 'uz' || a === '1') document.write('<script src="js/i18n-uz.js"><\/script>'); })();</script>
 <script src="js/i18n.js"></script>
 <!-- dc-runtime берёт React из window, а не с CDN; пустая карта ресурсов отключает повторную загрузку страницы -->
 <script>window.__resources = {};</script>
@@ -31,7 +35,6 @@
 <script defer src="js/import-checks.js"></script>
 <script defer src="js/import-local.js"></script>
 <script defer src="js/import-pdf.js"></script>
-<script defer src="js/logi-gs-script.js"></script>
 <script defer src="js/auth.js"></script>
 <script defer src="js/app-shell.js"></script>
 </head>
@@ -246,6 +249,7 @@
             </sc-for>
           </sc-raw-tbody>
         </sc-raw-table>
+        <sc-if value="{{ cHasMore }}"><div style="padding:14px;text-align:center;border-top:1px solid var(--color-divider)"><button class="btn btn-secondary" sc-camel-on-click="{{ cShowMore }}">{{ cMoreLabel }}</button></div></sc-if>
       </div>
 
       <section style="margin-top:32px">
@@ -1709,6 +1713,9 @@ const f1 = (n, d = 1) => (n == null || isNaN(n)) ? '—' : (+n).toLocaleString('
 const money = n => n == null ? '—' : Math.round(n).toLocaleString('ru-RU') + ' сум';
 const dShort = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) : '';
 const dLong = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4) : '';
+// сравнение BL и названий машин: «BL-2» раньше «BL-10»; один сравниватель на всё — localeCompare с параметрами на
+// каждом сравнении заново строит правила, и сортировка 800 клиентов занимала десятую долю секунды
+const ruCmp = new Intl.Collator('ru', { numeric: true }).compare;
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 // маркировки клиента: «CBETKO,  svetko ; CBETKO» → «CBETKO, SVETKO» (без повторов, как пишут в манифестах — капсом)
 const normMarks = s => [...new Set(String(s || '').split(/[,;\n]+/).map(x => x.trim().replace(/\s+/g, ' ').toUpperCase()).filter(Boolean))].join(', ');
@@ -1744,7 +1751,7 @@ const telHref = t => t ? 'tel:' + String(t).replace(/[^\d+]/g, '').replace(/^998
 
 class Component extends DCLogic {
   state = { ready: false, tab: 'journal', data: null, ver: 0, savedAt: null,
-    jDate: 'all', jLimit: 60, editRow: null, jStatus: 'all', jSearch: '', cSearch: '', cDistrict: 'all', cZone: 'all',
+    jDate: 'all', jLimit: 60, cLimit: 100, editRow: null, jStatus: 'all', jSearch: '', cSearch: '', cDistrict: 'all', cZone: 'all',
     mapDate: 'all', mapPlan: 'none', mapBase: (() => { try { return localStorage.getItem('logi-map-base') || 'yandex'; } catch (e) { return 'yandex'; } })(), planDate: '', planKey: 'A', planC: (() => { try { return localStorage.getItem('logi-plan-c') === '1'; } catch (e) { return false; } })(), dialog: null,
     vizTrip: 'all', vizStep: 0, vizSel: null, vizView: '3d', vizErr: '',
     calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 },
@@ -2221,16 +2228,20 @@ class Component extends DCLogic {
   // планы считаются один раз на партию, пока не изменились данные и настройки (отчёты за период берут все партии)
   plansFor(date) {
     const { data } = this.state, D = this.derived(), E = window.LogiEngine;
-    const vehicles = this.fleetVehicles(data), key = D.ver + '|' + JSON.stringify(data.settings) + '|' + JSON.stringify(vehicles);
-    if (!this._plans || this._plans.key !== key) this._plans = { key, byDate: new Map() };
-    if (this._plans.byDate.has(date)) return this._plans.byDate.get(date);
+    const vehicles = this.fleetVehicles(data);
     const stops = data.shipments.filter(s => s.date === date && !E.NO_PLAN.includes(s.status)).map(s => {
       const c = D.cmap[s.bl] || {};
       return { id: s.id, bl: s.bl, cbm: +s.cbm || 0, kg: +s.kg || 0, places: +s.places || 0, lat: c.lat ?? null, lon: c.lon ?? null, zone: (D.zones[s.bl] || {}).zone, client: c };
     });
+    // кэш по партии: ключ — её точки (с клиентами), настройки и машины. Правка другой партии или обновление из таблицы,
+    // где эта партия не менялась, её планы не пересчитывают (оптимизатор тяжёлый: «Расходы» строят планы всех партий периода)
+    const key = JSON.stringify(data.settings) + '|' + JSON.stringify(vehicles) + '|' + JSON.stringify(stops);
+    if (!this._plans) this._plans = new Map();
+    const hit = this._plans.get(date);
+    if (hit && hit.key === key) return hit.res;
     const res = E.buildPlans(stops, { ...data.settings, vehicles });   // машины поимённо: своя вместимость, «в ремонте» — не в планах
     res.all = stops;
-    this._plans.byDate.set(date, res);
+    this._plans.set(date, { key, res });
     return res;
   }
 
@@ -2265,7 +2276,7 @@ class Component extends DCLogic {
         return t.ret;
       }, S.dayStart * 1440));
       const rank = { labo: 0, changan: 1, gazel: 2, kamaz: 3 };
-      trips.sort((a, b) => (rank[a.kind] - rank[b.kind]) || a.truck.localeCompare(b.truck, 'ru', { numeric: true }) || a.route - b.route);
+      trips.sort((a, b) => (rank[a.kind] - rank[b.kind]) || ruCmp(a.truck, b.truck) || a.route - b.route);
       left = ships.filter(s => !D.tripOf[s.id]).map(s => ({ ...stopOf(s), why: E.NO_PRICE.includes(s.status) ? ST[s.status] || s.status : !E.vehicleKind(s.truck) ? 'без машины' : 'без номера рейса' }));
     } else {
       src = 'plan';
@@ -2378,7 +2389,7 @@ class Component extends DCLogic {
     });
     out.impAddRow = () => this.impAddRow();
     // маркировки → клиенты
-    const opts = [{ v: '', l: '— выберите клиента —' }, { v: '__none', l: 'Без клиента' }].concat(data.clients.slice().sort((a, b) => a.bl.localeCompare(b.bl, 'ru', { numeric: true })).map(x => ({ v: x.bl, l: x.bl + (x.brand ? ' · ' + x.brand : '') + (x.name ? ' — ' + x.name : '') })));
+    const opts = [{ v: '', l: '— выберите клиента —' }, { v: '__none', l: 'Без клиента' }].concat(data.clients.slice().sort((a, b) => ruCmp(a.bl, b.bl)).map(x => ({ v: x.bl, l: x.bl + (x.brand ? ' · ' + x.brand : '') + (x.name ? ' — ' + x.name : '') })));
     const BY = { code: 'по коду', mark: 'по маркировке клиента', brand: 'по бренду', 'unknown-owner': 'без владельца', ai: 'предложение ИИ принято', user: 'выбрано вручную' };
     const CONF = { high: 'высокая', medium: 'средняя', low: 'низкая' };
     out.impMarks = groups.map(g => { const m = g.decision || {};
@@ -4092,7 +4103,7 @@ class Component extends DCLogic {
         jDraftsNote: 'Черновиков импорта ждут проверки: ' + drafts.length + ' (' + drafts.slice(0, 3).map(d => (d.file && d.file.name) || d.id).join(', ') + (drafts.length > 3 ? '…' : '') + '). Партии появятся в журнале после подтверждения.' });
       const q = st.jSearch.trim().toLowerCase();
       const rows = data.shipments.filter(s => (st.jDate === 'all' || s.date === st.jDate) && (st.jStatus === 'all' || s.status === st.jStatus) && (!q || [s.bl, s.note, ...(Object.values(D.cmap[s.bl] || {}))].join(' ').toLowerCase().includes(q)))
-        .sort((a, b) => b.date.localeCompare(a.date) || a.bl.localeCompare(b.bl, 'ru', { numeric: true }));
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0) || ruCmp(a.bl, b.bl));   // даты ГГГГ-ММ-ДД — простым сравнением
       const tripSet = new Set();
       rows.forEach(s => D.tripOf[s.id] && tripSet.add(D.tripOf[s.id]));
       const priceSum = [...tripSet].reduce((a, k) => a + (D.trips[k].price.total || 0), 0), jc = this.costOf([...tripSet].map(k => D.trips[k].cost));
@@ -4179,9 +4190,14 @@ class Component extends DCLogic {
     if (st.tab === 'clients') {
       const q = st.cSearch.trim().toLowerCase();
       const rows = data.clients.filter(c => (st.cDistrict === 'all' || c.district === st.cDistrict) && (st.cZone === 'all' || ((D.zones[c.bl] || {}).zone || 'none') === st.cZone) && (!q || Object.values(c).join(' ').toLowerCase().includes(q)))
-        .sort((a, b) => a.bl.localeCompare(b.bl, 'ru', { numeric: true }));
+        .sort((a, b) => ruCmp(a.bl, b.bl));
       out.cCount = rows.length + ' из ' + data.clients.length;
-      out.cRows = (this.cFull ? rows : rows.slice(0, 40)).map(c => { const z = D.zones[c.bl] || {}, a = agg[c.bl] || { n: 0, cbm: 0 };
+      // по 100 строк, «Показать ещё» — как в журнале: 800 клиентов разом перерисовывались секундами на каждую букву поиска
+      const cShown = rows.slice(0, st.cLimit || 100);
+      out.cHasMore = rows.length > cShown.length;
+      out.cMoreLabel = 'Показать ещё (' + (rows.length - cShown.length) + ')';
+      out.cShowMore = () => this.setState(s => ({ cLimit: (s.cLimit || 100) + 100 }));
+      out.cRows = (this.cFull ? cShown : cShown.slice(0, 40)).map(c => { const z = D.zones[c.bl] || {}, a = agg[c.bl] || { n: 0, cbm: 0 };
         const open = !!(st.cAddrOpen || {})[c.bl];   // длинный адрес — две строки, по кнопке целиком
         return { addrOpen: open, addrShut: !open, addrLong: (c.address || '').length > 80, addrMore: open ? 'свернуть ▴' : 'ещё ▾',
           addrToggle: () => this.setState(s => ({ cAddrOpen: { ...(s.cAddrOpen || {}), [c.bl]: !open } })),
@@ -4195,7 +4211,7 @@ class Component extends DCLogic {
           dist: z.dist != null ? f1(z.dist, 1) + ' км' : '—', hasPoint: w.lat != null, pointHref: w.lat != null ? E.yPoint(w.lat, w.lon) : '', onEdit: () => this.openWh(w) }; });
       out.whCount = (data.warehouses || []).length;
       out.newWh = () => this.openWh(null);
-      Object.assign(out, { cSearch: st.cSearch, cDistrict: st.cDistrict, cZone: st.cZone, onCSearch: e => this.setState({ cSearch: e.target.value }), onCDistrict: e => this.setState({ cDistrict: e.target.value }), onCZone: e => this.setState({ cZone: e.target.value }), newClient: () => this.openClient(null) });
+      Object.assign(out, { cSearch: st.cSearch, cDistrict: st.cDistrict, cZone: st.cZone, onCSearch: e => this.setState({ cSearch: e.target.value, cLimit: 100 }), onCDistrict: e => this.setState({ cDistrict: e.target.value, cLimit: 100 }), onCZone: e => this.setState({ cZone: e.target.value, cLimit: 100 }), newClient: () => this.openClient(null) });
     }
 
     if (st.tab === 'map') {
@@ -4459,9 +4475,16 @@ class Component extends DCLogic {
       } else if (dl.type === 'gs' && st.tab === 'link') {
         out.isGsDialog = true;
         out.gsConnectLabel = this.gsUrl ? 'Подключить заново' : 'Подключить';
-        out.gsScript = window.LOGI_GS_SCRIPT || '';
+        // код скрипта таблицы (170 КБ) — только здесь: загружается при открытии «Связи», а не при каждом входе
+        if (!window.LOGI_GS_SCRIPT && !this._gsCodeLoading) {
+          this._gsCodeLoading = true;
+          const sc = document.createElement('script'); sc.src = 'js/logi-gs-script.js';
+          sc.onload = () => this.forceUpdate(); sc.onerror = () => { this._gsCodeLoading = false; };
+          document.head.appendChild(sc);
+        }
+        out.gsScript = window.LOGI_GS_SCRIPT || 'Загружаю код…';
         out.gsConnected = !!this.gsUrl;
-        out.copyGs = e => { const b = e.currentTarget; navigator.clipboard.writeText(window.LOGI_GS_SCRIPT || '').then(() => { b.textContent = 'Скопировано ✓'; setTimeout(() => { b.textContent = 'Скопировать код'; }, 1800); }).catch(() => { const ta = document.getElementById('gs-code'); ta && ta.select(); document.execCommand('copy'); }); };
+        out.copyGs = e => { if (!window.LOGI_GS_SCRIPT) { alert('Код скрипта ещё загружается — нажмите через секунду.'); return; } const b = e.currentTarget; navigator.clipboard.writeText(window.LOGI_GS_SCRIPT || '').then(() => { b.textContent = 'Скопировано ✓'; setTimeout(() => { b.textContent = 'Скопировать код'; }, 1800); }).catch(() => { const ta = document.getElementById('gs-code'); ta && ta.select(); document.execCommand('copy'); }); };
         out.gsNeedGh = !(window.LogiAuth && window.LogiAuth.hasGhToken());
         // ИИ-импорт: секрет редактора (настройки руководителя) и проверка связи
         { const A = window.LogiAuth, own = A && A.owner ? A.owner() : { state: 'none', config: {} }, ai = dl.ai || {}, sec = own.config.editorToken || '';

@@ -7,11 +7,41 @@
   // ── Service worker ──
   // На localhost не регистрируется, чтобы правки были видны сразу; ?sw=1 включает его для проверки.
   var local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !/[?&]sw=1\b/.test(location.search);
+  // Новая версия сайта: приложение на телефоне открыто неделями и не перезагружается — само оно новую сборку не
+  // увидит (браузер проверяет её только при открытии страницы). Проверяем раз в 30 минут и при возврате в приложение;
+  // когда новая сборка установилась, внизу — «Вышла новая версия сайта · Обновить» (перезагрузка — по кнопке:
+  // правки журнала хранятся на устройстве, но открытое окно с несохранённым вводом закрылось бы).
   if ('serviceWorker' in navigator && location.protocol !== 'file:' && !local) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('[sw] регистрация не удалась:', e); });
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        var check = function () { reg.update().catch(function () { /* нет сети — в следующий раз */ }); };
+        setInterval(check, 30 * 60 * 1000);
+        document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
+      }).catch(function (e) { console.warn('[sw] регистрация не удалась:', e); });
+    });
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadController) { hadController = true; return; }   // первая установка — это не новая версия
+      showUpdate();
     });
   }
+  function showUpdate() {
+    if (document.getElementById('new-version')) return;
+    var box = document.createElement('div');
+    box.id = 'new-version';
+    box.className = 'install-app new-version';
+    box.innerHTML = '<span class="new-version-text">Вышла новая версия сайта</span>' +
+      '<button type="button" class="btn btn-primary" data-act="reload">Обновить</button>' +
+      '<button type="button" class="btn btn-ghost" data-act="close" aria-label="Скрыть">✕</button>';
+    box.addEventListener('click', function (e) {
+      var act = e.target.closest('[data-act]');
+      if (!act) return;
+      if (act.dataset.act === 'reload') location.reload();
+      else box.remove();
+    });
+    document.body.appendChild(box);
+  }
+  window.LogiShowUpdate = showUpdate;   // для проверки
 
   // ── Кнопка установки (Android / Chrome / Edge; на iPhone — «Поделиться → На экран „Домой“») ──
   var DISMISS_KEY = 'logi-install-dismissed';
