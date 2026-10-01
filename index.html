@@ -374,7 +374,7 @@
         <div class="field"><label>Что показать</label>
           <sc-raw-select class="input" value="{{ mapDate }}" sc-camel-on-change="{{ onMapDate }}">
             <option value="all">Все клиенты</option>
-            <sc-for list="{{ dateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for>
+            <sc-for list="{{ mapDateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for>
           </sc-raw-select>
         </div>
         <div class="field"><label>Подложка карты</label>
@@ -1146,6 +1146,10 @@
           <sc-raw-select class="input" style="width:200px" value="{{ planDate }}" sc-camel-on-change="{{ onPlanDate }}">
             <sc-for list="{{ dateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for>
           </sc-raw-select>
+          <sc-raw-select class="input plan-date2" style="width:210px" value="{{ planDate2 }}" sc-camel-on-change="{{ onPlanDate2 }}" title="План на две партии: груз обеих вместе" aria-label="Вторая партия">
+            <option value="">+ вторая партия</option>
+            <sc-for list="{{ date2Opts }}" as="o"><option value="{{ o.v }}">+ партия {{ o.l }}</option></sc-for>
+          </sc-raw-select>
           <a class="btn btn-secondary" href="{{ planRouteHref }}" target="_blank" style="text-decoration:none">Общий маршрут партии</a>
           <button class="btn btn-secondary" sc-camel-on-click="{{ showPlanOnMap }}">Показать на карте</button>
         </div>
@@ -1768,6 +1772,8 @@ const f1 = (n, d = 1) => (n == null || isNaN(n)) ? '—' : (+n).toLocaleString('
 const money = n => n == null ? '—' : Math.round(n).toLocaleString('ru-RU') + ' сум';
 const dShort = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) : '';
 const dLong = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4) : '';
+// партия или две через «+» (план на две партии): «30.09.2026 + 02.10.2026»
+const dLongs = d => String(d || '').split('+').map(dLong).join(' + '), dShorts = d => String(d || '').split('+').map(dShort).join('+');
 // сравнение BL и названий машин: «BL-2» раньше «BL-10»; один сравниватель на всё — localeCompare с параметрами на
 // каждом сравнении заново строит правила, и сортировка 800 клиентов занимала десятую долю секунды
 const ruCmp = new Intl.Collator('ru', { numeric: true }).compare;
@@ -1797,7 +1803,7 @@ const isoDay = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() +
 const UZ_TZ = ['Asia/Tashkent', 'Asia/Samarkand'];   // UTC+5 — время Узбекистана
 const TG_DONE = ['Yetkazildi', 'Qolib ketgan', 'Mijoz ozi oldi', 'Bekor qilindi'], TG_NOT_TRUCKS = ['Belgilanmagan', 'Mijoz ozi oladi'];
 // таблица отклонила ячейку из-за проверки данных (выпадающий список с «отклонять ввод»)
-const GS_VALIDATION_HINT = 'В таблице на этой ячейке стоит выпадающий список (проверка данных). Обновите код скрипта до 27: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия — скрипт сам переключит такие списки на «Показывать предупреждение», и правки уйдут. Или вручную: выделите столбец → Данные → Проверка данных → «Показывать предупреждение», затем «Отправить снова».';
+const GS_VALIDATION_HINT = 'В таблице на этой ячейке стоит выпадающий список (проверка данных). Обновите код скрипта до 28: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия — скрипт сам переключит такие списки на «Показывать предупреждение», и правки уйдут. Или вручную: выделите столбец → Данные → Проверка данных → «Показывать предупреждение», затем «Отправить снова».';
 // ИИ-отчёт: ответ ИИ строго по схеме — итог, проблемы и предложения по трём темам
 const AI_REP_SCHEMA = { name: 'report', description: 'ИИ-отчёт: итог, проблемы и предложения по сводке за период.', input_schema: { type: 'object', additionalProperties: false, required: ['summary', 'problems', 'suggestions'], properties: {
   summary: { type: 'string', description: 'Главное за период: 2–4 предложения' },
@@ -1823,7 +1829,7 @@ const telHref = t => t ? 'tel:' + String(t).replace(/[^\d+]/g, '').replace(/^998
 class Component extends DCLogic {
   state = { ready: false, tab: 'journal', data: null, ver: 0, savedAt: null,
     jDate: 'all', jLimit: 60, cLimit: 100, editRow: null, jStatus: 'all', jSearch: '', cSearch: '', cDistrict: 'all', cZone: 'all',
-    mapDate: 'all', mapPlan: 'none', mapBase: (() => { try { return localStorage.getItem('logi-map-base') || 'yandex'; } catch (e) { return 'yandex'; } })(), planDate: '', planKey: 'A', planC: (() => { try { return localStorage.getItem('logi-plan-c') === '1'; } catch (e) { return false; } })(), dialog: null,
+    mapDate: 'all', mapPlan: 'none', mapBase: (() => { try { return localStorage.getItem('logi-map-base') || 'yandex'; } catch (e) { return 'yandex'; } })(), planDate: '', planDate2: '', planKey: 'A', planC: (() => { try { return localStorage.getItem('logi-plan-c') === '1'; } catch (e) { return false; } })(), dialog: null,
     vizTrip: 'all', vizStep: 0, vizSel: null, vizView: '3d', vizErr: '',
     calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 },
     dvTab: 'day', dvDate: '', dvPeriod: '7', dvTruck: 'all', dvRes: 'all', dvMsg: null, dvBusy: false, dvSet: null, dvCarryTo: '' };
@@ -2070,7 +2076,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 27); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 28); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -2275,6 +2281,8 @@ class Component extends DCLogic {
   }
   // ── куда везти (у отгрузки): адрес клиента, точки из его анкеты (скрипт 27), склады или новая точка ──
   // выбирать можно, если таблица хранит точки (скрипт 27) или работаем с Excel-файлом / без таблицы
+  // партия планов: одна или две («+ вторая партия») — «старшая+младшая»
+  get planPair() { const st = this.state; return st.planDate && st.planDate2 && st.planDate2 !== st.planDate ? [st.planDate, st.planDate2].sort().join('+') : st.planDate; }
   get canLoc() { return !this.readOnly && (!this.gsUrl || this.gsVersion >= 27); }
   // варианты: адрес клиента, точки из анкеты (новые сверху), склады клиента, текущая точка (если её нет в списке), новая точка
   locOpts(bl, loc) {
@@ -2383,12 +2391,13 @@ class Component extends DCLogic {
   }
 
   // планы считаются один раз на партию, пока не изменились данные и настройки (отчёты за период берут все партии)
+  // партия или две через «+» («2026-09-30+2026-10-02»): план на две партии — груз обеих вперемешку, как одна партия
   plansFor(date) {
-    const { data } = this.state, D = this.derived(), E = window.LogiEngine;
+    const { data } = this.state, D = this.derived(), E = window.LogiEngine, ds = String(date || '').split('+');
     const vehicles = this.fleetVehicles(data);
-    const stops = data.shipments.filter(s => s.date === date && !E.NO_PLAN.includes(s.status)).map(s => {
+    const stops = data.shipments.filter(s => ds.includes(s.date) && !E.NO_PLAN.includes(s.status)).map(s => {
       const c = D.cmap[s.bl] || {}, p = D.ptOf(s);   // своя локация отгрузки — вместо адреса клиента
-      return { id: s.id, bl: s.bl, cbm: +s.cbm || 0, kg: +s.kg || 0, places: +s.places || 0, lat: p.lat, lon: p.lon, zone: p.z.zone, client: c, loc: p.own ? p.name : '' };
+      return { id: s.id, bl: s.bl, date: s.date, cbm: +s.cbm || 0, kg: +s.kg || 0, places: +s.places || 0, lat: p.lat, lon: p.lon, zone: p.z.zone, client: c, loc: p.own ? p.name : '' };
     });
     // кэш по партии: ключ — её точки (с клиентами), настройки и машины. Правка другой партии или обновление из таблицы,
     // где эта партия не менялась, её планы не пересчитывают (оптимизатор тяжёлый: «Расходы» строят планы всех партий периода)
@@ -2617,7 +2626,7 @@ class Component extends DCLogic {
   // партия по умолчанию: та, что сейчас везут водители, иначе сегодняшняя, иначе последняя с недоставленными точками
   dvDefaultDate(D) {
     const data = this.state.data, E = window.LogiEngine, T = this.gsTg, today = isoDay();
-    const busy = ((T && T.drivers) || []).map(d => (d.today && !d.today.ended && d.today.date) || (d.assign && d.assign.date)).filter(d => D.dates.includes(d)).sort();
+    const busy = ((T && T.drivers) || []).map(d => (d.today && !d.today.ended && d.today.date) || (d.assign && d.assign.date)).filter(d => d && String(d).split('+').every(x => D.dates.includes(x))).sort();
     if (busy.length) return busy[busy.length - 1];
     if (D.dates.includes(today)) return today;
     const open = [...new Set(data.shipments.filter(s => s.date <= today && E.vehicleKind(s.truck) && !TG_DONE.includes(s.status)).map(s => s.date))].sort();
@@ -2668,12 +2677,13 @@ class Component extends DCLogic {
   dispatchText(date, j) {
     const sent = (j.sent || []).map(x => x.name + ' — ' + x.truck + ', точек ' + x.n), sk = (j.skipped || []).map(x => (x.name ? x.name + ' — ' : '') + x.truck + ': ' + x.why);
     const al = (j.already || []).map(x => x.name + ' — ' + x.truck + ': ' + x.why);   // скрипт 18: тот же план второй раз не шлёт
-    return (sent.length ? 'Партия ' + dLong(date) + ' отправлена:\n' + sent.join('\n') : al.length ? 'Новых заданий нет — у всех водителей этот план уже есть.' : 'Никому не отправлено.') +
+    return (sent.length ? (date.includes('+') ? 'Партии ' : 'Партия ') + dLongs(date) + ' отправлен' + (date.includes('+') ? 'ы' : 'а') + ':\n' + sent.join('\n') : al.length ? 'Новых заданий нет — у всех водителей этот план уже есть.' : 'Никому не отправлено.') +
       (al.length ? '\n\nУже есть, повторно не отправлено:\n' + al.join('\n') + '\nОтправить ещё раз одному — кнопка «Отправить» в его строке.' : '') + (sk.length ? '\n\nНе отправлено:\n' + sk.join('\n') : '');
   }
   dvDispatch(date, drivers, trucks) {
     const who = drivers.map(d => d.name + ' (' + d.truck + ')').join(', ');
-    if (!confirm('Отправить партию ' + dLong(date) + (who ? ' водителям: ' + who : ' всем водителям с точками в ней') + '?\n\nНе начавшие день получат список точек и нажмут «Начать работу»; кто уже на линии — сразу первую точку этой партии.')) return;
+    if (!confirm('Отправить партию ' + dLongs(date) + (who ? ' водителям: ' + who : ' всем водителям с точками в ней') + '?\n\nНе начавшие день получат список точек и нажмут «Начать работу»; кто уже на линии — сразу первую точку этой партии.')) return;
+    if (date.includes('+') && this.gsVersion < 28) return this.setState({ dvMsg: { text: 'Задание на две партии отправляет скрипт таблицы версии 28: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.', color: 'var(--color-red)' } });
     this.dvRun('Отправляю задание…', { action: 'dispatch', date, ids: drivers.map(d => d.id) }, j => this.dispatchText(date, j));
   }
   dvWrite(ids, who) {
@@ -2684,10 +2694,10 @@ class Component extends DCLogic {
   // передать точку (все строки BL этого рейса) другой машине: в журнале меняются машина и рейс
   dvMove(date, from, bl, round, to) {
     if (this.readOnly || !to) return;
-    const data = this.state.data, rounds = data.shipments.filter(s => s.date === date && s.truck === to).map(s => +s.route || 1);
+    const data = this.state.data, ds = String(date).split('+'), rounds = data.shipments.filter(s => ds.includes(s.date) && s.truck === to).map(s => +s.route || 1);
     const route = rounds.length ? Math.max(...rounds) : 1;
-    if (!confirm('Передать ' + bl + ' (' + from + ', рейс ' + round + ') машине ' + to + ', рейс ' + route + '?\n\nВодителям, которым уже отправлена партия ' + dLong(date) + ', бот пришлёт изменения.')) return;
-    this.commit({ ...data, shipments: data.shipments.map(s => s.date === date && s.truck === from && s.bl === bl && (+s.route || 1) === round && !TG_DONE.includes(s.status) ? { ...s, truck: to, route } : s) });
+    if (!confirm('Передать ' + bl + ' (' + from + ', рейс ' + round + ') машине ' + to + ', рейс ' + route + '?\n\nВодителям, которым уже отправлена партия ' + dLongs(date) + ', бот пришлёт изменения.')) return;
+    this.commit({ ...data, shipments: data.shipments.map(s => ds.includes(s.date) && s.truck === from && s.bl === bl && (+s.route || 1) === round && !TG_DONE.includes(s.status) ? { ...s, truck: to, route } : s) });
     this.setState({ dvMsg: { text: bl + ' передана: ' + from + ' → ' + to + ', рейс ' + route + '.', color: 'var(--color-accent)' } });
   }
   dvPlate(name, value) {
@@ -2788,7 +2798,8 @@ class Component extends DCLogic {
   driversView(st, S, D) {
     const E = window.LogiEngine, data = st.data, T = this.gsTg, today = isoDay(), out = {};
     const v9 = this.gsVersion >= 9, v10 = this.gsVersion >= 10, ro = this.readOnly;
-    const date = st.dvDate && D.dates.includes(st.dvDate) ? st.dvDate : this.dvDefaultDate(D);
+    // партия или две через «+» (задание на две партии из «Планов», скрипт 28)
+    const date = st.dvDate && String(st.dvDate).split('+').every(x => D.dates.includes(x)) ? st.dvDate : this.dvDefaultDate(D), ds = date.split('+'), inD = d => ds.includes(d);
     const drivers = (T && T.drivers) || [], ok = drivers.filter(d => d.status === 'ruxsat');
     const can = !ro && !!this.gsUrl && v10 && !!T && !!T.hooked;
     const set = patch => this.setState(patch), per = +st.dvPeriod || 7, from = isoDay(new Date(Date.now() - (per - 1) * 864e5));
@@ -2814,21 +2825,22 @@ class Component extends DCLogic {
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
     out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу: «Настройки» → «Связь».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 27. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 28. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
       !T ? 'Телеграм-бот не подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (27): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (28): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота»: «Настройки» → «Связь».' :
       !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — «Настройки» → «Связь».' :
       T.tz && !UZ_TZ.includes(T.tz) ? 'Часовой пояс Google Таблицы — ' + T.tz + ', а не Ташкент: время водителей («на линии с …»), «сегодня» и итог дня в 20:00 сдвинуты. ' +
         'Исправьте: в Google Таблице Файл → Настройки → Часовой пояс → «(GMT+05:00) Tashkent» → Сохранить; в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent». Затем «Настройки» → «Связь» → «Переподключить бота».' :
-      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 27
+      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 28
       this.gsVersion < 16 && T.scriptTz && !UZ_TZ.includes(T.scriptTz) ? 'Часовой пояс скрипта — ' + T.scriptTz + ', а не Ташкент: даты партий могут сдвигаться на день назад (04.05.2006 → 03.05.2006). ' +
-        'Обновите код скрипта до 27 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
+        'Обновите код скрипта до 28 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
       // код ниже 22: скрипту ниже 19 — сначала свойства (без них код 19+ закроет сайт), потом что изменится — по предложению на каждое изменение
-      this.gsVersion < 27 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 27. ' +
+      this.gsVersion < 28 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 28. ' +
         (this.gsVersion < 19 ? 'Сначала задайте свойства скрипта TOKEN (пароль скрипта) и EDITOR_TOKEN (секрет редактора): Apps Script → ⚙ Настройки проекта → Свойства скрипта; что вписать — «Настройки» → «Связь». Без них новый код не пустит сайт. ' +
           'Потом «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' : '«Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.') +
-        ' Точки доставки клиента будут храниться в его анкете, а при выборе партии в журнале сайт спросит, какая локация у каждого клиента.' +
+        ' В «Планах» можно будет сделать план на две партии и отправить его водителям одним заданием.' +
+        (this.gsVersion < 27 ? ' Точки доставки клиента будут храниться в его анкете, а при выборе партии в журнале сайт спросит, какая локация у каждого клиента.' : '') +
         (this.gsVersion < 26 ? ' Выпадающие списки в таблице (проверка данных) больше не остановят запись: скрипт сам переключит их на «Показывать предупреждение».' : '') +
         (this.gsVersion < 24 ? ' Если таблица не примет одну правку (например, из-за проверки данных в ячейке), остальные всё равно запишутся, а сайт покажет, что не записалось.' : '') +
         (this.gsVersion < 23 ? ' Вы сами сможете выбирать, кто на какой машине: в списке водителей и при подтверждении заявки.' : '') +
@@ -2845,17 +2857,17 @@ class Component extends DCLogic {
     if (ro) out.dvCanSetup = false;
 
     // ── партия и водители ──
-    const rows = data.shipments.filter(s => s.date === date);
+    const rows = data.shipments.filter(s => inD(s.date));
     const truckNames = [...new Set(rows.filter(s => s.truck && !TG_NOT_TRUCKS.includes(s.truck)).map(s => s.truck).concat(ok.map(d => d.truck).filter(Boolean)))];
     const order = t => { const i = data.lists.trucks.indexOf(t); return i < 0 ? 99 : i; };
     const fleetTrucks = data.lists.trucks.filter(t => !TG_NOT_TRUCKS.includes(t));
-    const lastLog = {}; log.forEach(x => { if (x.date === date) lastLog[x.truck + '|' + x.bl] = x; });
+    const lastLog = {}; log.forEach(x => { if (x.date === date || inD(x.date)) lastLog[x.truck + '|' + x.bl] = x; });
     // что сейчас с водителем: на линии, закончил, задание отправлено…
     const drvLine = d => {
       const w = d.today, a = d.assign;
       const on = w && !w.ended, state = w && w.ended ? 'закончил в ' + w.ended + ' · доставлено ' + w.ok + (w.fail ? ', не доставлено ' + w.fail : '') :
-        on ? 'на линии с ' + w.started + (w.date && w.date !== date ? ' · везёт партию ' + dLong(w.date) : w.cur ? ' · сейчас ' + w.cur.bl : '') + (w.posAt ? ' · 📍 ' + w.posAt : '') :
-        a && a.date === date ? 'задание отправлено ' + String(a.at || '').slice(11, 16) + ', ещё не начал' : a ? 'отправлена партия ' + dLong(a.date) : 'задание не отправлено';
+        on ? 'на линии с ' + w.started + (w.date && w.date !== date ? ' · везёт партию ' + dLongs(w.date) : w.cur ? ' · сейчас ' + w.cur.bl : '') + (w.posAt ? ' · 📍 ' + w.posAt : '') :
+        a && a.date === date ? 'задание отправлено ' + String(a.at || '').slice(11, 16) + ', ещё не начал' : a ? 'отправлена партия ' + dLongs(a.date) : 'задание не отправлено';
       return { dot: on ? 'var(--color-red)' : w ? 'var(--color-accent)' : 'var(--color-neutral-400)', name: d.name, state };
     };
     const tot = { stops: 0, ok: 0, fail: 0, open: 0, cbm: 0 };
@@ -2893,14 +2905,16 @@ class Component extends DCLogic {
     const failBls = [...new Set(rows.filter(s => s.status === 'Qolib ketgan').map(s => s.bl))], tomorrow = isoDay(new Date(Date.now() + 864e5)), carryTo = okDate(st.dvCarryTo) ? st.dvCarryTo : tomorrow;
     Object.assign(out, { dvHasCarry: can && this.gsVersion >= 12 && failBls.length > 0, dvCarryN: failBls.length, dvCarryTo: carryTo, onDvCarryTo: e => set({ dvCarryTo: e.target.value }),
       dvCarry: () => {
-        if (carryTo === date) return set({ dvMsg: { text: 'Выберите другую дату — не ту же партию.', color: 'var(--color-red)' } });
-        if (!confirm('Перенести недоставленные партии ' + dLong(date) + ' (' + failBls.join(', ') + ') на ' + dLong(carryTo) + '?\n\nСтатус станет «В плане», машина — не назначена; попытка доставки с причиной останется в отметках водителя.')) return;
+        if (ds.includes(carryTo)) return set({ dvMsg: { text: 'Выберите другую дату — не ту же партию.', color: 'var(--color-red)' } });
+        if (!confirm('Перенести недоставленные партии ' + dLongs(date) + ' (' + failBls.join(', ') + ') на ' + dLong(carryTo) + '?\n\nСтатус станет «В плане», машина — не назначена; попытка доставки с причиной останется в отметках водителя.')) return;
         this.dvRun('Переношу недоставленные…', { action: 'carry', from: date, to: carryTo }, j => { this.gsPull(); return (j.moved || []).length ? 'Перенесено на ' + dLong(carryTo) + ': ' + j.moved.length + ' (' + j.moved.join(', ') + '). Машину назначьте в «Планах».' : 'Переносить нечего.'; });
       } });
     const online = drivers.filter(d => d.today && !d.today.ended), ended = drivers.filter(d => d.today && d.today.ended);
     Object.assign(out, {
       dvDate: date, onDvDate: e => set({ dvDate: e.target.value }),
-      dvDateOpts: D.dates.slice().reverse().map(v => ({ v, l: dLong(v) + (v === today ? ' · сегодня' : '') })),
+      // пары партий: выбранная во вкладке «Водители» или из «Планов», и задания водителям на две партии
+      dvDateOpts: [...new Set([date].concat(drivers.map(d => (d.assign || {}).date), drivers.map(d => (d.today || {}).date)).filter(x => x && String(x).includes('+') && String(x).split('+').every(y => D.dates.includes(y))))]
+        .map(v => ({ v, l: dLongs(v) })).concat(D.dates.slice().reverse().map(v => ({ v, l: dLong(v) + (v === today ? ' · сегодня' : '') }))),
       dvSendAll: () => this.dvDispatch(date, [], null),
       dvWriteOnline: () => online.length ? this.dvWrite('online', 'всем на линии (' + online.map(d => d.name).join(', ') + ')') : set({ dvMsg: { text: 'Сейчас на линии никого нет.', color: 'var(--color-red)' } }),
       dvSummary: () => this.dvRun('Отправляю итог дня…', { action: 'summary' }, j => 'Итог дня отправлен в группу:\n\n' + (j.text || '')),
@@ -2913,8 +2927,8 @@ class Component extends DCLogic {
         { label: 'Не доставлено', value: f0(tot.fail), sub: 'в журнале — «Осталось»' },
         { label: 'В работе', value: f0(tot.open), sub: noTruck.length ? 'ещё без машины: ' + noTruck.length : 'ещё не отмечены' }
       ],
-      dvHasNoTruck: noTruck.length > 0, dvNoTruck: 'В партии ' + dLong(date) + ' без машины ' + noTruck.length + ' отгр. (' + [...new Set(noTruck.map(s => s.bl))].slice(0, 8).join(', ') + (noTruck.length > 8 ? '…' : '') + ') — водитель их не получит. Назначьте машины: «Планы» → «Принять план» или в журнале.',
-      dvGoPlans: () => set({ tab: 'plans', planDate: date }),
+      dvHasNoTruck: noTruck.length > 0, dvNoTruck: 'В партии ' + dLongs(date) + ' без машины ' + noTruck.length + ' отгр. (' + [...new Set(noTruck.map(s => s.bl))].slice(0, 8).join(', ') + (noTruck.length > 8 ? '…' : '') + ') — водитель их не получит. Назначьте машины: «Планы» → «Принять план» или в журнале.',
+      dvGoPlans: () => set({ tab: 'plans', planDate: ds[0], planDate2: ds[1] || '' }),
       dvPending: drivers.filter(d => d.status === 'kutilmoqda').map(d => { const pick = ((st.dvPendTruck || {})[d.id] != null ? st.dvPendTruck[d.id] : d.truck) || ''; return { name: d.name, truck: d.truck || '—', plate: d.plate || '—', sub: [d.user, d.at ? 'заявка ' + d.at : '', d.lang === 'ru' ? 'русский' : 'узбекский'].filter(Boolean).join(' · '),
         canTruck, noTruckSel: !canTruck, truckVal: pick, truckOpts: truckOptsFor(d, pick), onTruck: e => set({ dvPendTruck: { ...(st.dvPendTruck || {}), [d.id]: e.target.value } }),
         allow: () => {
@@ -2949,8 +2963,8 @@ class Component extends DCLogic {
       out.dvHasOff = out.dvOff.length > 0;
       // большая кнопка: всем водителям с точками в партии
       out.dvShowSend = !ro; out.dvSendOff = !can || !!st.dvBusy || !tot.open;
-      out.dvSendNote = !tot.stops ? 'В партии ' + dLong(date) + ' нет точек с машинами.' :
-        'Партия ' + dLong(date) + ': ' + tot.stops + ' ' + tochki(tot.stops) + ' у ' + trucksWithStops + ' ' + mashin(trucksWithStops) + (tot.open < tot.stops ? ', осталось ' + tot.open : '') + '.' +
+      out.dvSendNote = !tot.stops ? 'В партии ' + dLongs(date) + ' нет точек с машинами.' :
+        'Партия ' + dLongs(date) + ': ' + tot.stops + ' ' + tochki(tot.stops) + ' у ' + trucksWithStops + ' ' + mashin(trucksWithStops) + (tot.open < tot.stops ? ', осталось ' + tot.open : '') + '.' +
         (noDrv.length ? ' Без водителя в боте: ' + noDrv.join(', ') + '.' : '') + (noTruck.length ? ' Без машины: ' + noTruck.length + ' отгр.' : '') +
         (!can && !ro ? ' Отправка откроется, когда бот будет подключён (плашка выше).' : ''); }
     // настройки бота (скрипт версии 12): диспетчер, ожидание клиента, расстояние до клиента, фото только с камеры, перенос недоставленных;
@@ -2986,7 +3000,7 @@ class Component extends DCLogic {
     out.dvKinds = kinds.map(k => { const rep = fleetTrucks.filter(t => E.vehicleKind(t) === k.k && repairOf(t)).length; return { label: k.label, count: k.n, repairN: rep ? 'в ремонте: ' + rep : '', m3: S[k.m3] ?? '', kg: S[k.kg] ?? '',
       onM3: e => this.commit({ ...data, settings: { ...S, [k.m3]: e.target.value === '' ? null : +e.target.value } }), onKg: e => this.commit({ ...data, settings: { ...S, [k.kg]: e.target.value === '' ? null : +e.target.value } }) }; });
     out.dvAddVeh = () => this.openVehicle(null);
-    const dayRows = data.shipments.filter(s => s.date === date);
+    const dayRows = data.shipments.filter(s => inD(s.date));
     const stat = t => { const my = pShip.filter(s => s.truck === t); return { days: new Set(my.map(s => s.date)).size, trips: new Set(my.filter(s => s.route != null && s.route !== '').map(s => s.date + '|' + s.route)).size || new Set(my.map(s => s.date)).size, my }; };
     out.dvVehicles = fleetTrucks.map(t => {
       const kind = E.vehicleKind(t), vc = this.vehCap(data, t, kind), cap = { capM3: vc[0], capKg: vc[1] }, dr = drivers.filter(d => d.truck === t && d.status !== 'rad'), mine = dayRows.filter(s => s.truck === t), cbm = mine.reduce((a, s) => a + (+s.cbm || 0), 0), s = stat(t);
@@ -3519,7 +3533,7 @@ class Component extends DCLogic {
   vizModel() {
     const st = this.state;
     if (!st.ready || !st.planDate || !window.LogiViz) return null;
-    const P = this.plansFor(st.planDate), key = ['A', 'B', 'C', 'X'].includes(st.planKey) ? st.planKey : 'A';
+    const P = this.plansFor(this.planPair), key = ['A', 'B', 'C', 'X'].includes(st.planKey) ? st.planKey : 'A';
     if (this._vizM && this._vizM.P === P && this._vizM.key === key) return this._vizM;
     const plan = P[key], lays = plan.trips.map(t => window.LogiViz.layout(t));
     this._vizM = { P, key, plan, lays, id: (this._vizM ? this._vizM.id : 0) + 1 };
@@ -3657,11 +3671,11 @@ class Component extends DCLogic {
     this.settingDefs().forEach(g => g.fields.forEach(f => st.push([g.title + ' — ' + f.label, S[f.key] ?? ''])));
     const sheets = [{ name: 'Отгрузки', rows: ship }, { name: 'Клиенты', rows: cl }, { name: 'Настройки', rows: st }];
     if (this.state.planDate) {
-      const P = this.plansFor(this.state.planDate);
+      const P = this.plansFor(this.planPair);
       ['A', 'B', 'C', 'X'].forEach(k => {
         const rows = [['Рейс', '№', 'BL код', 'Клиент', 'Район', 'Получатель', 'Тел.', 'CBM', 'KG', 'Прибытие', 'Зона', 'Тариф', 'Цена рейса', 'Маршрут Яндекс']];
         P[k].trips.forEach(t => t.stops.forEach((s, j) => rows.push([t.name, j + 1, s.bl, (s.client.brand || '') + ' ' + (s.client.name || ''), s.loc ? '📍 ' + s.loc : s.client.district || '', s.client.receiver || '', s.client.receiverTel || '', s.cbm, s.kg, hhmm(t.arrivals[j]), s.zone === 'out' ? 'Снаружи' : 'Внутри', j === 0 ? t.price.label : '', j === 0 && t.price.total != null ? t.price.total : '', j === 0 ? E.yRoute([S.depotLat, S.depotLon], t.stops.map(x => [x.lat, x.lon])) : ''])));
-        sheets.push({ name: 'План ' + k + ' ' + dShort(this.state.planDate), rows });
+        sheets.push({ name: 'План ' + k + ' ' + dShorts(this.planPair), rows });
       });
     }
     const blob = E.xlsx(sheets);
@@ -4137,7 +4151,7 @@ class Component extends DCLogic {
     const { list, parts } = this.planAssign(plan, data), byId = new Map(data.shipments.map(s => [s.id, s])), ids = Object.keys(parts);
     const had = ids.filter(id => { const s = byId.get(id); return s && (E.vehicleKind(s.truck) || s.route != null); }).length;
     const split = ids.filter(id => parts[id].length > 1), noCar = plan.trips.filter(t => t.noVehicle).length;
-    const msg = ['Записать план ' + key + ' в журнал за ' + dLong(date) + '?', '', plan.trips.length + ' ' + reys(plan.trips.length) + ', ' + ids.length + ' отгрузок: машина и номер рейса.']
+    const msg = ['Записать план ' + key + ' в журнал за ' + dLongs(date) + '?', '', plan.trips.length + ' ' + reys(plan.trips.length) + ', ' + ids.length + ' отгрузок: машина и номер рейса.']
       .concat(had ? ['У ' + had + ' отгрузок машина уже указана — заменится.'] : [])
       .concat(split.length ? ['Большие отгрузки разделятся на части (строки в журнале): ' + split.map(id => byId.get(id).bl + ' → ' + parts[id].length).join(', ') + '.'] : [])
       .concat(noCar ? [noCar + ' ' + reys(noCar) + ' без машины — эти отгрузки останутся «Belgilanmagan».'] : [])
@@ -4237,7 +4251,7 @@ class Component extends DCLogic {
       const warn = st.gsWarn || [];
       if (warn.length && !['error', 'saving', 'loading'].includes(gs)) Object.assign(base, {
         fileNote: 'Не записалось в таблицу — на сайте осталось как в таблице:', gsWarnItems: warn,
-        gsWarnHint: warn.some(x => /проверки данных/i.test(x.err)) ? (this.gsVersion < 26 ? 'Обновите код скрипта до 27 — он сам переключит такой выпадающий список на «Показывать предупреждение». Или уберите проверку данных в этой ячейке (Данные → Проверка данных). Затем внесите правку снова.' : 'Уберите проверку данных в этой ячейке (Данные → Проверка данных) и внесите правку снова.') : 'Внесите правку снова.',
+        gsWarnHint: warn.some(x => /проверки данных/i.test(x.err)) ? (this.gsVersion < 26 ? 'Обновите код скрипта до 28 — он сам переключит такой выпадающий список на «Показывать предупреждение». Или уберите проверку данных в этой ячейке (Данные → Проверка данных). Затем внесите правку снова.' : 'Уберите проверку данных в этой ячейке (Данные → Проверка данных) и внесите правку снова.') : 'Внесите правку снова.',
         fileNoteColor: 'var(--color-accent-900)', fileNoteCls: 'strip-note strip-note-err', gsWarnOn: true });
       else if ((st.gsRelaxed || []).length && !['error', 'saving', 'loading'].includes(gs)) Object.assign(base, {
         fileNote: 'Выпадающий список в таблице (' + st.gsRelaxed.join(', ') + ') теперь только подсказывает: значения не из списка записываются.', gsWarnItems: [],
@@ -4386,6 +4400,7 @@ class Component extends DCLogic {
 
     if (st.tab === 'map') {
       out.mapDate = st.mapDate; out.onMapDate = e => this.setState({ mapDate: e.target.value });
+      out.mapDateOpts = (String(st.mapDate).includes('+') ? [{ v: st.mapDate, l: dLongs(st.mapDate) }] : []).concat(dateOpts);   // план на две партии — «Показать на карте»
       out.mapHasDate = st.mapDate !== 'all';
       const ringNow = st.ringEdit ? this.ringDraft : data.ring;
       out.ringEditing = !!st.ringEdit; out.ringNotEditing = !st.ringEdit;
@@ -4447,7 +4462,7 @@ class Component extends DCLogic {
     if (st.tab === 'import' && !this.readOnly) Object.assign(out, this.importView(st, S, D));
 
     if (st.tab === 'plans' && st.planDate) {
-      const P = this.plansFor(st.planDate);
+      const pd = this.planPair, pair = pd.includes('+'), P = this.plansFor(pd);   // одна партия или две («+ вторая партия»)
       // план C свёрнут, пока его не откроют; «самый дешёвый» — среди показанных планов, где у всех рейсов есть цена
       const shown = st.planC ? ['A', 'B', 'X', 'C'] : ['A', 'B', 'X'], planKey = shown.includes(st.planKey) ? st.planKey : 'A';   // план X (пробный)
       const full = shown.filter(k => P[k].sum.trips && !P[k].sum.unpriced), minP = full.length ? Math.min(...full.map(k => P[k].sum.price)) : null;
@@ -4491,21 +4506,24 @@ class Component extends DCLogic {
       // «Принять план»: записан ли план в журнал — машины и номера рейсов совпадают
       { const byId = new Map(data.shipments.map(s => [s.id, s])), { parts } = this.planAssign(plan, data), ids = Object.keys(parts);
         const done = ids.length > 0 && ids.every(id => { const sh = byId.get(id), a = parts[id]; return sh && a.length === 1 && sh.truck === a[0].truck && (sh.route ?? null) === a[0].route; });
-        const acc = st.acceptInfo && st.acceptInfo.date === st.planDate && st.acceptInfo.key === planKey ? st.acceptInfo : null;
+        const acc = st.acceptInfo && st.acceptInfo.date === pd && st.acceptInfo.key === planKey ? st.acceptInfo : null;
         Object.assign(out, { planCanAccept: plan.trips.length > 0, acceptDone: done, acceptCanUndo: !!acc,
-          acceptText: done ? '✓ План ' + planKey + ' записан в журнал за ' + dLong(st.planDate) + ': ' + plan.trips.length + ' ' + reys(plan.trips.length) + ', ' + ids.length + ' отгрузок — машины и номера рейсов.' + (acc ? ' Можно отменить.' : '')
+          acceptText: done ? '✓ План ' + planKey + ' записан в журнал за ' + dLongs(pd) + ': ' + plan.trips.length + ' ' + reys(plan.trips.length) + ', ' + ids.length + ' отгрузок — машины и номера рейсов.' + (acc ? ' Можно отменить.' : '')
             : 'Записать план ' + planKey + ' в журнал: ' + plan.trips.length + ' ' + reys(plan.trips.length) + ', ' + ids.length + ' отгрузок получат машину и номер рейса (у машины за день: 1, 2).',
           acceptLabel: done ? 'Записать снова' : 'Принять план ' + planKey, acceptBtnClass: done ? 'btn-secondary' : 'btn-primary', acceptBorder: done ? 'var(--color-accent)' : 'var(--color-divider)',
-          acceptPlan: () => this.acceptPlan(st.planDate, planKey), undoAccept: () => this.undoAccept(),
+          acceptPlan: () => this.acceptPlan(pd, planKey), undoAccept: () => this.undoAccept(),
           goAcceptJournal: () => this.setState({ tab: 'journal', jDate: st.planDate, jLimit: 60 }) }); }
       // план записан — отправить водителям сейчас или позже (вкладка «Водители» → «Отправить груз водителям»)
-      { const ask = st.sendAsk && st.sendAsk.date === st.planDate && st.sendAsk.key === planKey ? st.sendAsk : null, pm = st.planMsg;
+      { const ask = st.sendAsk && st.sendAsk.date === pd && st.sendAsk.key === planKey ? st.sendAsk : null, pm = st.planMsg;
         Object.assign(out, { sendAskShow: !!ask, dvBusy: !!st.dvBusy,
-          sendAskNote: 'Водители с точками в партии ' + dLong(st.planDate) + ' получат задание в Telegram. «Позже» — отправите во вкладке «Водители» кнопкой «Отправить груз водителям».',
-          sendAskYes: () => { this._tgHold = 0; this.setState({ sendAsk: null }); this.dvRun('Отправляю задание водителям…', { action: 'dispatch', date: st.planDate, ids: [] }, j => this.dispatchText(st.planDate, j), 'planMsg'); },
+          sendAskNote: (pair ? 'Водители с точками в партиях ' + dLongs(pd) + ' получат одно задание на обе партии в Telegram.' : 'Водители с точками в партии ' + dLong(pd) + ' получат задание в Telegram.') + ' «Позже» — отправите во вкладке «Водители» кнопкой «Отправить груз водителям».',
+          sendAskYes: () => { this._tgHold = 0; this.setState({ sendAsk: null });
+            // задание на две партии — скрипт 28
+            if (pair && this.gsVersion < 28) { this.gsTgRelease(); return this.setState({ planMsg: { text: 'Задание на две партии отправляет скрипт таблицы версии 28: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. План в журнал записан.', color: 'var(--color-red)' } }); }
+            this.dvRun('Отправляю задание водителям…', { action: 'dispatch', date: pd, ids: [] }, j => this.dispatchText(pd, j), 'planMsg'); },
           sendAskNo: () => { this._tgHold = 0; this.setState({ sendAsk: null }); this.gsTgRelease(); },
           planHasMsg: !!pm, planMsg: pm ? pm.text : '', planMsgColor: pm ? pm.color : 'var(--color-divider)', planMsgSent: !!pm && pm.color === 'var(--color-accent)',
-          planMsgClose: () => this.setState({ planMsg: null }), planGoDrivers: () => this.setState({ tab: 'drivers', dvDate: st.planDate, planMsg: null }) }); }
+          planMsgClose: () => this.setState({ planMsg: null }), planGoDrivers: () => this.setState({ tab: 'drivers', dvDate: pd, planMsg: null }) }); }
       out.planTrips = plan.trips.map((t, ti) => {
         const v = t.vehicle;
         let prev = depot;
@@ -4518,22 +4536,24 @@ class Component extends DCLogic {
           km: f1(t.real, 1) + ' км (реальн.)', time: hhmm(t.start ?? S.dayStart * 1440) + '–' + hhmm(t.finish + t.back / S.speed * 60 * S.roadK), price: t.price.total != null ? money(t.price.total) : 'нет тарифа', formula: t.price.formula,
           yHref: E.yRoute(depot, t.stops.map(s => [s.lat, s.lon])), open3d: () => this.setState({ tab: 'viz', planKey, vizTrip: ti, vizStep: 0, vizSel: null }),
           stops: t.stops.map((s, j) => { const c = s.client, leg = E.km(prev, [s.lat, s.lon]); prev = [s.lat, s.lon];
-            return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : ''), brand: c.brand || '—', name: c.name || '', district: s.loc ? '📍 ' + s.loc : distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', free: !!(tc && tc.why[j]), freeTag: tc && tc.why[j] === 'small' ? 'не платим · < ' + f1(S.freeOutM3, 2) + ' м³' : 'не платим', pointHref: E.yPoint(s.lat, s.lon), pt: t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') }; }) };
+            return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : '') + (pair && s.date ? ' · ' + dShort(s.date) : ''), brand: c.brand || '—', name: c.name || '', district: s.loc ? '📍 ' + s.loc : distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', free: !!(tc && tc.why[j]), freeTag: tc && tc.why[j] === 'small' ? 'не платим · < ' + f1(S.freeOutM3, 2) + ' м³' : 'не платим', pointHref: E.yPoint(s.lat, s.lon), pt: t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') }; }) };
       });
       out.planNoCoords = P.noCoords.map(s => ({ bl: s.bl, name: (s.client.brand || '') + ' ' + (s.client.name || ''), cbm: f1(s.cbm, 2), kg: f0(s.kg), onEdit: () => { const c = D.cmap[s.bl]; if (c) this.openClient(c); } }));
       out.planHasNoCoords = P.noCoords.length > 0;
       const wc = P.all.filter(s => s.lat != null);
       out.planRouteHref = E.yRoute(depot, wc.slice().sort((a, b) => E.bearing(depot, [a.lat, a.lon]) - E.bearing(depot, [b.lat, b.lon])).map(s => [s.lat, s.lon]));
       const unk = P.all.filter(s => s.lat != null && !(s.cbm > 0) && !(s.kg > 0)).length;
-      out.planSummary = (unk ? unk + ' без CBM/KG — считаются как пустые, проверьте · ' : '') + P.all.length + ' отгрузок · ' + f1(P.all.reduce((a, s) => a + s.cbm, 0), 1) + ' м³ · ' + f0(P.all.reduce((a, s) => a + s.kg, 0)) + ' кг';
-      Object.assign(out, { planDate: st.planDate, onPlanDate: e => this.setState({ planDate: e.target.value }), showPlanOnMap: () => this.setState({ tab: 'map', mapDate: st.planDate, mapPlan: planKey }) });
+      out.planSummary = (pair ? 'Две партии: ' + dLongs(pd) + ' · ' : '') + (unk ? unk + ' без CBM/KG — считаются как пустые, проверьте · ' : '') + P.all.length + ' отгрузок · ' + f1(P.all.reduce((a, s) => a + s.cbm, 0), 1) + ' м³ · ' + f0(P.all.reduce((a, s) => a + s.kg, 0)) + ' кг';
+      Object.assign(out, { planDate: st.planDate, onPlanDate: e => { const v = e.target.value; this.setState(s0 => ({ planDate: v, planDate2: s0.planDate2 === v ? '' : s0.planDate2 })); },
+        planDate2: pair ? st.planDate2 : '', date2Opts: dateOpts.filter(o => o.v !== st.planDate), onPlanDate2: e => this.setState({ planDate2: e.target.value }),
+        showPlanOnMap: () => this.setState({ tab: 'map', mapDate: pd, mapPlan: planKey }) });
     }
 
     if (st.tab === 'viz') {
       const V = window.LogiViz, M = this.vizModel(), pct = x => Math.round(x * 100) + '%', over = x => x > 1 + 1e-9;
       const barCol = x => over(x) ? 'var(--color-danger)' : 'var(--color-accent)';
       const dims = b => b.flat ? 'бортовой кузов ' + f1(b.l, 2) + ' × ' + f1(b.w, 2) + ' м, борт ' + f1(b.side, 2) + ' м, груз до ' + f1(b.h, 2) + ' м' : 'кузов ≈ ' + f1(b.l, 1) + ' × ' + f1(b.w, 1) + ' × ' + f1(b.h, 1) + ' м';
-      Object.assign(out, { planDate: st.planDate, onVizDate: e => this.setState({ planDate: e.target.value, vizTrip: 'all', vizStep: 0, vizSel: null }),
+      Object.assign(out, { planDate: st.planDate, onVizDate: e => { const v = e.target.value; this.setState(s0 => ({ planDate: v, planDate2: s0.planDate2 === v ? '' : s0.planDate2, vizTrip: 'all', vizStep: 0, vizSel: null })); },
         vizTripOpts: [], vizIsAll: false, vizIsOne: false, vizSummary: '', vizNote: '', vizTitle: '',
         vizHint: 'Вращать — пальцем или мышью · масштаб — щипком или колесом · нажмите на груз — покажет точку' });
       out.vizPlanOpts = ['A', 'B', 'C', 'X'].map(k => { const on = M ? M.key === k : st.planKey === k;
@@ -4767,7 +4787,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 27 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 28 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :

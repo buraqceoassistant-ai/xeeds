@@ -254,7 +254,9 @@ function tgHead_(k) {
   if (String(h[n - 1] || '') === '') sh.getRange(1, 1, 1, n).setValues([TG_HEAD[k]]);
   return sh;
 }
-function tgDmy_(iso) { var p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : String(iso || ''); }
+function tgDmy_(iso) { return String(iso || '').split('+').map(function (x) { var p = x.split('-'); return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : x; }).join(' + '); }
+// партия бота — одна дата или две через «+» (версия 28: план на две партии — одно задание водителю)
+function tgDates_(date) { return String(date || '').split('+').filter(function (x) { return x; }); }
 function tgDrivers_() {
   var sh = tgSheet_('drivers'), last = sh.getLastRow(), out = [];
   if (last < 2) return out;
@@ -779,12 +781,12 @@ function tgWhLoc_(D, bl, name) {
 // точки машины на дату: строки журнала этой машины, по клиенту и номеру рейса; клиент — адрес, получатель, координаты
 function tgStops_(truck, date) {
   if (!truck) return [];   // водитель без машины (версия 23): иначе совпали бы строки журнала без машины
-  var D = tgData_(), tz = D.tz, out = {}, order = [];
+  var D = tgData_(), tz = D.tz, out = {}, order = [], ds = tgDates_(date);
   D.rows.forEach(function (r, i) {
     var dt = r[0] instanceof Date ? day_(r[0], tz) : String(r[0]).slice(0, 10);
-    if (dt !== date || String(r[12]).trim() !== truck) return;
+    if (ds.indexOf(dt) < 0 || String(r[12]).trim() !== truck) return;
     var bl = String(r[2]).trim(), round = Number(r[13]) || 1, key = bl + '|' + round;
-    if (!out[key]) { out[key] = { key: key, bl: bl, round: round, rows: [], places: 0, cbm: 0, kg: 0, notes: [], open: false, statuses: [] }; order.push(key); }
+    if (!out[key]) { out[key] = { key: key, bl: bl, round: round, date: dt, rows: [], places: 0, cbm: 0, kg: 0, notes: [], open: false, statuses: [] }; order.push(key); }
     var s = out[key], st = String(r[14]).trim();
     s.rows.push(5 + i); s.places += Number(r[11]) || 0; s.cbm += Number(r[9]) || 0; s.kg += Number(r[10]) || 0;
     if (r[15]) s.notes.push(String(r[15]));
@@ -914,7 +916,7 @@ function tgFinish_(d, w, ll) {
   var links = tgSavePhotos_(photos, w.day || w.date, d.truck, cur.bl);
   var c = (s && s.c) || {}, who = [c.brand, c.name].filter(Boolean).join(' — ');
   var km = c.lat && c.lon ? Math.round(tgKm_(ll, [c.lat, c.lon]) * 10) / 10 : '', far = km !== '' && km > tgMaxKm_();   // отметка далеко от клиента — видно в группе и на сайте
-  tgHead_('log').appendRow([now, w.date, d.name, d.truck, cur.bl, who, ok ? 'Yetkazildi' : 'Yetkazilmadi', reason, links.join(' '), ll.join(','), d.id, cur.round, waited || '', km]);
+  tgHead_('log').appendRow([now, (s && s.date) || w.date, d.name, d.truck, cur.bl, who, ok ? 'Yetkazildi' : 'Yetkazilmadi', reason, links.join(' '), ll.join(','), d.id, cur.round, waited || '', km]);
   var cap = (ok ? '✅ ' : '❌ ') + d.truck + ' · ' + d.name + ' — ' + (ok ? 'доставлено' : 'не доставлено') + ': ' + cur.bl + (who ? ' ' + who : '') +
     (reason ? '\nПричина: ' + reason : '') + (waited ? '\n⏳ Ждал клиента ' + waited + ' мин' : '') + (far ? '\n⚠️ Отметка в ' + String(km).replace('.', ',') + ' км от точки клиента' : '') + '\n' + now.slice(11) + ' · 📍 ' + tgMap_(ll);
   tgReport_(cap, photos);
@@ -1008,7 +1010,7 @@ function tgDispatch_(date, ids, auto) {
     var stops = tgStops_(d.truck, date), open = stops.filter(function (x) { return x.open; }), sig = tgSig_(stops);
     if (!open.length) { if (!auto) skipped.push({ id: d.id, name: d.name, truck: d.truck, why: 'нет точек' }); return; }
     var w = tgWork_(d), a0 = tgAssigned_(d), who = { id: d.id, name: d.name, truck: d.truck, n: open.length };
-    if (auto && ((w && w.started) || (a0 && a0.date === date))) return;
+    if (auto && ((w && w.started) || (a0 && (a0.date === date || tgDates_(a0.date).indexOf(date) >= 0)))) return;   // утром не сбивать задание на две партии
     done[d.id] = 1;
     if (w && w.started && w.date === date) {
       var free = !w.stage || w.stage === 'roundWait';
@@ -1032,7 +1034,7 @@ function tgDispatch_(date, ids, auto) {
   if (!(ids && ids.length)) {
     var has = {}; drivers.forEach(function (d) { has[d.truck] = 1; });
     var D = tgData_(), trucks = {};
-    D.rows.forEach(function (r) { var dt = r[0] instanceof Date ? day_(r[0], D.tz) : String(r[0]).slice(0, 10), t = String(r[12]).trim(); if (dt === date && t && TG_NOT_TRUCKS.indexOf(t) < 0 && TG_DONE.indexOf(String(r[14]).trim()) < 0 && !has[t]) trucks[t] = 1; });
+    D.rows.forEach(function (r) { var dt = r[0] instanceof Date ? day_(r[0], D.tz) : String(r[0]).slice(0, 10), t = String(r[12]).trim(); if (tgDates_(date).indexOf(dt) >= 0 && t && TG_NOT_TRUCKS.indexOf(t) < 0 && TG_DONE.indexOf(String(r[14]).trim()) < 0 && !has[t]) trucks[t] = 1; });
     Object.keys(trucks).forEach(function (t) { skipped.push({ truck: t, why: 'нет водителя в боте' }); });
   }
   return { sent: sent, skipped: skipped, already: already };
@@ -1051,7 +1053,7 @@ function tgSummaryText_(day) {
   var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), rec = tgRecent_(1), byTruck = {};
   var put = function (t) { return (byTruck[t] = byTruck[t] || { truck: t, names: [], ok: 0, fail: 0, left: 0, start: '', end: '', dates: {} }); };
   rec.days.filter(function (x) { return x.day === day; }).forEach(function (x) { var o = put(x.truck); if (o.names.indexOf(x.name) < 0) o.names.push(x.name); o.start = o.start || x.start; o.end = x.end || o.end; o.dates[x.date || day] = 1; });
-  rec.log.filter(function (x) { return String(x.t).slice(0, 10) === day; }).forEach(function (x) { var o = put(x.truck); if (o.names.indexOf(x.name) < 0) o.names.push(x.name); o[x.ok ? 'ok' : 'fail']++; o.dates[x.date] = 1; });
+  rec.log.filter(function (x) { return String(x.t).slice(0, 10) === day; }).forEach(function (x) { var o = put(x.truck); if (o.names.indexOf(x.name) < 0) o.names.push(x.name); o[x.ok ? 'ok' : 'fail']++; tgDates_(x.date).forEach(function (dt) { o.dates[dt] = 1; }); });
   tgDrivers_().forEach(function (d) { var a = d.st && d.st.assign; if (d.status === 'ruxsat' && d.truck && a && a.day === day && !a.used) { var o = put(d.truck); if (o.names.indexOf(d.name) < 0) o.names.push(d.name); o.dates[a.date] = 1; o.noStart = true; } });
   var list = Object.keys(byTruck).sort().map(function (k) { return byTruck[k]; });
   if (!list.length) return '';
@@ -1071,8 +1073,8 @@ function tgDailySummary() {
   // недоставленные партий, которые сегодня развозили, — на завтра (TG_CARRY = 0 — не переносить)
   if (prop_('TG_CARRY') !== '0') {
     var rec = tgRecent_(1), dates = {};
-    rec.days.forEach(function (x) { if (x.day === day) dates[x.date] = 1; });
-    rec.log.forEach(function (x) { if (String(x.t).slice(0, 10) === day) dates[x.date] = 1; });
+    rec.days.forEach(function (x) { if (x.day === day) tgDates_(x.date).forEach(function (dt) { dates[dt] = 1; }); });
+    rec.log.forEach(function (x) { if (String(x.t).slice(0, 10) === day) tgDates_(x.date).forEach(function (dt) { dates[dt] = 1; }); });
     var to = Utilities.formatDate(new Date(new Date().getTime() + 864e5), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd');
     var moved = Object.keys(dates).length ? tgCarry_(Object.keys(dates), to) : [];
     if (moved.length) text += (text ? '\n\n' : '') + '↪️ Не доставленные перенесены на ' + tgDmy_(to) + ': ' + moved.length + ' (' + moved.join(', ') + '). Машину назначьте в «Планах».';
@@ -1367,7 +1369,7 @@ function tgSite_(body) {
     return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays), warn: warn };
   }
   if (a.action === 'dispatch') {
-    if (!/^20\d\d-\d\d-\d\d$/.test(String(a.date || ''))) return { error: 'Выберите партию', v: VERSION };
+    if (!/^20\d\d-\d\d-\d\d(\+20\d\d-\d\d-\d\d)?$/.test(String(a.date || ''))) return { error: 'Выберите партию', v: VERSION };   // «A+B» — две партии одним заданием (версия 28)
     var r = tgDispatch_(a.date, a.ids);
     return { ok: true, v: VERSION, sent: r.sent, skipped: r.skipped, already: r.already, tg: tgInfo_(body.tgdays) };
   }
@@ -1376,8 +1378,8 @@ function tgSite_(body) {
     return de ? { error: de, v: VERSION } : { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
   }
   if (a.action === 'carry') {
-    if (!/^20\d\d-\d\d-\d\d$/.test(String(a.from || '')) || !/^20\d\d-\d\d-\d\d$/.test(String(a.to || '')) || a.from === a.to) return { error: 'Выберите партию и другую дату', v: VERSION };
-    return { ok: true, v: VERSION, moved: tgCarry_([a.from], a.to) };
+    if (!/^20\d\d-\d\d-\d\d(\+20\d\d-\d\d-\d\d)?$/.test(String(a.from || '')) || !/^20\d\d-\d\d-\d\d$/.test(String(a.to || '')) || tgDates_(a.from).indexOf(a.to) >= 0) return { error: 'Выберите партию и другую дату', v: VERSION };
+    return { ok: true, v: VERSION, moved: tgCarry_(tgDates_(a.from), a.to) };   // «A+B» — недоставленные обеих партий
   }
   if (a.action === 'message') { var mr = tgMessage_(a.ids, a.text); return mr.error ? { error: mr.error, v: VERSION } : { ok: true, v: VERSION, sent: mr.sent }; }
   if (a.action === 'summary') {

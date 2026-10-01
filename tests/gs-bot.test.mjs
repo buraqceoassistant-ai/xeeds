@@ -65,7 +65,7 @@ const connect = t => t.s.post({ token: '', tg: { action: 'setup', url: 'https://
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 27); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 28); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
@@ -469,7 +469,7 @@ test('фото только с камеры: кнопка открывает dri
   assert.equal(up({}, initData({ id: 501 }, { token: 'чужой' })).code, 'auth', 'подпись другим токеном');
   assert.equal(up({}, initData({ id: 501 }, { at: Date.UTC(2026, 8, 24) / 1000 })).code, 'auth', 'подпись старше суток');
   assert.equal(up({ key: 'BL-902|1' }).code, 'stage', 'снимок не той точки');
-  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 27 }, 'проверка связи со страницы камеры');
+  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 28 }, 'проверка связи со страницы камеры');
   assert.equal(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-902|1', ping: 1 } }).code, 'stage');
   const r = up({ ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -880,7 +880,7 @@ test('версия 17: кнопки карточки версии 15, остав
   assert.match(t.texts(501).slice(-2).join('\n'), /BL-901/);
   // камера с карточки версии 15: проверка связи не меняет шаг, снимок — как «Доставлено»
   const cam = extra => t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ...extra } });
-  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 27 });
+  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 28 });
   assert.equal(cam({ key: 'BL-902|1', img: JPEG }).code, 'stage', 'не та точка');
   const r = cam({ img: JPEG, ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -1137,4 +1137,22 @@ test('версия 27: в V — название точки из анкеты к
   const st = ctx.tgStops_('Gazel-2', '2026-09-26'), by = bl => st.find(s => s.bl === bl);
   assert.deepEqual([by('BL-903').c.lat, by('BL-903').c.lon, by('BL-903').c.address], [41.35, 69.3, 'Yangi ombor']);
   assert.deepEqual([by('BL-902').c.lat, by('BL-902').c.address], [41.36, 'Amir Temur 2'], '«Mijoz manzili» — адрес из анкеты');
+});
+
+test('версия 28: «Отправить» две партии одним заданием — точки обеих, рейсы общие; утром задание не сбивается', () => {
+  const t = approved(), g = t.group.id, ctx = t.s.ctx;
+  const r = t.s.post({ token: '', tg: { action: 'dispatch', date: '2026-09-25+2026-09-26' } });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.deepEqual(r.sent.map(x => [x.truck, x.n]), [['Gazel-2', 4]], 'точки обеих партий: BL-905 (25.09) и 3 точки 26.09');
+  assert.match(t.last('sendMessage', 501).text, /^📋 Задание: партия 25\.09\.2026 \+ 26\.09\.2026\n🚚 Gazel-2 · точек: 4 · рейсов: 2/);
+  assert.equal(r.tg.drivers[0].assign.date, '2026-09-25+2026-09-26');
+  ctx.TG_MEMO = null;
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.tgStops_('Gazel-2', '2026-09-25+2026-09-26').map(s => s.bl + '@' + s.date))), ['BL-901@2026-09-26', 'BL-902@2026-09-26', 'BL-903@2026-09-26', 'BL-905@2026-09-25']);
+  // утром по расписанию (партия сегодня) — задание на две партии остаётся
+  ctx.tgMorningRun_(TODAY);
+  assert.equal(t.s.post({ token: '', tg: { action: 'info' } }).tg.drivers[0].assign.date, '2026-09-25+2026-09-26');
+  t.msg(501, '🚚 Начать работу'); t.loc(501, DEPOT);
+  assert.match(t.last('sendMessage', g).text, /партия 25\.09\.2026 \+ 26\.09\.2026 · точек: 4/);
+  // неверная дата — ошибка
+  assert.equal(t.s.post({ token: '', tg: { action: 'dispatch', date: '2026-09-25+x' } }).error, 'Выберите партию');
 });
