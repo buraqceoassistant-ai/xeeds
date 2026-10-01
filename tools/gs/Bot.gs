@@ -753,8 +753,9 @@ function tgData_() {
     rows.forEach(function (r, i) { while (r.length < LOC_COL - 1) r.push(''); r[LOC_COL - 1] = lv[i][0]; });
   }
   var cl_last = cs ? lastRow_(cs, 1, 5) : 0;
-  if (cl_last >= 5) cs.getRange(5, 1, cl_last - 4, 15).getValues().forEach(function (r) {
-    cl[String(r[0]).trim()] = { brand: String(r[1] || ''), name: String(r[2] || ''), tel1: String(r[3] || ''), tel2: String(r[4] || ''), receiver: String(r[5] || ''), recvTel: String(r[6] || ''), district: String(r[7] || ''), address: String(r[8] || ''), lat: Number(r[10]) || null, lon: Number(r[11]) || null, note: String(r[14] || '') };
+  var zl = cl_last >= 5 && colOn_(cs, LOCS_COL, LOCS_HEAD) ? cs.getRange(5, LOCS_COL, cl_last - 4, 1).getValues() : null;   // точки клиента (версия 27)
+  if (cl_last >= 5) cs.getRange(5, 1, cl_last - 4, 15).getValues().forEach(function (r, i) {
+    cl[String(r[0]).trim()] = { brand: String(r[1] || ''), name: String(r[2] || ''), tel1: String(r[3] || ''), tel2: String(r[4] || ''), receiver: String(r[5] || ''), recvTel: String(r[6] || ''), district: String(r[7] || ''), address: String(r[8] || ''), lat: Number(r[10]) || null, lon: Number(r[11]) || null, note: String(r[14] || ''), locs: zl ? String(zl[i][0] || '') : '' };
   });
   TG_MEMO = { rows: rows, cl: cl, tz: ss.getSpreadsheetTimeZone() };
   return TG_MEMO;
@@ -770,7 +771,10 @@ function tgWhLoc_(D, bl, name) {
     });
   }
   var n = String(name).trim().toLowerCase(), w = (D.wh[bl] || []).filter(function (x) { return x.name.toLowerCase() === n; })[0];
-  return w ? { name: w.name, lat: w.lat, lon: w.lon } : null;
+  if (w) return { name: w.name, lat: w.lat, lon: w.lon };
+  // точка из анкеты клиента (Mijozlar Z, версия 27) с тем же названием; «Mijoz manzili» — адрес клиента
+  var ls = String((D.cl[bl] || {}).locs || '').split('\n').map(locParse_).filter(function (x) { return x && x.name.toLowerCase() === n; });
+  return ls[0] || null;
 }
 // точки машины на дату: строки журнала этой машины, по клиенту и номеру рейса; клиент — адрес, получатель, координаты
 function tgStops_(truck, date) {

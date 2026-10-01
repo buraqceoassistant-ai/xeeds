@@ -18,7 +18,7 @@ const call = (extra = {}) => ({ token: '', login: 'buraq', ai: { action: 'call',
 test('проверка связи: ключ из свойств, модель по умолчанию, инструмент strict и tool_choice на него, запись в журнал', () => {
   const s = loadScript({ props: { ANTHROPIC_API_KEY: 'sk-test' }, sheets: book(), fetch: () => toolReply({ reply: 'готов' }) });
   const r = s.post(ping());
-  assert.equal(r.ok, true); assert.equal(r.v, 26); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
+  assert.equal(r.ok, true); assert.equal(r.v, 27); assert.equal(r.model, 'claude-sonnet-5'); assert.deepEqual(r.result, { reply: 'готов' });
   assert.equal(r.mode, 'tool'); assert.equal(r.editorSet, true); assert.deepEqual(r.usage, { in: 120, cache: 0, out: 30 });
   const c = s.calls[0];
   assert.equal(c.url, 'https://api.anthropic.com/v1/messages');
@@ -81,7 +81,7 @@ test('пароль скрипта из свойства TOKEN проверяет
   assert.equal(s.post(ping({ token: 'x' })).error, 'Неверный пароль');
   assert.equal(s.get({ token: 'x' }).error, 'Неверный пароль');
   assert.equal(s.post(ping({ token: 'pw' })).ok, true);
-  assert.equal(s.get({ token: 'pw' }).v, 26);
+  assert.equal(s.get({ token: 'pw' }).v, 27);
 });
 
 test('Opus 5.5 и Fable 5.1 не принимают принудительный tool_choice — схема уходит через output_config.format', () => {
@@ -206,7 +206,7 @@ const noFetch = () => { throw new Error('внешний запрос не дол
 test('версия 19: без свойства TOKEN скрипт никого не пускает — «Задайте TOKEN…», данные и ИИ не отдаются', () => {
   const s = loadScript({ auth: false, props: { ANTHROPIC_API_KEY: 'k', EDITOR_TOKEN: 'ed' }, sheets: book(), fetch: noFetch });
   for (const r of [s.rawGet({}), s.rawGet({ token: 'что-угодно' }), s.rawGet({ resolve: 'https://maps.app.goo.gl/x' }), s.rawPost({ ops: [] }), s.rawPost(ping({ token: '', editor: 'ed' })), s.rawPost({ token: 'x', tg: { action: 'setup' }, editor: 'ed' })]) {
-    assert.equal(r.code, 'nopass', JSON.stringify(r)); assert.match(r.error, /^Задайте TOKEN в свойствах скрипта/); assert.equal(r.v, 26);
+    assert.equal(r.code, 'nopass', JSON.stringify(r)); assert.match(r.error, /^Задайте TOKEN в свойствах скрипта/); assert.equal(r.v, 27);
     assert.equal(r.data, undefined); assert.equal(r.ok, undefined);
   }
   assert.equal(s.calls.length, 0, 'ни ИИ, ни раскрытия ссылок');
@@ -218,7 +218,7 @@ test('версия 19: без свойства TOKEN скрипт никого �
 test('версия 19: TOKEN задан — без пароля и с чужим «Неверный пароль» (code pass); свойство находится и в другом регистре', () => {
   const s = loadScript({ auth: false, props: { ' token ': ' pw \n', EDITOR_TOKEN: 'ed' }, sheets: book(), fetch: noFetch });
   for (const r of [s.rawGet({}), s.rawGet({ token: '' }), s.rawGet({ token: 'PW' }), s.rawPost({ ops: [] }), s.rawPost({ token: 'x', ops: [] })]) {
-    assert.deepEqual([r.error, r.code, r.v, r.data], ['Неверный пароль', 'pass', 26, undefined]);
+    assert.deepEqual([r.error, r.code, r.v, r.data], ['Неверный пароль', 'pass', 27, undefined]);
   }
   const ok = s.rawGet({ token: 'pw' });
   assert.equal(ok.ok, true); assert.ok(ok.data.sheets.Yuborishlar);
@@ -241,7 +241,7 @@ test('версия 19: без EDITOR_TOKEN — отказ ИИ и боту с с
   const s = loadScript({ auth: false, props: { TOKEN: 'pw', ANTHROPIC_API_KEY: 'k', TG_TOKEN: '123:ABC' }, sheets: book(), fetch: noFetch });
   for (const r of [s.rawPost(ping({ token: 'pw' })), s.rawPost(ping({ token: 'pw', editor: 'любой' })), s.rawPost({ token: 'pw', tg: { action: 'setup', url: 'https://script.google.com/macros/s/A/exec' } }),
     s.rawPost({ token: 'pw', editor: '', tg: { action: 'dispatch', date: '2026-09-28' } })]) {
-    assert.equal(r.code, 'noeditor', JSON.stringify(r)); assert.match(r.error, /^Задайте EDITOR_TOKEN в свойствах скрипта/); assert.equal(r.v, 26);
+    assert.equal(r.code, 'noeditor', JSON.stringify(r)); assert.match(r.error, /^Задайте EDITOR_TOKEN в свойствах скрипта/); assert.equal(r.v, 27);
   }
   assert.equal(s.calls.length, 0, 'ни Claude, ни Telegram');
   assert.equal(s.book.sheets['ИИ-журнал'], undefined, 'в журнал ИИ ничего не записано');
@@ -323,7 +323,7 @@ const card = { repair: true, model: 'GAZelle Next', year: 2021, m3: 17.5, kg: 35
 test('версия 21: карточка машины — Sozlamalar E:J напротив названия, заголовки в строке 23, сайт получает E:J', () => {
   const s = loadScript({ sheets: fleetBook() });
   const r = s.post({ ops: [{ t: 'fleet', v: { 'Gazel-2': card } }] });
-  assert.equal(r.v, 26); assert.deepEqual(r.results[0], { ok: true });
+  assert.equal(r.v, 27); assert.deepEqual(r.results[0], { ok: true });
   const z = s.book.sheets.Sozlamalar.rows;
   assert.deepEqual(z[22].slice(4, 10), ['Holati', 'Marka', 'Yili', 'Hajm, m³', 'Yuk, kg', 'Izoh']);
   assert.deepEqual(z[24].slice(2, 10), ['Gazel-2', '01B777CC', 'ta’mirda', 'GAZelle Next', 2021, 17.5, 3500, 'длинная база']);
@@ -378,8 +378,8 @@ test('ошибка кода или таблицы — ответ JSON с тек�
   const s = loadScript({ props: { TOKEN: 'pw' }, sheets: book() });
   s.ctx.dump_ = () => { throw new Error('Service Spreadsheets failed'); };
   const r = s.post({ token: 'pw', ops: [] });
-  assert.deepEqual(r, { error: 'Ошибка скрипта таблицы: Service Spreadsheets failed', code: 'script', v: 26 });
-  assert.deepEqual(s.get({ token: 'pw' }), { error: 'Ошибка скрипта таблицы: Service Spreadsheets failed', code: 'script', v: 26 });
+  assert.deepEqual(r, { error: 'Ошибка скрипта таблицы: Service Spreadsheets failed', code: 'script', v: 27 });
+  assert.deepEqual(s.get({ token: 'pw' }), { error: 'Ошибка скрипта таблицы: Service Spreadsheets failed', code: 'script', v: 27 });
   s.ctx.LockService.getScriptLock = () => ({ waitLock() { throw new Error('Lock timeout: another process was holding the lock for too long.'); }, releaseLock() {} });
   const b = s.post({ token: 'pw', ops: [] });
   assert.deepEqual([b.code, b.error], ['busy', 'Таблица занята другой записью — сайт повторит сам через полминуты']);
@@ -494,4 +494,30 @@ test('версия 26: значение не из выпадающего спи�
   M.reject = (rr, c) => c === 4 ? 'Вы пытаетесь изменить защищенную ячейку' : null;
   const r2 = s.post({ token: 'pw', ops: [{ t: 'cli.upsert', key: 'BL-2', v: { ...was2, tel1: '+998900000777' } }] });
   assert.equal(r2.results[0].code, 'cell'); assert.equal(r2.relaxed, undefined);
+});
+
+// версия 27: варианты точек клиента — в анкете (Mijozlar Z «Lokatsiyalar»)
+test('версия 27: точки клиента — Mijozlar Z с подписью, сайт получает Z, без изменения не переписывается; Z занят своим — ошибка правки', () => {
+  const b = valBook(); b.Mijozlar.maxCols = 25;
+  const s = loadScript({ props: { TOKEN: 'pw' }, sheets: b });
+  const M = s.book.sheets.Mijozlar;
+  const was2 = cli('BL-2', { brand: 'STAR', name: 'Bobur', tel1: '+998900000002' });
+  const L = 'Yangi ombor · 41.350000, 69.300000\nSklad · 41.250000, 69.200000';
+  const r = s.post({ token: 'pw', ops: [{ t: 'cli.upsert', key: 'BL-2', was: was2, v: { ...was2, locs: L } }, { t: 'cli.upsert', v: cli('BL-3', { name: 'Dilshod' }) }] });
+  assert.ok(r.results.every(x => !x.error), JSON.stringify(r.results));
+  assert.ok(M.maxCols >= 26, 'столбец Z добавлен');
+  assert.deepEqual([M.rows[3][25], M.rows[5][25], M.rows[6][25] ?? ''], ['Lokatsiyalar', L, ''], 'подпись Z4, точки BL-2; новый клиент без точек Z не трогает');
+  const sheet = s.get({ token: 'pw' }).data.sheets.Mijozlar;
+  assert.equal(sheet[5][25], L, 'сайт получает Z 26-м элементом строки');
+  // правка района с прежними точками — Z не переписывается (в таблице поправили вручную — остаётся)
+  M.rows[5][25] = 'вручную · 41.1, 69.1';
+  s.post({ token: 'pw', ops: [{ t: 'cli.upsert', key: 'BL-2', was: { ...was2, locs: L }, v: { ...was2, locs: L, district: 'Sergeli' } }] });
+  assert.deepEqual([M.rows[5][7], M.rows[5][25]], ['Sergeli', 'вручную · 41.1, 69.1']);
+  // Z занят своим — точки не пишутся, остальное пишется; Z сайту не отдаётся
+  const b2 = valBook(); b2.Mijozlar.maxCols = 26; b2.Mijozlar.rows[3][25] = 'Мои заметки';
+  const s2 = loadScript({ props: { TOKEN: 'pw' }, sheets: b2 });
+  const r2 = s2.post({ token: 'pw', ops: [{ t: 'cli.upsert', key: 'BL-2', was: was2, v: { ...was2, locs: L } }, { t: 'cli.upsert', key: 'BL-2', was: was2, v: { ...was2, district: 'Chilonzor' } }] });
+  assert.equal(r2.results[0].code, 'cell'); assert.match(r2.results[0].error, /столбец Z занят \(«Мои заметки»\)/);
+  assert.equal(s2.book.sheets.Mijozlar.rows[5][7], 'Chilonzor');
+  assert.equal(s2.get({ token: 'pw' }).data.sheets.Mijozlar[5].length <= 25, true, 'чужой Z сайту не отдаётся');
 });

@@ -2237,12 +2237,12 @@ X — по районам	X — tumanlar bo‘yicha
 например, GAZelle Next	masalan, GAZelle Next
 
 # ── версия 22: откуда и куда (бот) ──
-Для бота нужен код скрипта таблицы версии 26 (не ниже 9).	Bot uchun jadval skripti kodining 26-versiyasi kerak (9 dan past emas).
-Обновите код скрипта до 26 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 26 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
-Скрипт таблицы версии {n}: для бота нужна версия 26. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 26-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
-Скрипт таблицы версии ?: для бота нужна версия 26. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 26-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
-Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (26): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Haydovchilarga partiya yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (26) yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
-Обновите код до 26.	Kodni 26-versiyaga yangilang.
+Для бота нужен код скрипта таблицы версии 27 (не ниже 9).	Bot uchun jadval skripti kodining 27-versiyasi kerak (9 dan past emas).
+Обновите код скрипта до 27 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 27 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Скрипт таблицы версии {n}: для бота нужна версия 27. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 27-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
+Скрипт таблицы версии ?: для бота нужна версия 27. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 27-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
+Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (27): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Haydovchilarga partiya yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (27) yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Обновите код до 27.	Kodni 27-versiyaga yangilang.
 Водитель увидит, откуда забирать груз и куда везти: склад отправки с адресом и адрес клиента — в задании и в карточке точки.	Haydovchi yukni qayerdan olish va qayerga olib borishni ko‘radi: jo‘natish ombori manzili bilan va mijoz manzili — topshiriqda va manzil kartasida.
 
 # ── версия 23: кто на какой машине ──
@@ -2322,14 +2322,14 @@ X — по районам	X — tumanlar bo‘yicha
 Для всех строк этого клиента в партии {d}.	{d} partiyadagi shu mijozning barcha qatorlari uchun.
 Для всех строк этого клиента в партии.	Partiyadagi shu mijozning barcha qatorlari uchun.
 Планы, карта и бот водителя — по этой точке.	Rejalar, xarita va haydovchi boti — shu nuqta bo‘yicha.
-Куда везти можно выбрать с кодом скрипта таблицы версии 25: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Yetkazish joyini jadval skripti kodining 25-versiyasi bilan tanlash mumkin: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Куда везти можно выбрать с кодом скрипта таблицы версии 27: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Yetkazish joyini jadval skripti kodining 27-versiyasi bilan tanlash mumkin: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
 Сейчас — адрес клиента.	Hozircha — mijoz manzili.
 Ссылка на карту или координаты	Xarita havolasi yoki koordinatalar
 Название точки	Nuqta nomi
 https://yandex.uz/maps/… или 41.311, 69.279	https://yandex.uz/maps/… yoki 41.311, 69.279
 например, Склад Сергели	masalan, Sergeli ombori
 Вставьте ссылку из Яндекс, Google Карт или 2ГИС либо координаты «41.311, 69.279».	Yandex, Google Xaritalar yoki 2GIS havolasini yoxud «41.311, 69.279» koordinatalarini qo‘ying.
-Точка сохранится в склады клиента — в следующий раз выберете её из списка.	Nuqta mijoz omborlariga saqlanadi — keyingi safar uni ro‘yxatdan tanlaysiz.
+Точка сохранится в анкету клиента — в следующий раз выберете её из списка.	Nuqta mijoz anketasiga saqlanadi — keyingi safar uni ro‘yxatdan tanlaysiz.
 Нужна ссылка из Яндекс или Google Карт, 2ГИС или координаты «41.311, 69.279».	Yandex yoki Google Xaritalar, 2GIS havolasi yoki «41.311, 69.279» koordinatalari kerak.
 ✓ Точка: {n}, {n2} ({s}).	✓ Nuqta: {n}, {n2} ({s}).
 Нажмите «Сохранить».	«Saqlash»ni bosing.
@@ -2339,11 +2339,35 @@ https://yandex.uz/maps/… или 41.311, 69.279	https://yandex.uz/maps/… yoki
 
 # ── версия 26: выпадающие списки не останавливают запись ──
 В таблице на этой ячейке стоит выпадающий список (проверка данных).	Jadvalda bu katakda ochiladigan ro‘yxat (ma’lumotlarni tekshirish) bor.
-Обновите код скрипта до 26: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия — скрипт сам переключит такие списки на «Показывать предупреждение», и правки уйдут.	Skript kodini 26 gacha yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya — skript bunday ro‘yxatlarni o‘zi «Ogohlantirish ko‘rsatish»ga o‘tkazadi va o‘zgarishlar yuboriladi.
+Обновите код скрипта до 27: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия — скрипт сам переключит такие списки на «Показывать предупреждение», и правки уйдут.	Skript kodini 27 gacha yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya — skript bunday ro‘yxatlarni o‘zi «Ogohlantirish ko‘rsatish»ga o‘tkazadi va o‘zgarishlar yuboriladi.
 Или вручную: выделите столбец → Данные → Проверка данных → «Показывать предупреждение», затем «Отправить снова».	Yoki qo‘lda: ustunni belgilang → Ma’lumotlar → Ma’lumotlarni tekshirish → «Ogohlantirish ko‘rsatish», keyin «Qayta yuborish».
-Обновите код скрипта до 26 — он сам переключит такой выпадающий список на «Показывать предупреждение».	Skript kodini 26 gacha yangilang — u bunday ochiladigan ro‘yxatni o‘zi «Ogohlantirish ko‘rsatish»ga o‘tkazadi.
+Обновите код скрипта до 27 — он сам переключит такой выпадающий список на «Показывать предупреждение».	Skript kodini 27 gacha yangilang — u bunday ochiladigan ro‘yxatni o‘zi «Ogohlantirish ko‘rsatish»ga o‘tkazadi.
 Или уберите проверку данных в этой ячейке (Данные → Проверка данных).	Yoki bu katakdagi ma’lumotlarni tekshirishni olib tashlang (Ma’lumotlar → Ma’lumotlarni tekshirish).
 Затем внесите правку снова.	Keyin o‘zgarishni qayta kiriting.
 Выпадающие списки в таблице (проверка данных) больше не остановят запись: скрипт сам переключит их на «Показывать предупреждение».	Jadvaldagi ochiladigan ro‘yxatlar (ma’lumotlarni tekshirish) endi yozishni to‘xtatmaydi: skript ularni o‘zi «Ogohlantirish ko‘rsatish»ga o‘tkazadi.
 Выпадающий список в таблице ({s}) теперь только подсказывает: значения не из списка записываются.	Jadvaldagi ochiladigan ro‘yxat ({s}) endi faqat taklif qiladi: ro‘yxatda yo‘q qiymatlar ham yoziladi.
 Так скрипт сделал сам, чтобы правка не застряла (Данные → Проверка данных → «Показывать предупреждение»).	Buni skript o‘zi qildi, o‘zgarish qolib ketmasligi uchun (Ma’lumotlar → Ma’lumotlarni tekshirish → «Ogohlantirish ko‘rsatish»).
+
+# ── версия 27: точки в анкете клиента, окно партии ──
+📍 Локации партии	📍 Partiya manzillari
+Какая локация на эту партию?	Bu partiya uchun qaysi manzil?
+Есть клиенты без выбранной точки	Nuqtasi tanlanmagan mijozlar bor
+Партия {d} · клиентов: {n}.	Partiya {d} · mijozlar: {n}.
+Точка — для всех строк клиента в партии; планы, карта и бот водителя — по ней.	Nuqta — partiyadagi mijozning barcha qatorlari uchun; rejalar, xarita va haydovchi boti — shu bo‘yicha.
+не выбрано	tanlanmagan
+Новая точка… (ссылка или координаты)	Yangi nuqta… (havola yoki koordinatalar)
+Название, например Склад Сергели	Nomi, masalan Sergeli ombori
+Точка сохранится в анкету клиента.	Nuqta mijoz anketasiga saqlanadi.
+Вставьте ссылку на карту или координаты новой точки: {s}.	Yangi nuqtaning xarita havolasini yoki koordinatalarini qo‘ying: {s}.
+Позже	Keyinroq
+Точки доставки	Yetkazish nuqtalari
+— склады и адреса, куда клиент просит везти. Новая — сверху: её предложат первой	— mijoz olib borishni so‘raydigan omborlar va manzillar. Yangisi — yuqorida: u birinchi taklif qilinadi
+Убрать точку	Nuqtani olib tashlash
+Пока только адрес клиента.	Hozircha faqat mijoz manzili.
+Вставьте ссылку из Яндекс, Google Карт или 2ГИС либо координаты «41.311, 69.279» и нажмите «Добавить».	Yandex, Google Xaritalar yoki 2GIS havolasini yoxud «41.311, 69.279» koordinatalarini qo‘ying va «Qo‘shish»ni bosing.
+Нажмите «Добавить».	«Qo‘shish»ni bosing.
+Сначала вставьте ссылку на карту или координаты новой точки.	Avval yangi nuqtaning xarita havolasini yoki koordinatalarini qo‘ying.
+Такая точка уже есть в списке.	Bunday nuqta ro‘yxatda allaqachon bor.
+Вставьте ссылку на карту или координаты новой точки — или выберите точку из списка.	Yangi nuqtaning xarita havolasini yoki koordinatalarini qo‘ying — yoki ro‘yxatdan nuqtani tanlang.
+Точки доставки клиента будут храниться в его анкете, а при выборе партии в журнале сайт спросит, какая локация у каждого клиента.	Mijozning yetkazish nuqtalari uning anketasida saqlanadi, jurnalda partiya tanlanganda esa sayt har bir mijoz uchun qaysi manzil ekanini so‘raydi.
+Добавить	Qo‘shish

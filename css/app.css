@@ -393,3 +393,22 @@ input.set-input[type="text"] { text-align: left !important; }
 /* окно отгрузки: новая точка — ссылка и название; на телефоне одно под другим, чтобы ссылку было видно */
 .loc-new { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 @media (max-width: 600px) { .loc-new { grid-template-columns: minmax(0, 1fr); } }
+/* журнал: «Локации партии» — красная точка, если у кого-то в партии точка не выбрана */
+.j-loc-btn { position: relative; }
+.j-loc-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--buraq-red); }
+/* окно «Какая локация на эту партию?» */
+.la-list { display: flex; flex-direction: column; border-top: 1px solid var(--color-divider); margin-bottom: 12px; }
+.la-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 12px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--color-divider); }
+.la-sub { font-size: 12px; color: var(--color-neutral-700); }
+.la-pick { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.la-pick select { width: 100%; }
+.la-new { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+@media (max-width: 600px) { .la-row { grid-template-columns: minmax(0, 1fr); gap: 6px; } .la-new { grid-template-columns: minmax(0, 1fr); } }
+/* анкета клиента: точки доставки */
+.cl-locs { border: 1px solid var(--color-divider); background: var(--color-surface); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; margin-bottom: 12px; }
+.cl-loc { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cl-loc-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.cl-loc-ll { font-size: 12px; white-space: nowrap; }
+.cl-loc-del { min-height: 28px; padding: 2px 8px; }
+.cl-loc-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; }
+@media (max-width: 600px) { .cl-loc-add { grid-template-columns: minmax(0, 1fr); } .cl-loc-ll { display: none; } }

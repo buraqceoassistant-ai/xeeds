@@ -106,7 +106,7 @@
     const Ys = R(SH.ship), Ms = R(SH.cli), Ws = R(SH.wh), Ss = R(SH.set), Hs = R(SH.ring), Ns = R(SH.notes);
     const clients = Object.keys(Ms).map(Number).filter(r => r >= 5 && str(Ms[r].A)).sort((a, b) => a - b).map(r => { const c = Ms[r]; return {
       bl: str(c.A), brand: str(c.B), name: str(c.C), tel1: str(c.D), tel2: str(c.E), receiver: str(c.F), receiverTel: str(c.G), district: str(c.H) || 'Aniqlanmagan', address: str(c.I),
-      link: links['J' + r] || '', lat: num(c.K), lon: num(c.L), note: str(c.O), manualZone: str(c.X), marks: str(c.Y) }; });
+      link: links['J' + r] || '', lat: num(c.K), lon: num(c.L), note: str(c.O), manualZone: str(c.X), marks: str(c.Y), locs: str(c.Z) }; });
     // Date in column A: a real date (Excel/Sheets serial number) or typed by hand as text — 31.08.2026,
     // 31.08.26, 31/08/2026, 2026-08-31, 31.08 — or turned into a number by a sheet in another locale
     // ("04.09" → 4.09). Such dates are read as DD.MM (year from the other rows) and reported in `textDates`;
@@ -244,12 +244,13 @@
     put(z, P[SH.ship], data.shipments.some(s => s.loc) ? setCells(ship.xml, { V4: 'Yetkazish joyi' }) : ship.xml);   // куда везти — подпись столбца V
 
     const cli = patchTable(txt(z, P[SH.cli]), { firstRow: 5, tplRow: 5, keyCol: 'A', items: data.clients,
-      inputs: { A: c => c.bl, B: c => c.brand, C: c => c.name, D: c => c.tel1, E: c => c.tel2, F: c => c.receiver, G: c => c.receiverTel, H: c => c.district, I: c => c.address, J: c => c.link ? 'Xaritada ochish' : '', K: c => c.lat, L: c => c.lon, O: c => c.note, X: c => c.manualZone, Y: c => c.marks },
+      inputs: { A: c => c.bl, B: c => c.brand, C: c => c.name, D: c => c.tel1, E: c => c.tel2, F: c => c.receiver, G: c => c.receiverTel, H: c => c.district, I: c => c.address, J: c => c.link ? 'Xaritada ochish' : '', K: c => c.lat, L: c => c.lon, O: c => c.note, X: c => c.manualZone, Y: c => c.marks, Z: c => c.locs || null },
       formulas: { M: c => coord(c.lat, c.lon), N: c => c.lat != null ? 'Yandex xarita' : '', P: c => (agg[c.bl] || {}).n || 0, Q: c => (agg[c.bl] || {}).last || '', R: c => (agg[c.bl] || {}).cbm || 0, S: c => (agg[c.bl] || {}).kg || 0,
         T: c => ([c.brand, c.name, c.tel1, c.receiver, c.address].filter(Boolean).length + (c.lat != null ? 1 : 0)) / 6,
         U: c => zt((zones[c.bl] || {}).zone), V: c => { const q = zones[c.bl] || {}; return q.dist != null ? q.dist : ''; }, W: c => { const q = zones[c.bl] || {}; return !q.zone ? '' : q.manual ? 'Qo‘lda belgilangan' : q.border ? 'Chegarada — tekshiring' : 'Aniq'; } } });
     // hyperlinks in J
-    let cx = cli.xml; const relPath = P[SH.cli].replace(/([^/]+)$/, '_rels/$1.rels');
+    let cx = data.clients.some(c => c.locs) ? setCells(cli.xml, { Z4: 'Lokatsiyalar' }) : cli.xml;   // точки клиента — подпись столбца Z
+    const relPath = P[SH.cli].replace(/([^/]+)$/, '_rels/$1.rels');
     let rels = txt(z, relPath) || '<?xml version="1.0" encoding="UTF-8"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
     rels = rels.replace(/<Relationship\b[^>]*Type="[^"]*\/hyperlink"[^>]*\/>/g, '');
     let hl = '', add = '';

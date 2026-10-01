@@ -63,9 +63,12 @@
  *   значениям столбца (получатели, телефоны); с ним новое имя таблица отклоняла. Если ячейку отклонило правило
  *   «отклонять ввод», скрипт переключает правила этого столбца (строки с 5-й) на «Показывать предупреждение» — список
  *   остаётся, значение не из списка пишется с треугольником — и пишет правку снова. В ответе — relaxed: какие столбцы.
+ * Версия 27: варианты точек клиента — в анкете: Mijozlar Z «Lokatsiyalar», по строке на точку «Название · широта,
+ *   долгота» (новые сверху). Доп. склады сайт больше не создаёт. В Yuborishlar V «Mijoz manzili» — явно выбран адрес
+ *   клиента (партия «отвечена»); бот везёт по адресу из анкеты.
  */
 var TOKEN = '';
-var VERSION = 26; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 27; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 var LOC_COL = 22;   // Yuborishlar V — куда везти (версия 25)
@@ -269,7 +272,8 @@ function dump_(tgDays) {
     if (!sh) return;
     var last = sh.getLastRow();
     if (last < 1) { out.sheets[SH[k]] = []; return; }
-    var vals = sh.getRange(1, 1, last, Math.min(COLS[k], sh.getMaxColumns())).getValues();
+    var nc = k === 'cli' && colOn_(sh, LOCS_COL, LOCS_HEAD) ? LOCS_COL : COLS[k];   // Z — точки клиента (версия 27)
+    var vals = sh.getRange(1, 1, last, Math.min(nc, sh.getMaxColumns())).getValues();
     if (k === 'ship' && locOn_(sh)) {   // V — куда везти: в 22-й элемент строки (сайт читает её как столбец V)
       var lv = sh.getRange(1, LOC_COL, last, 1).getValues();
       vals = vals.map(function (row, i) { var x = row.slice(); while (x.length < LOC_COL - 1) x.push(''); x[LOC_COL - 1] = lv[i][0]; return x; });
@@ -391,20 +395,25 @@ function ensureF_(sh, row, tplRow, cols) {
 
 // куда везти (версия 25): столбец V и подпись в строке 4 — если их ещё нет; значение — текстом, как пришло с сайта
 var LOC_HEAD = 'Yetkazish joyi';
-function locCol_(sh, loc) {
-  if (sh.getMaxColumns() < LOC_COL) sh.insertColumnsAfter(sh.getMaxColumns(), LOC_COL - sh.getMaxColumns());
-  var h = sh.getRange(4, LOC_COL), hv = String(h.getValue()).trim();
-  // столбец V занят своим (другая подпись в строке 4) — не пишем поверх: правка вернётся сайту ошибкой (code cell)
-  if (hv && hv !== LOC_HEAD) throw new Error('На листе Yuborishlar столбец V занят («' + hv.slice(0, 40) + '»): «куда везти» пишется в V. Освободите столбец V');
-  if (!hv) h.setValue(LOC_HEAD);
-  return loc == null ? '' : String(loc);
+function locCol_(sh, loc) { return ownCol_(sh, LOC_COL, LOC_HEAD, 'V', '«куда везти»', loc); }
+// свой столбец сайта (V у отгрузок, Z у клиентов): добавить столбец и подпись в строке 4, если их нет. Столбец занят
+// своим (другая подпись) — не пишем поверх: правка вернётся сайту ошибкой (code cell)
+function ownCol_(sh, col, head, letter, what, val) {
+  if (sh.getMaxColumns() < col) sh.insertColumnsAfter(sh.getMaxColumns(), col - sh.getMaxColumns());
+  var h = sh.getRange(4, col), hv = String(h.getValue()).trim();
+  if (hv && hv !== head) throw new Error('На листе ' + sh.getName() + ' столбец ' + letter + ' занят («' + hv.slice(0, 40) + '»): ' + what + ' пишется в ' + letter + '. Освободите столбец ' + letter);
+  if (!hv) h.setValue(head);
+  return val == null ? '' : String(val);
 }
 // столбец V — наш: есть на листе и в строке 4 пусто или «Yetkazish joyi» (иначе там что-то своё — не читаем)
-function locOn_(sh) {
-  if (!sh || sh.getMaxColumns() < LOC_COL) return false;
-  var hv = String(sh.getRange(4, LOC_COL).getValue()).trim();
-  return !hv || hv === LOC_HEAD;
+function locOn_(sh) { return colOn_(sh, LOC_COL, LOC_HEAD); }
+function colOn_(sh, col, head) {
+  if (!sh || sh.getMaxColumns() < col) return false;
+  var hv = String(sh.getRange(4, col).getValue()).trim();
+  return !hv || hv === head;
 }
+// варианты точек клиента (версия 27): Mijozlar Z, по строке на точку «Название · широта, долгота»
+var LOCS_COL = 26, LOCS_HEAD = 'Lokatsiyalar';
 // «Название · 41.311000, 69.279000» → { name, lat, lon }; без координат — null (везём по адресу клиента)
 function locParse_(t) {
   var s = String(t == null ? '' : t).trim(), m = s.match(/(-?\d{1,2}(?:\.\d+)?)\s*[,;]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
@@ -468,6 +477,7 @@ function apply_(op) {
     if (op.t === 'cli.delete') { if (row) sh.deleteRow(row); return { row: row }; }
     // есть строка и прежние значения (сайт, версия 24) — только изменённые поля: правка района не переписывает телефоны
     var was = row && op.was, cv = function (k) { return !was || String(was[k] == null ? '' : was[k]) !== String(v[k] == null ? '' : v[k]) ? v[k] : undefined; };
+    var hadC = row;   // строка была: пустой список точек — тоже правка; новый клиент без точек столбец Z не трогает
     if (!row) row = lastRow_(sh, 1, 5) + 1;
     if (cv('marks') !== undefined) {   // маркировки — столбец Y: добавить столбец и подпись, если их ещё нет
       if (sh.getMaxColumns() < 25) sh.insertColumnsAfter(sh.getMaxColumns(), 25 - sh.getMaxColumns());
@@ -475,7 +485,8 @@ function apply_(op) {
     }
     var lat = cv('lat'), lon = cv('lon');
     setRow_(sh, row, { 1: cv('bl'), 2: cv('brand'), 3: cv('name'), 4: cv('tel1'), 5: cv('tel2'), 6: cv('receiver'), 7: cv('receiverTel'), 8: cv('district'), 9: cv('address'),
-      11: lat === undefined ? undefined : num_(lat), 12: lon === undefined ? undefined : num_(lon), 15: cv('note'), 24: cv('manualZone'), 25: cv('marks') }, [4, 5, 7, 25]);
+      11: lat === undefined ? undefined : num_(lat), 12: lon === undefined ? undefined : num_(lon), 15: cv('note'), 24: cv('manualZone'), 25: cv('marks'),
+      26: cv('locs') !== undefined && (hadC || v.locs) ? ownCol_(sh, LOCS_COL, LOCS_HEAD, 'Z', 'список точек клиента', v.locs) : undefined }, [4, 5, 7, 25, 26]);
     if (cv('link') !== undefined) {
       var r = sh.getRange(row, 10);
       if (v.link) r.setRichTextValue(SpreadsheetApp.newRichTextValue().setText('Xaritada ochish').setLinkUrl(v.link).build());
