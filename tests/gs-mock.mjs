@@ -15,7 +15,12 @@ class Range {
   getValue() { return this.cell(0, 0); }
   setValues(v) { v.forEach((row, i) => row.forEach((x, j) => this.sh.set(this.r + i, this.c + j, x))); return this; }
   // проверка данных «отклонять ввод»: sh.reject(r, c, x) → текст ошибки Google или ничего
-  setValue(x) { const no = this.sh.reject && this.sh.reject(this.r, this.c, x); if (no) throw new Error(no); this.sh.set(this.r, this.c, x); return this; }
+  setValue(x) { const no = this.sh.reject && this.sh.reject(this.r, this.c, x); if (no) throw new Error(no); const d = this.sh.dvAt(this.r, this.c);
+    if (d && !d.allowInvalid && x !== '' && x != null && !d.values.includes(String(x))) throw new Error('В ячейке ' + String.fromCharCode(64 + this.c) + this.r + ' нарушены правила проверки данных. Укажите одно из следующих значений: ' + d.values.join(', ') + '.');
+    this.sh.set(this.r, this.c, x); return this; }
+  // проверка данных: правило столбца (sh.dv[c] = { values, allowInvalid }) на строках с 5-й
+  getDataValidations() { return Array.from({ length: this.nr }, (_, i) => Array.from({ length: this.nc }, (_, j) => { const d = this.sh.dvAt(this.r + i, this.c + j); return d ? dvRule(d) : null; })); }
+  setDataValidations(v) { v.forEach((row, i) => row.forEach((x, j) => { if (this.r + i >= 5) { if (x) this.sh.dv[this.c + j] = { values: x.d.values, allowInvalid: x.d.allowInvalid }; else delete this.sh.dv[this.c + j]; } })); this.sh.dvSets = (this.sh.dvSets || 0) + 1; return this; }
   clearContent() { for (let i = 0; i < this.nr; i++) for (let j = 0; j < this.nc; j++) this.sh.set(this.r + i, this.c + j, ''); return this; }
   setNumberFormat() { return this; }
   setFontWeight() { return this; }
@@ -25,8 +30,11 @@ class Range {
   setRichTextValue(v) { this.sh.set(this.r, this.c, v.text); return this; }
   setDataValidation() { return this; }
 }
+const dvRule = d => ({ d, getAllowInvalid: () => d.allowInvalid, copy: () => { const n = { values: d.values.slice(), allowInvalid: d.allowInvalid }, b = { setAllowInvalid: x => { n.allowInvalid = !!x; return b; }, build: () => dvRule(n) }; return b; } });
 class Sheet {
-  constructor(name, rows = [], maxCols = 26) { this.name = name; this.rows = rows.map(r => r.slice()); this.maxCols = maxCols; this.frozen = 0; }
+  constructor(name, rows = [], maxCols = 26) { this.name = name; this.rows = rows.map(r => r.slice()); this.maxCols = maxCols; this.frozen = 0; this.dv = {}; }
+  dvAt(r, c) { return r >= 5 ? this.dv[c] || null : null; }
+  getMaxRows() { return Math.max(this.rows.length, 1000); }
   set(r, c, x) { if (c > this.maxCols) throw new Error('Координаты вне листа: столбец ' + c + ' > ' + this.maxCols); while (this.rows.length < r) this.rows.push([]); const row = this.rows[r - 1]; while (row.length < c) row.push(''); row[c - 1] = x; }
   getRange(r, c, nr, nc) { if (c + (nc || 1) - 1 > this.maxCols) throw new Error('Координаты вне листа'); return new Range(this, r, c, nr, nc); }
   getLastRow() { for (let i = this.rows.length; i > 0; i--) if (this.rows[i - 1].some(v => v !== '' && v != null)) return i; return 0; }
@@ -50,7 +58,7 @@ export function loadScript({ props = {}, sheets = {}, fetch, now, auth = true } 
   const pv = name => { const k = Object.keys(props).find(x => norm(x) === name && String(props[x]).trim()); return k ? String(props[k]).trim() : ''; };
   // «сейчас» для скрипта: new Date() без аргументов — now.value (если задано)
   class MockDate extends Date { constructor(...a) { if (!a.length && now && now.value) super(now.value.getTime()); else super(...a); } static now() { return now && now.value ? now.value.getTime() : Date.now(); } static [Symbol.hasInstance](x) { return x instanceof Date; } }
-  const book = { name: 'Тест', sheets: Object.fromEntries(Object.entries(sheets).map(([n, s]) => [n, new Sheet(n, s.rows || [], s.maxCols || 26)])) };
+  const book = { name: 'Тест', sheets: Object.fromEntries(Object.entries(sheets).map(([n, s]) => [n, Object.assign(new Sheet(n, s.rows || [], s.maxCols || 26), s.dv ? { dv: { ...s.dv } } : {})])) };
   const calls = [], logs = [], cache = new Map(), triggers = []; let uuid = 0;
   // Google Диск: папки и файлы в памяти
   const files = [], folders = {};

@@ -2237,12 +2237,12 @@ X — по районам	X — tumanlar bo‘yicha
 например, GAZelle Next	masalan, GAZelle Next
 
 # ── версия 22: откуда и куда (бот) ──
-Для бота нужен код скрипта таблицы версии 25 (не ниже 9).	Bot uchun jadval skripti kodining 25-versiyasi kerak (9 dan past emas).
-Обновите код скрипта до 25 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 25 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
-Скрипт таблицы версии {n}: для бота нужна версия 25. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 25-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
-Скрипт таблицы версии ?: для бота нужна версия 25. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 25-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
-Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (25): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Haydovchilarga partiya yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (25) yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
-Обновите код до 25.	Kodni 25-versiyaga yangilang.
+Для бота нужен код скрипта таблицы версии 26 (не ниже 9).	Bot uchun jadval skripti kodining 26-versiyasi kerak (9 dan past emas).
+Обновите код скрипта до 26 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 26 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Скрипт таблицы версии {n}: для бота нужна версия 26. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 26-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
+Скрипт таблицы версии ?: для бота нужна версия 26. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 26-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
+Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (26): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Haydovchilarga partiya yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (26) yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Обновите код до 26.	Kodni 26-versiyaga yangilang.
 Водитель увидит, откуда забирать груз и куда везти: склад отправки с адресом и адрес клиента — в задании и в карточке точки.	Haydovchi yukni qayerdan olish va qayerga olib borishni ko‘radi: jo‘natish ombori manzili bilan va mijoz manzili — topshiriqda va manzil kartasida.
 
 # ── версия 23: кто на какой машине ──
@@ -2291,7 +2291,6 @@ X — по районам	X — tumanlar bo‘yicha
 
 # ── версия 24: правка, которую таблица не приняла ──
 Если таблица не примет одну правку (например, из-за проверки данных в ячейке), остальные всё равно запишутся, а сайт покажет, что не записалось.	Jadval bitta o‘zgartirishni qabul qilmasa (masalan, katakdagi ma’lumotlarni tekshirish sababli), qolganlari baribir yoziladi, sayt esa nima yozilmaganini ko‘rsatadi.
-В таблице на этой ячейке стоит проверка данных (выпадающий список): выделите столбец → Данные → Проверка данных → удалите правило или выберите «Показывать предупреждение», затем «Отправить снова».	Jadvalda bu katakda ma’lumotlarni tekshirish (ochiladigan ro‘yxat) bor: ustunni belgilang → Ma’lumotlar → Ma’lumotlarni tekshirish → qoidani o‘chiring yoki «Ogohlantirish ko‘rsatish»ni tanlang, keyin «Qayta yuborish».
 Не записалось в таблицу — на сайте осталось как в таблице:	Jadvalga yozilmadi — saytda jadvaldagidek qoldi:
 отгрузка {s} за {d}	{d} sanasidagi {s} jo‘natmasi
 отгрузка {s}	{s} jo‘natmasi
@@ -2337,3 +2336,14 @@ https://yandex.uz/maps/… или 41.311, 69.279	https://yandex.uz/maps/… yoki
 по ссылке	havola bo‘yicha
 Вставьте ссылку на карту или координаты новой точки — или выберите адрес клиента либо его склад.	Yangi nuqtaning xarita havolasini yoki koordinatalarini qo‘ying — yoki mijoz manzilini yoxud uning omborini tanlang.
 В журнале можно будет выбрать, куда везти каждую отгрузку: адрес клиента, его склад или новую точку по ссылке.	Jurnalda har bir jo‘natmani qayerga olib borishni tanlash mumkin bo‘ladi: mijoz manzili, uning ombori yoki havola bo‘yicha yangi nuqta.
+
+# ── версия 26: выпадающие списки не останавливают запись ──
+В таблице на этой ячейке стоит выпадающий список (проверка данных).	Jadvalda bu katakda ochiladigan ro‘yxat (ma’lumotlarni tekshirish) bor.
+Обновите код скрипта до 26: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия — скрипт сам переключит такие списки на «Показывать предупреждение», и правки уйдут.	Skript kodini 26 gacha yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya — skript bunday ro‘yxatlarni o‘zi «Ogohlantirish ko‘rsatish»ga o‘tkazadi va o‘zgarishlar yuboriladi.
+Или вручную: выделите столбец → Данные → Проверка данных → «Показывать предупреждение», затем «Отправить снова».	Yoki qo‘lda: ustunni belgilang → Ma’lumotlar → Ma’lumotlarni tekshirish → «Ogohlantirish ko‘rsatish», keyin «Qayta yuborish».
+Обновите код скрипта до 26 — он сам переключит такой выпадающий список на «Показывать предупреждение».	Skript kodini 26 gacha yangilang — u bunday ochiladigan ro‘yxatni o‘zi «Ogohlantirish ko‘rsatish»ga o‘tkazadi.
+Или уберите проверку данных в этой ячейке (Данные → Проверка данных).	Yoki bu katakdagi ma’lumotlarni tekshirishni olib tashlang (Ma’lumotlar → Ma’lumotlarni tekshirish).
+Затем внесите правку снова.	Keyin o‘zgarishni qayta kiriting.
+Выпадающие списки в таблице (проверка данных) больше не остановят запись: скрипт сам переключит их на «Показывать предупреждение».	Jadvaldagi ochiladigan ro‘yxatlar (ma’lumotlarni tekshirish) endi yozishni to‘xtatmaydi: skript ularni o‘zi «Ogohlantirish ko‘rsatish»ga o‘tkazadi.
+Выпадающий список в таблице ({s}) теперь только подсказывает: значения не из списка записываются.	Jadvaldagi ochiladigan ro‘yxat ({s}) endi faqat taklif qiladi: ro‘yxatda yo‘q qiymatlar ham yoziladi.
+Так скрипт сделал сам, чтобы правка не застряла (Данные → Проверка данных → «Показывать предупреждение»).	Buni skript o‘zi qildi, o‘zgarish qolib ketmasligi uchun (Ma’lumotlar → Ma’lumotlarni tekshirish → «Ogohlantirish ko‘rsatish»).

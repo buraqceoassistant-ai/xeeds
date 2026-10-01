@@ -59,9 +59,13 @@
  * Версия 25: куда везти — у отгрузки. Yuborishlar V «Yetkazish joyi»: «Название · широта, долгота» (пусто — адрес
  *   клиента из Mijozlar). Сайт пишет её всем строкам BL в партии; скрипт отдаёт V сайту, переносит при удалении строки,
  *   бот ведёт водителя туда (карточка, маршрут, ближайшая точка).
+ * Версия 26: проверка данных больше не мешает записи. Google сам предлагает «выпадающий список» по повторяющимся
+ *   значениям столбца (получатели, телефоны); с ним новое имя таблица отклоняла. Если ячейку отклонило правило
+ *   «отклонять ввод», скрипт переключает правила этого столбца (строки с 5-й) на «Показывать предупреждение» — список
+ *   остаётся, значение не из списка пишется с треугольником — и пишет правку снова. В ответе — relaxed: какие столбцы.
  */
 var TOKEN = '';
-var VERSION = 25; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 26; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 var LOC_COL = 22;   // Yuborishlar V — куда везти (версия 25)
@@ -175,6 +179,7 @@ function post_(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(25000);
   var results = [];
+  RELAXED = [];
   try {
     // правка, которую таблица не приняла, — ошибкой в ответе; остальные правки порции записываются (версия 24)
     (body.ops || []).forEach(function (op) {
@@ -183,7 +188,7 @@ function post_(e) {
     SpreadsheetApp.flush();
     try { tgAfterOps_(body.ops, body.more || body.quiet); } catch (err) { console.error('Бот после правок: ' + ((err && err.message) || err)); }   // водителям — если их точки изменились
   } finally { lock.releaseLock(); }
-  return json_({ ok: true, v: VERSION, results: results, data: dump_(body.tgdays) });
+  return json_({ ok: true, v: VERSION, results: results, relaxed: RELAXED.length ? RELAXED : undefined, data: dump_(body.tgdays) });
 }
 
 // Ссылки на карту (версия 19): скрипт открывает только Google Карты, goo.gl, Яндекс Карты и 2ГИС — и исходную ссылку,
@@ -346,7 +351,8 @@ function setRow_(sh, row, map, textCols) {
     cols.forEach(function (c) {
       var v = map[c], r = sh.getRange(row, c);
       if (textCols && textCols.indexOf(c) >= 0) r.setNumberFormat('@');
-      r.setValue(v === null ? '' : v);
+      // проверка данных «отклонять ввод» — правила столбца на «предупреждение» и ещё раз (версия 26)
+      try { r.setValue(v === null ? '' : v); } catch (e) { if (!relaxDV_(sh, c)) throw e; r.setValue(v === null ? '' : v); }
       done.push(c);
     });
   } catch (err) {
@@ -354,6 +360,26 @@ function setRow_(sh, row, map, textCols) {
     throw new Error(sh.getName() + ', строка ' + row + ': ' + ((err && err.message) || err));
   }
 }
+
+// правила проверки данных столбца c (строки с 5-й), которые отклоняют ввод, — на «Показывать предупреждение»:
+// выпадающий список остаётся подсказкой, а значение не из списка записывается. true — было что переключить
+var RELAXED = [];
+function relaxDV_(sh, c) {
+  var n = sh.getMaxRows() - 4;
+  if (n < 1) return false;
+  var rg = sh.getRange(5, c, n, 1), dv = rg.getDataValidations(), hit = false;
+  var out = dv.map(function (x) {
+    var r = x[0];
+    if (r && !r.getAllowInvalid()) { hit = true; return [r.copy().setAllowInvalid(true).build()]; }
+    return [r];
+  });
+  if (!hit) return false;
+  rg.setDataValidations(out);
+  var k = sh.getName() + ' ' + colName_(c);
+  if (RELAXED.indexOf(k) < 0) RELAXED.push(k);
+  return true;
+}
+function colName_(c) { var s = ''; while (c > 0) { var m = (c - 1) % 26; s = String.fromCharCode(65 + m) + s; c = (c - m - 1) / 26; } return s; }
 
 function ensureF_(sh, row, tplRow, cols) {
   if (row === tplRow) return;
