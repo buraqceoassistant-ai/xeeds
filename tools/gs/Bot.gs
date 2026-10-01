@@ -748,12 +748,29 @@ function tgData_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(SH.ship), cs = ss.getSheetByName(SH.cli), rows = [], cl = {};
   var last = sh ? lastRow_(sh, 3, 5) : 0;
   if (last >= 5) rows = sh.getRange(5, 1, last - 4, 16).getValues();
+  if (last >= 5 && locOn_(sh)) {   // V — куда везти (версия 25): 22-й элемент строки
+    var lv = sh.getRange(5, LOC_COL, last - 4, 1).getValues();
+    rows.forEach(function (r, i) { while (r.length < LOC_COL - 1) r.push(''); r[LOC_COL - 1] = lv[i][0]; });
+  }
   var cl_last = cs ? lastRow_(cs, 1, 5) : 0;
   if (cl_last >= 5) cs.getRange(5, 1, cl_last - 4, 15).getValues().forEach(function (r) {
     cl[String(r[0]).trim()] = { brand: String(r[1] || ''), name: String(r[2] || ''), tel1: String(r[3] || ''), tel2: String(r[4] || ''), receiver: String(r[5] || ''), recvTel: String(r[6] || ''), district: String(r[7] || ''), address: String(r[8] || ''), lat: Number(r[10]) || null, lon: Number(r[11]) || null, note: String(r[14] || '') };
   });
   TG_MEMO = { rows: rows, cl: cl, tz: ss.getSpreadsheetTimeZone() };
   return TG_MEMO;
+}
+// склад клиента по названию (в V вписали название из «Qoshimcha omborlar» без координат); листа нет — null
+function tgWhLoc_(D, bl, name) {
+  if (!D.wh) {
+    D.wh = {};
+    var ws = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH.wh), wl = ws ? lastRow_(ws, 1, 5) : 0;
+    if (wl >= 5) ws.getRange(5, 1, wl - 4, 5).getValues().forEach(function (r) {
+      var lat = Number(r[3]), lon = Number(r[4]), k = String(r[0]).trim();
+      if (k && lat && lon) (D.wh[k] = D.wh[k] || []).push({ name: String(r[2] || '').trim(), lat: lat, lon: lon });
+    });
+  }
+  var n = String(name).trim().toLowerCase(), w = (D.wh[bl] || []).filter(function (x) { return x.name.toLowerCase() === n; })[0];
+  return w ? { name: w.name, lat: w.lat, lon: w.lon } : null;
 }
 // точки машины на дату: строки журнала этой машины, по клиенту и номеру рейса; клиент — адрес, получатель, координаты
 function tgStops_(truck, date) {
@@ -767,11 +784,18 @@ function tgStops_(truck, date) {
     var s = out[key], st = String(r[14]).trim();
     s.rows.push(5 + i); s.places += Number(r[11]) || 0; s.cbm += Number(r[9]) || 0; s.kg += Number(r[10]) || 0;
     if (r[15]) s.notes.push(String(r[15]));
+    // куда везти (версия 25) — у строк BL в партии одна: «название · широта, долгота» или название склада клиента
+    if (!s.loc && String(r[LOC_COL - 1] || '').trim()) s.loc = locParse_(r[LOC_COL - 1]) || tgWhLoc_(D, bl, r[LOC_COL - 1]);
     s.statuses.push(st);
     if (TG_DONE.indexOf(st) < 0) s.open = true;
   });
   if (!order.length) return [];
-  return order.map(function (k) { var s = out[k]; s.c = D.cl[s.bl] || {}; s.cbm = Math.round(s.cbm * 1000) / 1000; s.kg = Math.round(s.kg * 10) / 10; return s; });
+  // своя точка отгрузки — вместо адреса клиента: карточка («Куда»), маршрут, ближайшая точка, отметка «далеко»
+  return order.map(function (k) {
+    var s = out[k], c = D.cl[s.bl] || {};
+    s.c = s.loc ? Object.assign({}, c, { lat: s.loc.lat, lon: s.loc.lon, district: '', address: s.loc.name || s.loc.lat + ', ' + s.loc.lon }) : c;
+    s.cbm = Math.round(s.cbm * 1000) / 1000; s.kg = Math.round(s.kg * 10) / 10; return s;
+  });
 }
 function tgKm_(a, b) {
   var R = 6371, rad = Math.PI / 180, dLa = (b[0] - a[0]) * rad, dLo = (b[1] - a[1]) * rad;

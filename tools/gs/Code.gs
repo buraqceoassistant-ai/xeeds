@@ -56,11 +56,15 @@
  *   защищённый диапазон), эта правка не записывается (уже записанные ячейки её строки возвращаются к прежним), в ответе —
  *   { error, code: 'cell' }, остальные правки порции записываются. Правка клиента с прежними значениями (was) пишет
  *   только изменённые ячейки — телефоны не переписываются, когда меняется район.
+ * Версия 25: куда везти — у отгрузки. Yuborishlar V «Yetkazish joyi»: «Название · широта, долгота» (пусто — адрес
+ *   клиента из Mijozlar). Сайт пишет её всем строкам BL в партии; скрипт отдаёт V сайту, переносит при удалении строки,
+ *   бот ведёт водителя туда (карточка, маршрут, ближайшая точка).
  */
 var TOKEN = '';
-var VERSION = 24; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 25; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
+var LOC_COL = 22;   // Yuborishlar V — куда везти (версия 25)
 var COLS = { ship: 16, cli: 25, wh: 8, set: 10, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера, E:J — карточка машины
 var SET_ROWS = { isuzuM3: 5, isuzuKg: 6, depotName: 7, depotLat: 8, depotLon: 9, unloadMin: 10, dayStart: 11, speed: 12, aMaxStops: 13, maxPlaces: 14, bSmallM3: 15, bcMaxStops: 16, cM3: 17, cKg: 18, cTrucks: 19, roadK: 20, gazelBase: 43, gazelHeavy: 44, gazelHeavyKg: 45, gazelPtIn: 46, gazelPtOut: 47, laboBase: 48, laboPt: 49, laboM3: 50, laboKg: 51, baseIncludesPts: 52, kamazBase: 53, kamazPt: 54, laboBaseIncludesPts: 55, kamazBaseIncludesPts: 56, gazelM3: 57, gazelKg: 58, bTolM3: 59, bTolKg: 60,
   changanM3: 61, changanKg: 62, changanBase: 63, changanPt: 64, changanBaseIncludesPts: 65, gazelCount: 66, laboCount: 67, changanCount: 68, tripsPerVehicle: 69, freeOutM3: 70, densityMin: 71, densityMax: 72 };
@@ -261,6 +265,10 @@ function dump_(tgDays) {
     var last = sh.getLastRow();
     if (last < 1) { out.sheets[SH[k]] = []; return; }
     var vals = sh.getRange(1, 1, last, Math.min(COLS[k], sh.getMaxColumns())).getValues();
+    if (k === 'ship' && locOn_(sh)) {   // V — куда везти: в 22-й элемент строки (сайт читает её как столбец V)
+      var lv = sh.getRange(1, LOC_COL, last, 1).getValues();
+      vals = vals.map(function (row, i) { var x = row.slice(); while (x.length < LOC_COL - 1) x.push(''); x[LOC_COL - 1] = lv[i][0]; return x; });
+    }
     var n = vals.length;
     while (n > 0 && vals[n - 1].every(function (v) { return v === '' || v === null; })) n--;
     vals = vals.slice(0, n).map(function (row) {
@@ -355,6 +363,31 @@ function ensureF_(sh, row, tplRow, cols) {
   });
 }
 
+// куда везти (версия 25): столбец V и подпись в строке 4 — если их ещё нет; значение — текстом, как пришло с сайта
+var LOC_HEAD = 'Yetkazish joyi';
+function locCol_(sh, loc) {
+  if (sh.getMaxColumns() < LOC_COL) sh.insertColumnsAfter(sh.getMaxColumns(), LOC_COL - sh.getMaxColumns());
+  var h = sh.getRange(4, LOC_COL), hv = String(h.getValue()).trim();
+  // столбец V занят своим (другая подпись в строке 4) — не пишем поверх: правка вернётся сайту ошибкой (code cell)
+  if (hv && hv !== LOC_HEAD) throw new Error('На листе Yuborishlar столбец V занят («' + hv.slice(0, 40) + '»): «куда везти» пишется в V. Освободите столбец V');
+  if (!hv) h.setValue(LOC_HEAD);
+  return loc == null ? '' : String(loc);
+}
+// столбец V — наш: есть на листе и в строке 4 пусто или «Yetkazish joyi» (иначе там что-то своё — не читаем)
+function locOn_(sh) {
+  if (!sh || sh.getMaxColumns() < LOC_COL) return false;
+  var hv = String(sh.getRange(4, LOC_COL).getValue()).trim();
+  return !hv || hv === LOC_HEAD;
+}
+// «Название · 41.311000, 69.279000» → { name, lat, lon }; без координат — null (везём по адресу клиента)
+function locParse_(t) {
+  var s = String(t == null ? '' : t).trim(), m = s.match(/(-?\d{1,2}(?:\.\d+)?)\s*[,;]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
+  if (!m) return null;
+  var lat = Number(m[1]), lon = Number(m[2]);
+  if (!(lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) || (!lat && !lon)) return null;
+  return { name: s.slice(0, m.index).replace(/[\s·,;—–-]+$/, '').trim(), lat: lat, lon: lon };
+}
+
 // сдвинуть строки ввода вверх вместо удаления строки — формулы и связи листов не ломаются
 function shiftUp_(sh, row, blocks, keyCol, first) {
   var last = lastRow_(sh, keyCol, first);
@@ -390,14 +423,16 @@ function apply_(op) {
   if (op.t === 'ship.upsert' || op.t === 'ship.delete') {
     sh = ss.getSheetByName(SH.ship);
     row = op.row || op.guard ? findShip_(sh, op.row, op.guard) : 0;
-    if (op.t === 'ship.delete') { if (row) shiftUp_(sh, row, [[1, 1], [3, 1], [10, 7]], 3, 5); return { row: row }; }
+    if (op.t === 'ship.delete') { if (row) shiftUp_(sh, row, [[1, 1], [3, 1], [10, 7]].concat(locOn_(sh) ? [[LOC_COL, 1]] : []), 3, 5); return { row: row }; }
     var ch = function (k) { return !row || !op.was || String(op.was[k]) !== String(v[k]); };   // поля, которые сайт правда поменял
     // дата с неполным годом («0001-01-01») записалась бы как 1900 год, и строка пропала бы с сайта — не пишем
     if (ch('date') && !/^20\d\d-\d\d-\d\d$/.test(String(v.date || ''))) return { error: 'bad date', row: row };
+    var had = row;   // строка была: пустая локация — тоже правка; новая строка без локации столбец V не трогает
     if (!row) row = lastRow_(sh, 3, 5) + 1;
     // только изменённые на сайте поля: статус, который поставил водитель в боте, не перезапишется старым значением сайта
     setRow_(sh, row, { 1: ch('date') ? date_(v.date) : undefined, 3: ch('bl') ? v.bl : undefined, 10: ch('cbm') ? num_(v.cbm) : undefined, 11: ch('kg') ? num_(v.kg) : undefined,
-      12: ch('places') ? num_(v.places) : undefined, 13: ch('truck') ? v.truck : undefined, 14: ch('route') ? num_(v.route) : undefined, 15: ch('status') ? v.status : undefined, 16: ch('note') ? v.note : undefined });
+      12: ch('places') ? num_(v.places) : undefined, 13: ch('truck') ? v.truck : undefined, 14: ch('route') ? num_(v.route) : undefined, 15: ch('status') ? v.status : undefined, 16: ch('note') ? v.note : undefined,
+      22: v.loc !== undefined && ch('loc') && (had || v.loc) ? locCol_(sh, v.loc) : undefined });
     ensureF_(sh, row, 6, [2, 4, 5, 6, 7, 8, 9, 17, 18, 19, 20, 21]);
     return { row: row };
   }
