@@ -2602,7 +2602,7 @@ class Component extends DCLogic {
     out.impDone = d.status === 'confirmed' ? 'Партия создана ' + dLong(d.confirmed.date) + ': ' + d.confirmed.shipments + ' отгрузок' + (d.confirmed.marksSaved ? ', маркировки сохранены у ' + d.confirmed.marksSaved + ' клиентов' : '') + '.' :
       d.status === 'rejected' ? 'Черновик отклонён' + (d.rejected.reason ? ': ' + d.rejected.reason : '') + '.' : '';
     out.impHasDone = !!out.impDone; out.impIsConfirmed = d.status === 'confirmed';
-    out.impGoJournal = () => this.setState({ tab: 'journal', jDate: d.journalDate, jLimit: 60 });
+    out.impGoJournal = () => { this.setState({ tab: 'journal', jDate: d.journalDate, jLimit: 60 }); this.maybeAskLoc(d.journalDate); };   // новая партия — «Какая локация?»
     return out;
   }
 
