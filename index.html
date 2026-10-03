@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="css/design-system.css">
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/mobile.css">
+<link rel="stylesheet" href="css/glass.css">
 <!-- язык сайта (русский / узбекский): словарь и перевод поверх страницы — до приложения, чтобы окна и первый экран были на выбранном языке -->
 <script>/* узбекский словарь (250 КБ) — сразу только если сайт по-узбекски или идёт проверка словаря; по-русски он
    загружается при нажатии «UZ» (js/i18n.js) — первый экран открывается быстрее */
@@ -73,7 +74,7 @@
       <button class="app-account" sc-camel-on-click="{{ account }}" title="Смена пароля и выход">Аккаунт</button>
     </div>
     <sc-if value="{{ showStrip }}" hint-placeholder-val="{{ true }}">
-    <div style="border-top:1px solid var(--color-divider);background:var(--color-surface)">
+    <div class="app-strip-wrap" style="border-top:1px solid var(--color-divider);background:var(--color-surface)">
       
     <div class="app-strip" style="max-width:1560px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:6px 20px;min-height:44px">
         <div style="width:8px;height:8px;border:1.5px solid var(--color-accent-700);background:{{ fileDot }}"></div>
@@ -143,7 +144,7 @@
         </sc-for>
       </div>
 
-      <div style="overflow-x:auto;border:1px solid var(--color-divider)">
+      <div class="tbl-wrap" style="overflow-x:auto;border:1px solid var(--color-divider)">
         <sc-raw-table class="table tc" style="min-width:1180px">
           <sc-raw-thead><sc-raw-tr>
             <sc-raw-th>Дата</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">KG</sc-raw-th><sc-raw-th style="text-align:right">Мест</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Рейс №</sc-raw-th><sc-raw-th>Статус</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Доля, сум</sc-raw-th><sc-raw-th></sc-raw-th>
@@ -218,7 +219,7 @@
           <button data-edit class="btn btn-primary blueprint" style="white-space:nowrap" sc-camel-on-click="{{ newClient }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>+ Добавить клиента</button>
         </div>
       </div>
-      <div style="overflow-x:auto;border:1px solid var(--color-divider)">
+      <div class="tbl-wrap" style="overflow-x:auto;border:1px solid var(--color-divider)">
         <sc-raw-table class="table tc" style="min-width:1200px">
           <sc-raw-thead><sc-raw-tr><sc-raw-th>BL</sc-raw-th><sc-raw-th>Бренд / имя</sc-raw-th><sc-raw-th>Телефоны</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Адрес склада</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Полнота</sc-raw-th><sc-raw-th style="text-align:right">Отгрузок</sc-raw-th><sc-raw-th style="text-align:right">CBM / KG всего</sc-raw-th><sc-raw-th>Посл. партия</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
           <sc-raw-tbody>
@@ -266,7 +267,7 @@
           <div style="font-size:13px;color:var(--color-neutral-700);padding-bottom:5px">{{ whCount }} · если у клиента несколько складов</div>
           <button data-edit class="btn btn-secondary" style="margin-left:auto" sc-camel-on-click="{{ newWh }}">+ Добавить склад</button>
         </div>
-        <div style="overflow-x:auto;border:1px solid var(--color-divider)">
+        <div class="tbl-wrap" style="overflow-x:auto;border:1px solid var(--color-divider)">
           <sc-raw-table class="table tc">
             <sc-raw-thead><sc-raw-tr><sc-raw-th>BL</sc-raw-th><sc-raw-th>Бренд</sc-raw-th><sc-raw-th>Склад</sc-raw-th><sc-raw-th>Координаты</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">До кольца</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
             <sc-raw-tbody>
@@ -321,7 +322,7 @@
           </section>
         </sc-if>
       </div>
-      <div style="border:1px solid var(--color-divider)">
+      <div class="glass" style="border:1px solid var(--color-divider)">
         <sc-for list="{{ checks }}" as="c" hint-placeholder-count="8">
           <div class="check-row" style="display:grid;grid-template-columns:minmax(220px,300px) 70px minmax(0,1fr);gap:18px;padding:14px 18px;border-bottom:1px solid var(--color-divider);align-items:start">
             <div>
@@ -350,7 +351,7 @@
             <section>
               <h3 style="margin:0 0 4px">Замечания из файла · {{ s.title }}</h3>
               <div style="font-size:12px;color:var(--color-neutral-700);margin-bottom:10px">Лист «O‘zgarishlar», как в Excel</div>
-              <div style="border:1px solid var(--color-divider)">
+              <div class="glass" style="border:1px solid var(--color-divider)">
                 <sc-for list="{{ s.items }}" as="i">
                   <div class="note-row" style="display:grid;grid-template-columns:32px minmax(180px,280px) minmax(0,1fr);gap:14px;padding:10px 16px;border-bottom:1px solid var(--color-divider);font-size:13px">
                     <span style="color:var(--color-neutral-700)">{{ i.n }}</span>
@@ -463,7 +464,7 @@
       <div class="grid-split" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:28px;align-items:start">
         <section>
           <h3 style="margin:0 0 10px">Итоги по партиям</h3>
-          <div style="border:1px solid var(--color-divider);overflow-x:auto">
+          <div class="glass" style="border:1px solid var(--color-divider);overflow-x:auto">
             <sc-raw-table class="table tc">
               <sc-raw-thead><sc-raw-tr><sc-raw-th>Партия</sc-raw-th><sc-raw-th style="text-align:right">Отгрузок</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">KG</sc-raw-th><sc-raw-th style="text-align:right">Мест</sc-raw-th><sc-raw-th style="text-align:right">Снаружи</sc-raw-th><sc-raw-th style="text-align:right">Без коорд.</sc-raw-th><sc-raw-th style="text-align:right">Без машины</sc-raw-th><sc-raw-th style="text-align:right">Стоимость (журнал)</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
               <sc-raw-tbody>
@@ -487,7 +488,7 @@
         </section>
         <section>
           <h3 style="margin:0 0 10px">CBM по районам</h3>
-          <div style="border:1px solid var(--color-divider);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+          <div class="glass" style="border:1px solid var(--color-divider);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
             <sc-for list="{{ dDistricts }}" as="d" hint-placeholder-count="10">
               <div>
                 <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px"><span>{{ d.name }}</span><span style="color:var(--color-neutral-700);font-variant-numeric:tabular-nums">{{ d.cbm }} м³ · {{ d.count }}</span></div>
@@ -496,7 +497,7 @@
             </sc-for>
           </div>
           <h3 style="margin:24px 0 10px">Статусы</h3>
-          <div style="border:1px solid var(--color-divider)">
+          <div class="glass" style="border:1px solid var(--color-divider)">
             <sc-for list="{{ dStatuses }}" as="s">
               <div style="display:flex;justify-content:space-between;padding:9px 16px;border-bottom:1px solid var(--color-divider);font-size:14px"><span>{{ s.l }}</span><span style="font-weight:500">{{ s.n }}</span></div>
             </sc-for>
@@ -606,7 +607,7 @@
       <sc-if value="{{ repIsCost }}">
         <section class="rep-block">
           <h3 style="margin:0 0 10px">По партиям</h3>
-          <div style="border:1px solid var(--color-divider);overflow-x:auto">
+          <div class="glass" style="border:1px solid var(--color-divider);overflow-x:auto">
             <sc-raw-table class="table tc">
               <sc-raw-thead><sc-raw-tr><sc-raw-th>Партия</sc-raw-th><sc-raw-th>Источник</sc-raw-th><sc-raw-th style="text-align:right">Отгрузок</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">Рейсов</sc-raw-th><sc-raw-th style="text-align:right">Стоимость</sc-raw-th><sc-raw-th style="text-align:right">Платим</sc-raw-th><sc-raw-th style="text-align:right">Не платим {{ repSmallHead }}</sc-raw-th><sc-raw-th style="text-align:right">Не платим за кольцом</sc-raw-th><sc-raw-th style="text-align:right">Сум за м³</sc-raw-th><sc-raw-th class="no-print"></sc-raw-th></sc-raw-tr></sc-raw-thead>
               <sc-raw-tbody>
@@ -644,7 +645,7 @@
         <div class="grid-split" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start">
           <section class="rep-block">
             <h3 style="margin:0 0 10px">По машинам</h3>
-            <div style="border:1px solid var(--color-divider);overflow-x:auto">
+            <div class="glass" style="border:1px solid var(--color-divider);overflow-x:auto">
               <sc-raw-table class="table tc">
                 <sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th style="text-align:right">Рейсов</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">Км</sc-raw-th><sc-raw-th style="text-align:right">Стоимость</sc-raw-th><sc-raw-th style="text-align:right">Доля</sc-raw-th><sc-raw-th style="text-align:right">За рейс</sc-raw-th></sc-raw-tr></sc-raw-thead>
                 <sc-raw-tbody>
@@ -665,7 +666,7 @@
           </section>
           <section class="rep-block">
             <h3 style="margin:0 0 10px">По районам</h3>
-            <div style="border:1px solid var(--color-divider);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+            <div class="glass" style="border:1px solid var(--color-divider);padding:14px 16px;display:flex;flex-direction:column;gap:10px">
               <sc-for list="{{ repByDistrict }}" as="d">
                 <div>
                   <div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;margin-bottom:3px"><span>{{ d.name }}</span><span style="color:var(--color-neutral-700);font-variant-numeric:tabular-nums;text-align:right">{{ d.price }} сум · {{ d.pts }} точ. · {{ d.cbm }} м³</span></div>
@@ -681,7 +682,7 @@
       <sc-if value="{{ repIsFleet }}">
         <section class="rep-block">
           <h3 style="margin:0 0 10px">Машины</h3>
-          <div style="border:1px solid var(--color-divider);overflow-x:auto">
+          <div class="glass" style="border:1px solid var(--color-divider);overflow-x:auto">
             <sc-raw-table class="table tc">
               <sc-raw-thead><sc-raw-tr><sc-raw-th>Машина</sc-raw-th><sc-raw-th style="text-align:right">В парке</sc-raw-th><sc-raw-th style="text-align:right">Рейсов</sc-raw-th><sc-raw-th style="text-align:right">Дней</sc-raw-th><sc-raw-th style="text-align:right">Макс. за день</sc-raw-th><sc-raw-th style="text-align:right">Машин в тот день</sc-raw-th><sc-raw-th style="text-align:right">Можно в день</sc-raw-th><sc-raw-th style="text-align:right">Не хватало</sc-raw-th><sc-raw-th>Загрузка м³</sc-raw-th><sc-raw-th style="text-align:right">Загрузка кг</sc-raw-th><sc-raw-th style="text-align:right">Меньше половины</sc-raw-th></sc-raw-tr></sc-raw-thead>
               <sc-raw-tbody>
@@ -709,7 +710,7 @@
         </section>
         <section class="rep-block">
           <h3 style="margin:0 0 10px">Сравнение планов</h3>
-          <div style="border:1px solid var(--color-divider);overflow-x:auto">
+          <div class="glass" style="border:1px solid var(--color-divider);overflow-x:auto">
             <sc-raw-table class="table tc">
               <sc-raw-thead><sc-raw-tr><sc-raw-th>Партия</sc-raw-th><sc-raw-th style="text-align:right">План A</sc-raw-th><sc-raw-th style="text-align:right">План B</sc-raw-th><sc-raw-th style="text-align:right">План C</sc-raw-th><sc-raw-th style="text-align:right">План X</sc-raw-th><sc-raw-th style="text-align:right">Журнал</sc-raw-th><sc-raw-th>Самый дешёвый</sc-raw-th><sc-raw-th class="no-print"></sc-raw-th></sc-raw-tr></sc-raw-thead>
               <sc-raw-tbody>
@@ -859,7 +860,7 @@
         <sc-if value="{{ impHasDrafts }}">
           <section>
             <h3 style="margin:0 0 10px">Черновики на этом устройстве</h3>
-            <div style="border:1px solid var(--color-divider)">
+            <div class="glass" style="border:1px solid var(--color-divider)">
               <sc-raw-table class="table tc">
                 <sc-raw-thead><sc-raw-tr><sc-raw-th>Файл</sc-raw-th><sc-raw-th>Статус</sc-raw-th><sc-raw-th>Партия</sc-raw-th><sc-raw-th>Маршрут</sc-raw-th><sc-raw-th>Итоги</sc-raw-th><sc-raw-th>Загружен</sc-raw-th><sc-raw-th></sc-raw-th></sc-raw-tr></sc-raw-thead>
                 <sc-raw-tbody>
@@ -1160,7 +1161,7 @@
 
       <div class="plan-cards" style="display:grid;grid-template-columns:repeat({{ planCols }},minmax(0,1fr));gap:24px">
         <sc-for list="{{ planCards }}" as="p" hint-placeholder-count="3">
-          <button class="blueprint" sc-camel-on-click="{{ p.go }}" style="text-align:left;background:{{ p.bg }};color:inherit;font:inherit;padding:20px;cursor:pointer;display:flex;flex-direction:column;gap:12px;border-color:{{ p.border }}">
+          <button class="blueprint {{ p.cls }}" sc-camel-on-click="{{ p.go }}" style="text-align:left;background:{{ p.bg }};color:inherit;font:inherit;padding:20px;cursor:pointer;display:flex;flex-direction:column;gap:12px;border-color:{{ p.border }}">
             <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
               <div style="font-family:var(--font-heading);font-weight:500;font-size:24px">{{ p.title }}</div>
@@ -4517,7 +4518,7 @@ class Component extends DCLogic {
           cheapest: full.length > 1 && full.includes(k) && s.price === minP,
           hasCost: !P[k].noFleet && c.n > 0, cost: this.costRows(c, S, s.unpriced),
           diff: P[k].noFleet ? 'Задайте объём и грузоподъёмность Kamaz во вкладке «Тарифы»' : s.unpriced ? '+ ' + s.unpriced + ' ' + reys(s.unpriced) + ' Kamaz без тарифа — заполните тариф во вкладке «Тарифы»' : (minP == null || s.price === minP || !full.includes(k) ? '' : '+' + f0(s.price - minP) + ' сум к самому дешёвому'),
-          bg: sel ? 'var(--color-accent-100)' : 'transparent', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', go: () => this.setState({ planKey: k }) }; });
+          cls: sel ? 'plan-sel' : '', bg: sel ? 'var(--color-accent-100)' : 'transparent', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', go: () => this.setState({ planKey: k }) }; });
       const cS = P.C.sum;
       out.planCTitle = PLAN_INFO.C.title;
       out.planCInfo = st.planC ? '' : P.C.noFleet ? 'нет машин' : cS.trips + ' ' + reys(cS.trips) + (cS.unpriced && !cS.price ? ' · нет тарифа' : ' · ' + money(cS.price) + (cS.unpriced ? ' +' : '') + (costs.C.notPaid ? ' · платим ' + f0(costs.C.ours) : ''));

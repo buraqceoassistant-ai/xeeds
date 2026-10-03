@@ -1,0 +1,140 @@
+/* Glassmorphism по брендбуку BURAQ: светлое матовое стекло поверх мягкого фона из фирменных цветов.
+   Основа — тёмно-синий и белый, красный — только акценты (тонкая линия под шапкой, главные кнопки, капля в фоне).
+   Подключается последним (после design-system.css, app.css, mobile.css). Цвета — только из токенов --buraq-*.
+   Компьютер: размытие у всех панелей. Телефон (узкий экран или палец): размытие только у шапки и окон, панели —
+   плотные полупрозрачные (без тормозов при прокрутке). Браузер без backdrop-filter и «уменьшить прозрачность» в
+   системе — панели плотнее, читаемость та же. */
+:root {
+  --glass-blur: 16px;
+  --glass-sat: 150%;
+  --glass-bg: color-mix(in srgb, var(--buraq-white) 58%, transparent);
+  --glass-bg-strong: color-mix(in srgb, var(--buraq-white) 80%, transparent);   /* таблицы, окна — плотнее, текст читается */
+  --glass-bg-solid: color-mix(in srgb, var(--buraq-white) 90%, transparent);    /* телефон и браузеры без размытия */
+  --glass-rim: color-mix(in srgb, var(--buraq-white) 75%, transparent);         /* светлая кромка стекла */
+  --glass-edge: color-mix(in srgb, var(--buraq-navy) 12%, transparent);        /* тонкая линия 1 px — по брендбуку */
+  --glass-shadow: 0 12px 32px -14px color-mix(in srgb, var(--buraq-navy) 30%, transparent),
+    0 2px 6px -2px color-mix(in srgb, var(--buraq-navy) 10%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--buraq-white) 80%, transparent);
+  --glass-navy: color-mix(in srgb, var(--buraq-navy) 92%, transparent);
+  --glass-sheen: linear-gradient(135deg, color-mix(in srgb, var(--buraq-white) 38%, transparent) 0%, transparent 42%);  /* блик стекла */
+  --color-divider: color-mix(in srgb, var(--buraq-navy) 13%, transparent);
+}
+
+/* ── фон: светлый, с размытыми пятнами тёмно-синего, синего и каплей красного (градиенты, без фильтров — дёшево) ── */
+html { background: color-mix(in srgb, var(--buraq-blue) 7%, var(--buraq-white)); }
+body, .app { background: transparent !important; }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(55vmax 45vmax at 0% -8%, color-mix(in srgb, var(--buraq-blue) 34%, transparent), transparent 62%),
+    radial-gradient(48vmax 40vmax at 104% 12%, color-mix(in srgb, var(--buraq-navy) 26%, transparent), transparent 64%),
+    radial-gradient(42vmax 38vmax at 10% 106%, color-mix(in srgb, var(--buraq-blue) 22%, transparent), transparent 62%),
+    radial-gradient(24vmax 22vmax at 94% 100%, color-mix(in srgb, var(--buraq-red) 14%, transparent), transparent 64%),
+    linear-gradient(170deg, color-mix(in srgb, var(--buraq-blue) 3.5%, var(--buraq-white)) 0%, color-mix(in srgb, var(--buraq-blue) 8.5%, var(--buraq-white)) 55%, color-mix(in srgb, var(--buraq-blue) 11%, var(--buraq-white)) 100%);
+}
+
+/* ── шапка: тёмно-синее стекло, тонкая красная линия снизу (как раньше) ── */
+.app-header {
+  background: var(--glass-navy) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(var(--glass-sat)); backdrop-filter: blur(18px) saturate(var(--glass-sat));
+  box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--buraq-navy) 60%, transparent);
+}
+/* полоса связи под шапкой — светлое стекло */
+.app-strip-wrap {
+  background: color-mix(in srgb, var(--buraq-white) 72%, transparent) !important;
+  border-top: 1px solid color-mix(in srgb, var(--buraq-white) 18%, transparent) !important;
+}
+.subtabs {
+  background: var(--glass-bg) !important; border-bottom: 1px solid var(--glass-edge);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+}
+
+/* ── стеклянные панели: карточки, таблицы, сводки, окна ── */
+.glass, .tbl-wrap, .kpi-strip, .dv-card, .rep-cost, .trip, .imp-alert, .plan-accept, .plan-send-ask, .dv-msg,
+.ai-box, .tg-box, .cl-locs, .tg-client, .blueprint:not(.btn, .dialog), .plan-cards > button, .imp-doc, .imp-check, .plan-notes, .viz-side, .gs-help, .dv-send {
+  background: var(--glass-sheen), var(--glass-bg) !important;
+  border: 1px solid var(--glass-edge) !important;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+}
+/* левая полоса-акцент у сообщений остаётся: ошибки — красная, остальное — синяя */
+.imp-alert, .dv-msg, .dv-send { border-left-width: 2px !important; }
+.dv-send { border-left-color: var(--buraq-red) !important; }
+.imp-alert { border-left-color: var(--buraq-blue) !important; }
+.imp-alert-err { border-left-color: var(--buraq-red) !important; }
+/* таблицы — плотнее: строки читаются как на белом */
+.tbl-wrap, .kpi-strip, .trip, .dv-card:has(table) { background: var(--glass-sheen), var(--glass-bg-strong) !important; }
+.tbl-wrap, .kpi-strip, .trip, .rep-cost { overflow: hidden; }
+.glass:has(> table) { background: var(--glass-sheen), var(--glass-bg-strong) !important; overflow-x: auto; }
+.tbl-wrap { overflow-x: auto; }
+.table thead th, .dv-table thead th { background: color-mix(in srgb, var(--buraq-white) 45%, transparent); }
+.table tbody tr:hover, .dv-table tbody tr:hover { background: color-mix(in srgb, var(--buraq-blue) 6%, transparent); }
+/* сводка (KPI): тонкие перегородки — как раньше */
+.kpi-strip > div { border-color: var(--glass-edge) !important; }
+/* выбранный план — синее стекло, обводка — фирменный синий */
+.plan-cards > button.plan-sel { background: color-mix(in srgb, var(--color-accent-100) 82%, transparent) !important; border-color: var(--buraq-blue) !important; }
+
+/* ── окна: плотное стекло, фон за окном — затемнённый и размытый ── */
+.dialog-backdrop {
+  background: color-mix(in srgb, var(--buraq-navy) 38%, transparent) !important;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.dialog {
+  background: color-mix(in srgb, var(--buraq-white) 84%, transparent) !important;
+  border: 1px solid var(--glass-rim) !important;
+  box-shadow: 0 30px 70px -20px color-mix(in srgb, var(--buraq-navy) 45%, transparent), inset 0 1px 0 var(--glass-rim);
+  -webkit-backdrop-filter: blur(24px) saturate(var(--glass-sat)); backdrop-filter: blur(24px) saturate(var(--glass-sat));
+}
+
+/* ── поля и кнопки: прозрачные «таблетки» ── */
+.input { background: color-mix(in srgb, var(--buraq-white) 72%, transparent); }
+.input:focus-visible { background: var(--buraq-white); }
+.btn-secondary { background: color-mix(in srgb, var(--buraq-white) 55%, transparent); }
+.btn-secondary:hover { background: color-mix(in srgb, var(--buraq-white) 85%, transparent); border-color: var(--buraq-navy); }
+.btn-primary { box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--buraq-red) 70%, transparent); }
+.ro-lock { background: color-mix(in srgb, var(--buraq-white) 45%, transparent) !important; border-radius: var(--radius-sm); }
+
+/* ── вход: тёмно-синий фон с синим и красным свечением, карточка — светлое стекло ── */
+.auth {
+  background:
+    radial-gradient(50vmax 40vmax at 10% 0%, color-mix(in srgb, var(--buraq-blue) 55%, transparent), transparent 65%),
+    radial-gradient(30vmax 26vmax at 95% 100%, color-mix(in srgb, var(--buraq-red) 26%, transparent), transparent 65%),
+    var(--buraq-navy) !important;
+}
+.auth-card {
+  background: color-mix(in srgb, var(--buraq-white) 96%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--buraq-white) 40%, transparent); border-radius: var(--radius-lg); overflow: hidden;
+  box-shadow: 0 30px 80px -24px color-mix(in srgb, color-mix(in srgb, var(--buraq-navy) 40%, black) 60%, transparent);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+}
+
+/* ── телефон и планшет пальцем: размытие только у шапки и окон, панели — плотные ── */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  .glass, .tbl-wrap, .kpi-strip, .dv-card, .rep-cost, .trip, .imp-alert, .plan-accept, .plan-send-ask, .dv-msg,
+  .ai-box, .tg-box, .cl-locs, .tg-client, .blueprint:not(.btn, .dialog), .plan-cards > button, .imp-doc, .imp-check, .plan-notes, .viz-side, .gs-help, .dv-send, .subtabs,
+  .glass:has(> table), .dv-card:has(table) {
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    background: var(--glass-bg-solid) !important;
+    box-shadow: 0 6px 18px -12px color-mix(in srgb, var(--buraq-navy) 30%, transparent);
+  }
+  .plan-cards > button.plan-sel { background: var(--color-accent-100) !important; }
+  .dialog-backdrop { -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }   /* размытие страницы за окном (у самого окна оно не видит страницу) */
+  .dialog { background: color-mix(in srgb, var(--buraq-white) 92%, transparent) !important; }   /* окно снизу — плотнее, поля читаются */
+}
+/* браузер без размытия или «уменьшить прозрачность» — плотные панели, всё читается */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass, .tbl-wrap, .kpi-strip, .dv-card, .rep-cost, .trip, .imp-alert, .plan-accept, .plan-send-ask, .dv-msg,
+  .ai-box, .tg-box, .cl-locs, .tg-client, .blueprint:not(.btn, .dialog), .plan-cards > button, .imp-doc, .imp-check, .plan-notes, .viz-side, .gs-help, .dv-send, .subtabs, .dialog { background: var(--glass-bg-solid) !important; }
+  .app-header { background: var(--buraq-navy) !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .tbl-wrap, .kpi-strip, .dv-card, .rep-cost, .trip, .imp-alert, .plan-accept, .plan-send-ask, .dv-msg,
+  .ai-box, .tg-box, .cl-locs, .tg-client, .blueprint:not(.btn, .dialog), .plan-cards > button, .imp-doc, .imp-check, .plan-notes, .viz-side, .gs-help, .dv-send, .subtabs, .dialog { background: var(--buraq-white) !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .app-header { background: var(--buraq-navy) !important; }
+}
+/* печать — без фона и стекла */
+@media print {
+  body::before { display: none; }
+  .glass, .tbl-wrap, .kpi-strip, .dv-card, .rep-cost, .trip, .imp-alert, .blueprint:not(.btn, .dialog), .plan-cards > button { background: var(--buraq-white) !important; box-shadow: none !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
