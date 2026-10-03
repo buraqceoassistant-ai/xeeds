@@ -119,6 +119,7 @@
           <sc-raw-select class="input" style="width:170px" value="{{ jDate }}" sc-camel-on-change="{{ onJDate }}">
             <sc-for list="{{ jDateOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
           </sc-raw-select>
+          <sc-if value="{{ jGroupShow }}"><button data-edit class="btn btn-secondary j-group-btn" style="white-space:nowrap" sc-camel-on-click="{{ jToGroup }}" disabled="{{ dvBusy }}" title="Партия: клиенты, точки, груз и получатели — в группу отчётов в Telegram">📤 В группу</button></sc-if>
           <sc-if value="{{ jLocShow }}"><button data-edit class="btn btn-secondary j-loc-btn" style="white-space:nowrap" sc-camel-on-click="{{ openJLoc }}" title="Какая локация на эту партию?">📍 Локации партии<sc-if value="{{ jLocNeed }}"><span class="j-loc-dot" title="Есть клиенты без выбранной точки"></span></sc-if></button></sc-if>
           <sc-raw-select class="input" style="width:190px" value="{{ jStatus }}" sc-camel-on-change="{{ onJStatus }}">
             <option value="all">Все статусы</option>
@@ -129,6 +130,7 @@
           <button data-edit class="btn btn-primary blueprint" style="white-space:nowrap" sc-camel-on-click="{{ newShipment }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>+ Добавить отгрузку</button>
         </div>
       </div>
+      <sc-if value="{{ jHasMsg }}"><div class="dv-msg" style="border-left-color:{{ jMsgColor }};margin-bottom:16px"><div style="flex:1;white-space:pre-line;text-wrap:pretty">{{ jMsg }}</div><button class="btn btn-ghost" sc-camel-on-click="{{ jMsgClose }}">Закрыть</button></div></sc-if>
       <sc-if value="{{ jHasDrafts }}"><div class="imp-alert" style="margin-bottom:20px"><div style="flex:1;text-wrap:pretty">{{ jDraftsNote }}</div><button class="btn btn-secondary" sc-camel-on-click="{{ goImport }}">Проверить</button></div></sc-if>
 
       <div class="kpi-strip" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--color-divider);margin-bottom:20px">
@@ -1151,6 +1153,7 @@
             <sc-for list="{{ date2Opts }}" as="o"><option value="{{ o.v }}">+ партия {{ o.l }}</option></sc-for>
           </sc-raw-select>
           <a class="btn btn-secondary" href="{{ planRouteHref }}" target="_blank" style="text-decoration:none">Общий маршрут партии</a>
+          <sc-if value="{{ planGroupShow }}"><button data-edit class="btn btn-secondary plan-group-btn" style="white-space:nowrap" sc-camel-on-click="{{ planToGroup }}" disabled="{{ dvBusy }}" title="Партия (или две) — клиенты, точки, груз и получатели — в группу отчётов">📤 В группу</button></sc-if>
           <button class="btn btn-secondary" sc-camel-on-click="{{ showPlanOnMap }}">Показать на карте</button>
         </div>
       </div>
@@ -1803,7 +1806,7 @@ const isoDay = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() +
 const UZ_TZ = ['Asia/Tashkent', 'Asia/Samarkand'];   // UTC+5 — время Узбекистана
 const TG_DONE = ['Yetkazildi', 'Qolib ketgan', 'Mijoz ozi oldi', 'Bekor qilindi'], TG_NOT_TRUCKS = ['Belgilanmagan', 'Mijoz ozi oladi'];
 // таблица отклонила ячейку из-за проверки данных (выпадающий список с «отклонять ввод»)
-const GS_VALIDATION_HINT = 'В таблице на этой ячейке стоит выпадающий список (проверка данных). Обновите код скрипта до 28: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия — скрипт сам переключит такие списки на «Показывать предупреждение», и правки уйдут. Или вручную: выделите столбец → Данные → Проверка данных → «Показывать предупреждение», затем «Отправить снова».';
+const GS_VALIDATION_HINT = 'В таблице на этой ячейке стоит выпадающий список (проверка данных). Обновите код скрипта до 29: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия — скрипт сам переключит такие списки на «Показывать предупреждение», и правки уйдут. Или вручную: выделите столбец → Данные → Проверка данных → «Показывать предупреждение», затем «Отправить снова».';
 // ИИ-отчёт: ответ ИИ строго по схеме — итог, проблемы и предложения по трём темам
 const AI_REP_SCHEMA = { name: 'report', description: 'ИИ-отчёт: итог, проблемы и предложения по сводке за период.', input_schema: { type: 'object', additionalProperties: false, required: ['summary', 'problems', 'suggestions'], properties: {
   summary: { type: 'string', description: 'Главное за период: 2–4 предложения' },
@@ -2076,7 +2079,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 28); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 29); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -2281,6 +2284,36 @@ class Component extends DCLogic {
   }
   // ── куда везти (у отгрузки): адрес клиента, точки из его анкеты (скрипт 27), склады или новая точка ──
   // выбирать можно, если таблица хранит точки (скрипт 27) или работаем с Excel-файлом / без таблицы
+  // «📤 В группу» (скрипт 29): партия (или две через «+») — клиенты, точки (ссылкой на карту), груз и получатель — в группу
+  // отчётов. Текст — по-русски, как остальные отчёты группы; отменённые отгрузки не попадают
+  batchToGroup(date, key = 'jMsg') {
+    const T = this.gsTg, D = this.derived(), ds = String(date || '').split('+'), pair = ds.length > 1;
+    const say = text => this.setState({ [key]: { text, color: 'var(--color-red)' } });
+    if (!this.gsUrl || !T || !T.hooked) return say('Телеграм-бот не подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».');
+    if (!T.grouped) return say('Группа отчётов не привязана: код для группы — «Настройки» → «Связь».');
+    if (this.gsVersion < 29) return say('Отправка партии в группу — со скриптом таблицы версии 29: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.');
+    const by = new Map();
+    this.state.data.shipments.filter(s => ds.includes(s.date) && s.status !== 'Bekor qilindi').forEach(s => {
+      const k = s.date + '|' + s.bl, x = by.get(k) || { s, cbm: 0, kg: 0, places: 0 };
+      x.cbm += +s.cbm || 0; x.kg += +s.kg || 0; x.places += +s.places || 0; by.set(k, x);
+    });
+    const list = [...by.values()].sort((a, b) => (pair ? a.s.date.localeCompare(b.s.date) : 0) || ruCmp(a.s.bl, b.s.bl));
+    if (!list.length) return say('В партии ' + dLongs(date) + ' нет отгрузок.');
+    const cnt = { own: 0, addr: 0, none: 0 }, tot = { cbm: 0, kg: 0, places: 0 };
+    const items = list.map(({ s, cbm, kg, places }) => {
+      const c = D.cmap[s.bl] || {}, p = D.ptOf(s), has = p.lat != null && p.lon != null;
+      cnt[p.own ? 'own' : has ? 'addr' : 'none']++; tot.cbm += cbm; tot.kg += kg; tot.places += places;
+      return { bl: s.bl + (pair ? ' · ' + dShort(s.date) : ''), who: [c.brand, c.name].filter(Boolean).join(' — ') || (D.cmap[s.bl] ? '' : 'нет в справочнике'),
+        own: !!p.own, place: p.own ? p.name : [c.address, c.district && c.district !== 'Aniqlanmagan' ? c.district : ''].filter(Boolean).join(', '), lat: has ? +p.lat : '', lon: has ? +p.lon : '',
+        cargo: [f1(cbm, 2) + ' м³', f0(kg) + ' кг', places ? places + ' мест' : ''].filter(Boolean).join(' · '),
+        recv: [c.receiver, c.receiverTel || c.tel1].filter(Boolean).join(' · ') };
+    });
+    const head = ['📦 ' + (pair ? 'Партии ' : 'Партия ') + dLongs(date) + ' — клиентов: ' + items.length,
+      f1(tot.cbm, 1) + ' м³ · ' + f0(tot.kg) + ' кг' + (tot.places ? ' · ' + tot.places + ' мест' : ''),
+      ['📍 своя точка: ' + cnt.own, '🏠 адрес клиента: ' + cnt.addr].concat(cnt.none ? ['⚠️ без координат: ' + cnt.none] : []).join(' · ')];
+    if (!confirm('Отправить в группу «' + (T.group || 'отчётов') + '» партию ' + dLongs(date) + ': ' + items.length + ' клиентов — точка, груз и получатель у каждого?')) return;
+    this.dvRun('Отправляю партию в группу…', { action: 'batchinfo', batch: { head, items } }, j => (pair ? 'Партии ' : 'Партия ') + dLongs(date) + ' — в группе' + (j.sent > 1 ? ': ' + j.sent + ' сообщения' : '') + '.', key, { group: true });
+  }
   // партия планов: одна или две («+ вторая партия») — «старшая+младшая»
   get planPair() { const st = this.state; return st.planDate && st.planDate2 && st.planDate2 !== st.planDate ? [st.planDate, st.planDate2].sort().join('+') : st.planDate; }
   get canLoc() { return !this.readOnly && (!this.gsUrl || this.gsVersion >= 27); }
@@ -2632,7 +2665,7 @@ class Component extends DCLogic {
     const open = [...new Set(data.shipments.filter(s => s.date <= today && E.vehicleKind(s.truck) && !TG_DONE.includes(s.status)).map(s => s.date))].sort();
     return open.length ? open[open.length - 1] : D.dates[D.dates.length - 1] || today;
   }
-  async dvRun(label, body, done, key = 'dvMsg') {
+  async dvRun(label, body, done, key = 'dvMsg', extra = {}) {
     if (this.state.dvBusy) return;
     this.setState({ dvBusy: true, [key]: { text: label, color: 'var(--color-divider)' } });
     try {
@@ -2645,7 +2678,7 @@ class Component extends DCLogic {
       } finally { this._gsQuiet = false; }
       if (body.action === 'dispatch' && this.gsQueue.length) throw new Error('Последние правки журнала ещё не записались в Google Таблицу — проверьте связь и нажмите снова.');
       const j = await this.tgPost(body);
-      this.setState({ dvBusy: false, [key]: { text: done(j), color: 'var(--color-accent)' } });
+      this.setState({ dvBusy: false, [key]: { text: done(j), color: 'var(--color-accent)', ...extra } });
     } catch (e) { this.setState({ dvBusy: false, [key]: { text: e.message || String(e), color: 'var(--color-red)' } }); }
   }
   // кто на какой машине (скрипт 23): выбор в списке водителей. Одна машина — один водитель: прежний водитель этой машины
@@ -2825,21 +2858,22 @@ class Component extends DCLogic {
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
     out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу: «Настройки» → «Связь».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 28. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 29. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
       !T ? 'Телеграм-бот не подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (28): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (29): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота»: «Настройки» → «Связь».' :
       !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — «Настройки» → «Связь».' :
       T.tz && !UZ_TZ.includes(T.tz) ? 'Часовой пояс Google Таблицы — ' + T.tz + ', а не Ташкент: время водителей («на линии с …»), «сегодня» и итог дня в 20:00 сдвинуты. ' +
         'Исправьте: в Google Таблице Файл → Настройки → Часовой пояс → «(GMT+05:00) Tashkent» → Сохранить; в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent». Затем «Настройки» → «Связь» → «Переподключить бота».' :
-      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 28
+      // пояс скрипта важен только старому коду (до 16): он ставил дату партии полночью по поясу скрипта; обновлять — до 29
       this.gsVersion < 16 && T.scriptTz && !UZ_TZ.includes(T.scriptTz) ? 'Часовой пояс скрипта — ' + T.scriptTz + ', а не Ташкент: даты партий могут сдвигаться на день назад (04.05.2006 → 03.05.2006). ' +
-        'Обновите код скрипта до 28 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
+        'Обновите код скрипта до 29 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
       // код ниже 22: скрипту ниже 19 — сначала свойства (без них код 19+ закроет сайт), потом что изменится — по предложению на каждое изменение
-      this.gsVersion < 28 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 28. ' +
+      this.gsVersion < 29 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 29. ' +
         (this.gsVersion < 19 ? 'Сначала задайте свойства скрипта TOKEN (пароль скрипта) и EDITOR_TOKEN (секрет редактора): Apps Script → ⚙ Настройки проекта → Свойства скрипта; что вписать — «Настройки» → «Связь». Без них новый код не пустит сайт. ' +
           'Потом «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' : '«Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.') +
-        ' В «Планах» можно будет сделать план на две партии и отправить его водителям одним заданием.' +
+        ' Кнопкой «📤 В группу» в журнале можно будет отправить партию в группу отчётов: клиенты, точки (ссылкой на карту), груз и получатели.' +
+        (this.gsVersion < 28 ? ' В «Планах» можно будет сделать план на две партии и отправить его водителям одним заданием.' : '') +
         (this.gsVersion < 27 ? ' Точки доставки клиента будут храниться в его анкете, а при выборе партии в журнале сайт спросит, какая локация у каждого клиента.' : '') +
         (this.gsVersion < 26 ? ' Выпадающие списки в таблице (проверка данных) больше не остановят запись: скрипт сам переключит их на «Показывать предупреждение».' : '') +
         (this.gsVersion < 24 ? ' Если таблица не примет одну правку (например, из-за проверки данных в ячейке), остальные всё равно запишутся, а сайт покажет, что не записалось.' : '') +
@@ -4251,7 +4285,7 @@ class Component extends DCLogic {
       const warn = st.gsWarn || [];
       if (warn.length && !['error', 'saving', 'loading'].includes(gs)) Object.assign(base, {
         fileNote: 'Не записалось в таблицу — на сайте осталось как в таблице:', gsWarnItems: warn,
-        gsWarnHint: warn.some(x => /проверки данных/i.test(x.err)) ? (this.gsVersion < 26 ? 'Обновите код скрипта до 28 — он сам переключит такой выпадающий список на «Показывать предупреждение». Или уберите проверку данных в этой ячейке (Данные → Проверка данных). Затем внесите правку снова.' : 'Уберите проверку данных в этой ячейке (Данные → Проверка данных) и внесите правку снова.') : 'Внесите правку снова.',
+        gsWarnHint: warn.some(x => /проверки данных/i.test(x.err)) ? (this.gsVersion < 26 ? 'Обновите код скрипта до 29 — он сам переключит такой выпадающий список на «Показывать предупреждение». Или уберите проверку данных в этой ячейке (Данные → Проверка данных). Затем внесите правку снова.' : 'Уберите проверку данных в этой ячейке (Данные → Проверка данных) и внесите правку снова.') : 'Внесите правку снова.',
         fileNoteColor: 'var(--color-accent-900)', fileNoteCls: 'strip-note strip-note-err', gsWarnOn: true });
       else if ((st.gsRelaxed || []).length && !['error', 'saving', 'loading'].includes(gs)) Object.assign(base, {
         fileNote: 'Выпадающий список в таблице (' + st.gsRelaxed.join(', ') + ') теперь только подсказывает: значения не из списка записываются.', gsWarnItems: [],
@@ -4314,7 +4348,10 @@ class Component extends DCLogic {
       out.jDateOpts = [{ v: 'all', l: 'Все партии' }].concat(dateOpts);
       out.jDateKey = 'jd-' + st.jDate;
       Object.assign(out, { jDate: st.jDate, jStatus: st.jStatus, jSearch: st.jSearch, onJDate: e => { const v = e.target.value; this.setState({ jDate: v, jLimit: 60 }); this.maybeAskLoc(v); },   // выбрали партию — «Какая локация на эту партию?», пока не ответили
-        jLocShow: this.canLoc && !!st.jDate && st.jDate !== 'all', jLocNeed: this.needLoc(st.jDate), openJLoc: () => this.openLocAsk(st.jDate), onJStatus: e => this.setState({ jStatus: e.target.value, jLimit: 60 }), onJSearch: e => this.setState({ jSearch: e.target.value, jLimit: 60 }), newShipment: () => this.openShipment(null) });
+        jLocShow: this.canLoc && !!st.jDate && st.jDate !== 'all', jLocNeed: this.needLoc(st.jDate), openJLoc: () => this.openLocAsk(st.jDate),
+        // «📤 В группу»: выбранная партия — в группу отчётов (бот подключён)
+        jGroupShow: !this.readOnly && !!this.gsUrl && !!(this.gsTg && this.gsTg.hooked) && !!st.jDate && st.jDate !== 'all', jToGroup: () => this.batchToGroup(st.jDate, 'jMsg'), dvBusy: !!st.dvBusy,
+        jHasMsg: !!st.jMsg, jMsg: st.jMsg ? st.jMsg.text : '', jMsgColor: st.jMsg ? st.jMsg.color : 'var(--color-divider)', jMsgClose: () => this.setState({ jMsg: null }), onJStatus: e => this.setState({ jStatus: e.target.value, jLimit: 60 }), onJSearch: e => this.setState({ jSearch: e.target.value, jLimit: 60 }), newShipment: () => this.openShipment(null) });
     }
 
     if (st.tab === 'clients' || st.tab === 'dash') {
@@ -4522,7 +4559,7 @@ class Component extends DCLogic {
             if (pair && this.gsVersion < 28) { this.gsTgRelease(); return this.setState({ planMsg: { text: 'Задание на две партии отправляет скрипт таблицы версии 28: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. План в журнал записан.', color: 'var(--color-red)' } }); }
             this.dvRun('Отправляю задание водителям…', { action: 'dispatch', date: pd, ids: [] }, j => this.dispatchText(pd, j), 'planMsg'); },
           sendAskNo: () => { this._tgHold = 0; this.setState({ sendAsk: null }); this.gsTgRelease(); },
-          planHasMsg: !!pm, planMsg: pm ? pm.text : '', planMsgColor: pm ? pm.color : 'var(--color-divider)', planMsgSent: !!pm && pm.color === 'var(--color-accent)',
+          planHasMsg: !!pm, planMsg: pm ? pm.text : '', planMsgColor: pm ? pm.color : 'var(--color-divider)', planMsgSent: !!pm && pm.color === 'var(--color-accent)' && !pm.group,
           planMsgClose: () => this.setState({ planMsg: null }), planGoDrivers: () => this.setState({ tab: 'drivers', dvDate: pd, planMsg: null }) }); }
       out.planTrips = plan.trips.map((t, ti) => {
         const v = t.vehicle;
@@ -4546,7 +4583,8 @@ class Component extends DCLogic {
       out.planSummary = (pair ? 'Две партии: ' + dLongs(pd) + ' · ' : '') + (unk ? unk + ' без CBM/KG — считаются как пустые, проверьте · ' : '') + P.all.length + ' отгрузок · ' + f1(P.all.reduce((a, s) => a + s.cbm, 0), 1) + ' м³ · ' + f0(P.all.reduce((a, s) => a + s.kg, 0)) + ' кг';
       Object.assign(out, { planDate: st.planDate, onPlanDate: e => { const v = e.target.value; this.setState(s0 => ({ planDate: v, planDate2: s0.planDate2 === v ? '' : s0.planDate2 })); },
         planDate2: pair ? st.planDate2 : '', date2Opts: dateOpts.filter(o => o.v !== st.planDate), onPlanDate2: e => this.setState({ planDate2: e.target.value }),
-        showPlanOnMap: () => this.setState({ tab: 'map', mapDate: pd, mapPlan: planKey }) });
+        showPlanOnMap: () => this.setState({ tab: 'map', mapDate: pd, mapPlan: planKey }),
+        planGroupShow: !this.readOnly && !!this.gsUrl && !!(this.gsTg && this.gsTg.hooked), planToGroup: () => this.batchToGroup(pd, 'planMsg') });
     }
 
     if (st.tab === 'viz') {
@@ -4787,7 +4825,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 28 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 29 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :

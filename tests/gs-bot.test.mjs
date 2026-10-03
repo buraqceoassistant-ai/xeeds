@@ -65,7 +65,7 @@ const connect = t => t.s.post({ token: '', tg: { action: 'setup', url: 'https://
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 28); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 29); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
@@ -469,7 +469,7 @@ test('фото только с камеры: кнопка открывает dri
   assert.equal(up({}, initData({ id: 501 }, { token: 'чужой' })).code, 'auth', 'подпись другим токеном');
   assert.equal(up({}, initData({ id: 501 }, { at: Date.UTC(2026, 8, 24) / 1000 })).code, 'auth', 'подпись старше суток');
   assert.equal(up({ key: 'BL-902|1' }).code, 'stage', 'снимок не той точки');
-  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 28 }, 'проверка связи со страницы камеры');
+  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 29 }, 'проверка связи со страницы камеры');
   assert.equal(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-902|1', ping: 1 } }).code, 'stage');
   const r = up({ ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -880,7 +880,7 @@ test('версия 17: кнопки карточки версии 15, остав
   assert.match(t.texts(501).slice(-2).join('\n'), /BL-901/);
   // камера с карточки версии 15: проверка связи не меняет шаг, снимок — как «Доставлено»
   const cam = extra => t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ...extra } });
-  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 28 });
+  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 29 });
   assert.equal(cam({ key: 'BL-902|1', img: JPEG }).code, 'stage', 'не та точка');
   const r = cam({ img: JPEG, ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -1155,4 +1155,27 @@ test('версия 28: «Отправить» две партии одним з�
   assert.match(t.last('sendMessage', g).text, /партия 25\.09\.2026 \+ 26\.09\.2026 · точек: 4/);
   // неверная дата — ошибка
   assert.equal(t.s.post({ token: '', tg: { action: 'dispatch', date: '2026-09-25+x' } }).error, 'Выберите партию');
+});
+
+test('версия 29: «📤 В группу» — партия с точками в группу: точка — ссылка на карту, груз, получатель; длинная — частями', () => {
+  const t = approved(), g = t.group.id;
+  const items = [
+    { bl: 'BL-901', who: 'NOVA — Aziz', own: true, place: 'Sklad Sergeli', lat: 41.2205, lon: 69.2201, cargo: '2,5 м³ · 300 кг · 12 мест', recv: 'Omon · +998900000022' },
+    { bl: 'BL-902', who: 'Botir <b>', own: false, place: 'Amir Temur 2', lat: 41.36, lon: 69.28, cargo: '1 м³ · 100 кг', recv: '' },
+    { bl: 'BL-903', who: 'STAR', own: false, place: 'Yangi Sergeli 3', lat: '', lon: '', cargo: '', recv: '' }];
+  const r = t.s.post({ token: '', tg: { action: 'batchinfo', batch: { head: ['📦 Партия 26.09.2026 — клиентов: 3', '3,5 м³ · 400 кг'], items } } });
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.deepEqual([r.sent, r.of], [1, 1]);
+  const m = t.last('sendMessage', g);
+  assert.equal(m.parse_mode, 'HTML'); assert.equal(m.disable_web_page_preview, true);
+  assert.match(m.text, /^<b>📦 Партия 26\.09\.2026 — клиентов: 3<\/b>\n3,5 м³ · 400 кг\n\n1\. <b>BL-901<\/b> · NOVA — Aziz\n📍 <a href="https:\/\/yandex\.uz\/maps\/\?pt=69\.2201,41\.2205&amp;z=17&amp;l=map">Sklad Sergeli<\/a>\n📦 2,5 м³ · 300 кг · 12 мест\n☎️ Omon · \+998900000022/);
+  assert.match(m.text, /2\. <b>BL-902<\/b> · Botir &lt;b&gt;\n🏠 <a href="[^"]+">Amir Temur 2<\/a>\n📦 1 м³ · 100 кг\n\n3\. <b>BL-903<\/b> · STAR\n⚠️ нет координат · Yangi Sergeli 3$/);
+  // длинная партия — несколькими сообщениями, каждое до 3 800 знаков
+  const many = Array.from({ length: 60 }, (_, i) => ({ bl: 'BL-' + (1000 + i), who: 'Mijoz ' + i + ' — ' + 'x'.repeat(60), own: false, place: 'Manzil ' + i, lat: 41.3, lon: 69.2, cargo: '1 м³', recv: 'Ism · +998900000000' }));
+  const n0 = t.tg.sent.filter(x => x.method === 'sendMessage' && String(x.chat_id) === String(g)).length;
+  const r2 = t.s.post({ token: '', tg: { action: 'batchinfo', batch: { head: ['📦 Партия'], items: many } } });
+  const parts = t.tg.sent.filter(x => x.method === 'sendMessage' && String(x.chat_id) === String(g)).slice(n0);
+  assert.ok(r2.sent > 1 && r2.sent === parts.length && parts.every(x => x.text.length <= 3800), 'частями: ' + parts.map(x => x.text.length).join(','));
+  assert.ok(/60\. <b>BL-1059<\/b>/.test(parts[parts.length - 1].text), 'все клиенты дошли');
+  // без группы и пустая партия — ошибка
+  assert.match(t.s.post({ token: '', tg: { action: 'batchinfo', batch: { items: [] } } }).error, /нет отгрузок/);
 });

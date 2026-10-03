@@ -1039,6 +1039,32 @@ function tgDispatch_(date, ids, auto) {
   }
   return { sent: sent, skipped: skipped, already: already };
 }
+// «📤 В группу» с сайта (версия 29): партия с точками — в группу отчётов. Сайт присылает заголовок и строки клиентов
+// (BL, клиент, точка — своя / адрес клиента / без координат, груз, получатель); скрипт собирает сообщения: точка —
+// ссылка на Яндекс Карты (HTML), длинная партия — несколькими сообщениями до 3 800 знаков
+function tgBatchInfo_(b) {
+  var g = tgGroup_();
+  if (!g) return { error: 'Группа отчётов не привязана: отправьте в группе /ulash и код с сайта' };
+  var items = ((b && b.items) || []).slice(0, 400);
+  if (!items.length) return { error: 'В партии нет отгрузок' };
+  var esc = function (x) { return String(x == null ? '' : x).slice(0, 300).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var head = ((b && b.head) || []).slice(0, 6).map(function (l, i) { return i ? esc(l) : '<b>' + esc(l) + '</b>'; }).join('\n');
+  var blocks = items.map(function (x, i) {
+    var lat = Number(x.lat), lon = Number(x.lon), ll = x.lat !== '' && x.lat != null && isFinite(lat) && isFinite(lon) && (lat || lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+    var name = esc(x.place || (ll ? lat + ', ' + lon : 'нет координат'));
+    var place = ll ? '<a href="https://yandex.uz/maps/?pt=' + lon + ',' + lat + '&amp;z=17&amp;l=map">' + name + '</a>' : name;
+    var lines = [(i + 1) + '. <b>' + esc(x.bl) + '</b>' + (x.who ? ' · ' + esc(x.who) : ''), (x.own ? '📍 ' : ll ? '🏠 ' : '⚠️ нет координат · ') + place];
+    if (x.cargo) lines.push('📦 ' + esc(x.cargo));
+    if (x.recv) lines.push('☎️ ' + esc(x.recv));
+    return lines.join('\n');
+  });
+  var msgs = [], cur = head;
+  blocks.forEach(function (bl) { if (cur && (cur + '\n\n' + bl).length > 3800) { msgs.push(cur); cur = bl; } else cur = cur ? cur + '\n\n' + bl : bl; });
+  if (cur) msgs.push(cur);
+  var sent = 0, err = '';
+  msgs.forEach(function (m) { var r = tg_('sendMessage', { chat_id: g, text: m, parse_mode: 'HTML', disable_web_page_preview: true }); if (r && r.ok) sent++; else if (!err) err = (r && r.description) || 'ошибка Telegram'; });
+  return sent ? { sent: sent, of: msgs.length } : { error: 'Telegram не принял сообщение: ' + err };
+}
 // «Написать водителю»: одному, выбранным или всем, кто сегодня на линии
 function tgMessage_(ids, text) {
   text = String(text || '').trim().slice(0, 1500);
@@ -1381,6 +1407,7 @@ function tgSite_(body) {
     if (!/^20\d\d-\d\d-\d\d(\+20\d\d-\d\d-\d\d)?$/.test(String(a.from || '')) || !/^20\d\d-\d\d-\d\d$/.test(String(a.to || '')) || tgDates_(a.from).indexOf(a.to) >= 0) return { error: 'Выберите партию и другую дату', v: VERSION };
     return { ok: true, v: VERSION, moved: tgCarry_(tgDates_(a.from), a.to) };   // «A+B» — недоставленные обеих партий
   }
+  if (a.action === 'batchinfo') { var bi = tgBatchInfo_(a.batch); return bi.error ? { error: bi.error, v: VERSION } : { ok: true, v: VERSION, sent: bi.sent, of: bi.of }; }   // версия 29
   if (a.action === 'message') { var mr = tgMessage_(a.ids, a.text); return mr.error ? { error: mr.error, v: VERSION } : { ok: true, v: VERSION, sent: mr.sent }; }
   if (a.action === 'summary') {
     if (!tgGroup_()) return { error: 'Группа отчётов не привязана: отправьте в группе /ulash и код с сайта', v: VERSION };
