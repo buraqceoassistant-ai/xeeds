@@ -1039,30 +1039,37 @@ function tgDispatch_(date, ids, auto) {
   }
   return { sent: sent, skipped: skipped, already: already };
 }
-// «📤 В группу» с сайта (версия 29): партия с точками — в группу отчётов. Сайт присылает заголовок и строки клиентов
-// (BL, клиент, точка — своя / адрес клиента / без координат, груз, получатель); скрипт собирает сообщения: точка —
-// ссылка на Яндекс Карты (HTML), длинная партия — несколькими сообщениями до 3 800 знаков
+// «📤 В группу» с сайта (версия 29): партия — в группу отчётов, как водителю: сначала сводка, потом каждый клиент
+// отдельной карточкой (BL и клиент, куда — своя точка или адрес клиента, получатель, груз) с кнопками маршрута
+// «🧭 Яндекс» и «🗺 Google». Telegram пускает в группу не больше 20 сообщений в минуту — после 19-го пауза ~3 с;
+// ответ 429 — ждём, сколько сказал Telegram, и повторяем. Не больше 100 клиентов за раз.
 function tgBatchInfo_(b) {
   var g = tgGroup_();
   if (!g) return { error: 'Группа отчётов не привязана: отправьте в группе /ulash и код с сайта' };
-  var items = ((b && b.items) || []).slice(0, 400);
+  var all = (b && b.items) || [], items = all.slice(0, 100);
   if (!items.length) return { error: 'В партии нет отгрузок' };
-  var esc = function (x) { return String(x == null ? '' : x).slice(0, 300).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
-  var head = ((b && b.head) || []).slice(0, 6).map(function (l, i) { return i ? esc(l) : '<b>' + esc(l) + '</b>'; }).join('\n');
-  var blocks = items.map(function (x, i) {
+  var cut = function (x, n) { return String(x == null ? '' : x).slice(0, n || 300); };
+  var title = cut((b && b.title) || 'Партия', 80), msgs = [];
+  var head = ((b && b.head) || []).slice(0, 6).map(function (l) { return cut(l); });
+  if (all.length > items.length) head.push('Показаны первые ' + items.length + ' из ' + all.length + ' клиентов.');
+  if (head.length) msgs.push({ text: head.join('\n') });
+  items.forEach(function (x, i) {
     var lat = Number(x.lat), lon = Number(x.lon), ll = x.lat !== '' && x.lat != null && isFinite(lat) && isFinite(lon) && (lat || lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
-    var name = esc(x.place || (ll ? lat + ', ' + lon : 'нет координат'));
-    var place = ll ? '<a href="https://yandex.uz/maps/?pt=' + lon + ',' + lat + '&amp;z=17&amp;l=map">' + name + '</a>' : name;
-    var lines = [(i + 1) + '. <b>' + esc(x.bl) + '</b>' + (x.who ? ' · ' + esc(x.who) : ''), (x.own ? '📍 ' : ll ? '🏠 ' : '⚠️ нет координат · ') + place];
-    if (x.cargo) lines.push('📦 ' + esc(x.cargo));
-    if (x.recv) lines.push('☎️ ' + esc(x.recv));
-    return lines.join('\n');
+    var lines = ['📦 ' + title + ' · ' + (i + 1) + ' из ' + items.length, '', '🏷 ' + cut(x.bl, 60) + (x.who ? ' · ' + cut(x.who, 120) : ''),
+      '📍 Куда: ' + (cut(x.place) || 'адрес не указан') + (x.own ? ' (своя точка)' : '')];
+    if (x.recv) lines.push('👤 Получатель: ' + cut(x.recv, 120));
+    if (x.cargo) lines.push('📦 ' + cut(x.cargo, 120));
+    if (!ll) lines.push('', 'Точки на карте нет — по адресу.');
+    msgs.push({ text: lines.join('\n'), kb: ll ? tgInline_([[{ text: '🧭 Яндекс', url: 'https://yandex.uz/maps/?rtext=~' + lat + ',' + lon + '&rtt=auto' },
+      { text: '🗺 Google', url: 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lon }]]) : undefined });
   });
-  var msgs = [], cur = head;
-  blocks.forEach(function (bl) { if (cur && (cur + '\n\n' + bl).length > 3800) { msgs.push(cur); cur = bl; } else cur = cur ? cur + '\n\n' + bl : bl; });
-  if (cur) msgs.push(cur);
   var sent = 0, err = '';
-  msgs.forEach(function (m) { var r = tg_('sendMessage', { chat_id: g, text: m, parse_mode: 'HTML', disable_web_page_preview: true }); if (r && r.ok) sent++; else if (!err) err = (r && r.description) || 'ошибка Telegram'; });
+  msgs.forEach(function (m, i) {
+    if (i >= 19) Utilities.sleep(3100);   // не больше 20 сообщений в минуту в одну группу
+    var r = tgSend_(g, m.text, m.kb);
+    if (r && !r.ok && r.error_code === 429) { Utilities.sleep(Math.min(60, Number((r.parameters || {}).retry_after) || 5) * 1000 + 500); r = tgSend_(g, m.text, m.kb); }
+    if (r && r.ok) sent++; else if (!err) err = (r && r.description) || 'ошибка Telegram';
+  });
   return sent ? { sent: sent, of: msgs.length } : { error: 'Telegram не принял сообщение: ' + err };
 }
 // «Написать водителю»: одному, выбранным или всем, кто сегодня на линии
@@ -1350,6 +1357,7 @@ function tgSetDispatcher_(p, a) {
 // действия сайта с ботом — под той же блокировкой, что и кнопки водителей: два «Отправить» подряд (или с двух устройств)
 // и нажатие водителя в ту же секунду не перезаписывают состояние друг друга и не шлют задание дважды
 function tgSiteLocked_(body) {
+  if ((body.tg || {}).action === 'batchinfo') return tgSite_(body);   // в группу — минуты (паузы Telegram), таблицу не трогает: без блокировки
   var lock = LockService.getScriptLock();
   try { lock.waitLock(25000); } catch (err) { return { error: 'Бот сейчас занят — нажмите ещё раз через несколько секунд.', v: VERSION }; }
   try { return tgSite_(body); } finally { lock.releaseLock(); }

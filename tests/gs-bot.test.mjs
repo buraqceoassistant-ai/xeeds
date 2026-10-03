@@ -1157,25 +1157,29 @@ test('версия 28: «Отправить» две партии одним з�
   assert.equal(t.s.post({ token: '', tg: { action: 'dispatch', date: '2026-09-25+x' } }).error, 'Выберите партию');
 });
 
-test('версия 29: «📤 В группу» — партия с точками в группу: точка — ссылка на карту, груз, получатель; длинная — частями', () => {
+test('версия 29: «📤 В группу» — сводка, потом каждый клиент отдельной карточкой с кнопками маршрута; больше 19 — с паузами', () => {
   const t = approved(), g = t.group.id;
   const items = [
     { bl: 'BL-901', who: 'NOVA — Aziz', own: true, place: 'Sklad Sergeli', lat: 41.2205, lon: 69.2201, cargo: '2,5 м³ · 300 кг · 12 мест', recv: 'Omon · +998900000022' },
-    { bl: 'BL-902', who: 'Botir <b>', own: false, place: 'Amir Temur 2', lat: 41.36, lon: 69.28, cargo: '1 м³ · 100 кг', recv: '' },
+    { bl: 'BL-902', who: 'Botir', own: false, place: 'Amir Temur 2, Yunusobod', lat: 41.36, lon: 69.28, cargo: '1 м³ · 100 кг', recv: '' },
     { bl: 'BL-903', who: 'STAR', own: false, place: 'Yangi Sergeli 3', lat: '', lon: '', cargo: '', recv: '' }];
-  const r = t.s.post({ token: '', tg: { action: 'batchinfo', batch: { head: ['📦 Партия 26.09.2026 — клиентов: 3', '3,5 м³ · 400 кг'], items } } });
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.deepEqual([r.sent, r.of], [1, 1]);
-  const m = t.last('sendMessage', g);
-  assert.equal(m.parse_mode, 'HTML'); assert.equal(m.disable_web_page_preview, true);
-  assert.match(m.text, /^<b>📦 Партия 26\.09\.2026 — клиентов: 3<\/b>\n3,5 м³ · 400 кг\n\n1\. <b>BL-901<\/b> · NOVA — Aziz\n📍 <a href="https:\/\/yandex\.uz\/maps\/\?pt=69\.2201,41\.2205&amp;z=17&amp;l=map">Sklad Sergeli<\/a>\n📦 2,5 м³ · 300 кг · 12 мест\n☎️ Omon · \+998900000022/);
-  assert.match(m.text, /2\. <b>BL-902<\/b> · Botir &lt;b&gt;\n🏠 <a href="[^"]+">Amir Temur 2<\/a>\n📦 1 м³ · 100 кг\n\n3\. <b>BL-903<\/b> · STAR\n⚠️ нет координат · Yangi Sergeli 3$/);
-  // длинная партия — несколькими сообщениями, каждое до 3 800 знаков
-  const many = Array.from({ length: 60 }, (_, i) => ({ bl: 'BL-' + (1000 + i), who: 'Mijoz ' + i + ' — ' + 'x'.repeat(60), own: false, place: 'Manzil ' + i, lat: 41.3, lon: 69.2, cargo: '1 м³', recv: 'Ism · +998900000000' }));
-  const n0 = t.tg.sent.filter(x => x.method === 'sendMessage' && String(x.chat_id) === String(g)).length;
-  const r2 = t.s.post({ token: '', tg: { action: 'batchinfo', batch: { head: ['📦 Партия'], items: many } } });
-  const parts = t.tg.sent.filter(x => x.method === 'sendMessage' && String(x.chat_id) === String(g)).slice(n0);
-  assert.ok(r2.sent > 1 && r2.sent === parts.length && parts.every(x => x.text.length <= 3800), 'частями: ' + parts.map(x => x.text.length).join(','));
-  assert.ok(/60\. <b>BL-1059<\/b>/.test(parts[parts.length - 1].text), 'все клиенты дошли');
-  // без группы и пустая партия — ошибка
+  const n0 = t.tg.sent.length;
+  const r = t.s.post({ token: '', tg: { action: 'batchinfo', batch: { title: 'Партия 26.09.2026', head: ['📦 Партия 26.09.2026 — клиентов: 3', '3,5 м³ · 400 кг'], items } } });
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.deepEqual([r.sent, r.of], [4, 4], 'сводка + 3 карточки');
+  const ms = t.tg.sent.slice(n0).filter(x => x.method === 'sendMessage' && String(x.chat_id) === String(g));
+  assert.equal(ms[0].text, '📦 Партия 26.09.2026 — клиентов: 3\n3,5 м³ · 400 кг');
+  assert.equal(ms[1].text, '📦 Партия 26.09.2026 · 1 из 3\n\n🏷 BL-901 · NOVA — Aziz\n📍 Куда: Sklad Sergeli (своя точка)\n👤 Получатель: Omon · +998900000022\n📦 2,5 м³ · 300 кг · 12 мест');
+  assert.deepEqual(JSON.parse(JSON.stringify(ms[1].reply_markup.inline_keyboard[0].map(b => b.text + ' ' + b.url))), ['🧭 Яндекс https://yandex.uz/maps/?rtext=~41.2205,69.2201&rtt=auto', '🗺 Google https://www.google.com/maps/dir/?api=1&destination=41.2205,69.2201']);
+  assert.equal(ms[2].text, '📦 Партия 26.09.2026 · 2 из 3\n\n🏷 BL-902 · Botir\n📍 Куда: Amir Temur 2, Yunusobod\n📦 1 м³ · 100 кг');
+  assert.equal(ms[3].text, '📦 Партия 26.09.2026 · 3 из 3\n\n🏷 BL-903 · STAR\n📍 Куда: Yangi Sergeli 3\n\nТочки на карте нет — по адресу.');
+  assert.equal(ms[3].reply_markup, undefined, 'без координат — без кнопок');
+  assert.ok(!(t.s.book.slept || []).length, 'до 19 сообщений — без пауз');
+  // 30 клиентов — после 19-го сообщения паузы ~3 с (не больше 20 в минуту в группу)
+  const many = Array.from({ length: 30 }, (_, i) => ({ bl: 'BL-' + (1000 + i), who: 'Mijoz ' + i, own: false, place: 'Manzil ' + i, lat: 41.3, lon: 69.2, cargo: '1 м³', recv: '' }));
+  const r2 = t.s.post({ token: '', tg: { action: 'batchinfo', batch: { title: 'Партия', head: ['📦 Партия'], items: many } } });
+  assert.deepEqual([r2.sent, r2.of], [31, 31]);
+  assert.equal((t.s.book.slept || []).length, 12, '31 сообщение — 12 пауз');
+  assert.ok(t.s.book.slept.every(x => x >= 3000));
+  // пустая партия — ошибка
   assert.match(t.s.post({ token: '', tg: { action: 'batchinfo', batch: { items: [] } } }).error, /нет отгрузок/);
 });

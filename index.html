@@ -119,7 +119,7 @@
           <sc-raw-select class="input" style="width:170px" value="{{ jDate }}" sc-camel-on-change="{{ onJDate }}">
             <sc-for list="{{ jDateOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
           </sc-raw-select>
-          <sc-if value="{{ jGroupShow }}"><button data-edit class="btn btn-secondary j-group-btn" style="white-space:nowrap" sc-camel-on-click="{{ jToGroup }}" disabled="{{ dvBusy }}" title="Партия: клиенты, точки, груз и получатели — в группу отчётов в Telegram">📤 В группу</button></sc-if>
+          <sc-if value="{{ jGroupShow }}"><button data-edit class="btn btn-secondary j-group-btn" style="white-space:nowrap" sc-camel-on-click="{{ jToGroup }}" disabled="{{ dvBusy }}" title="Партия в группу отчётов: сводка и каждый клиент отдельным сообщением — куда, получатель, груз, маршрут">📤 В группу</button></sc-if>
           <sc-if value="{{ jLocShow }}"><button data-edit class="btn btn-secondary j-loc-btn" style="white-space:nowrap" sc-camel-on-click="{{ openJLoc }}" title="Какая локация на эту партию?">📍 Локации партии<sc-if value="{{ jLocNeed }}"><span class="j-loc-dot" title="Есть клиенты без выбранной точки"></span></sc-if></button></sc-if>
           <sc-raw-select class="input" style="width:190px" value="{{ jStatus }}" sc-camel-on-change="{{ onJStatus }}">
             <option value="all">Все статусы</option>
@@ -1153,7 +1153,7 @@
             <sc-for list="{{ date2Opts }}" as="o"><option value="{{ o.v }}">+ партия {{ o.l }}</option></sc-for>
           </sc-raw-select>
           <a class="btn btn-secondary" href="{{ planRouteHref }}" target="_blank" style="text-decoration:none">Общий маршрут партии</a>
-          <sc-if value="{{ planGroupShow }}"><button data-edit class="btn btn-secondary plan-group-btn" style="white-space:nowrap" sc-camel-on-click="{{ planToGroup }}" disabled="{{ dvBusy }}" title="Партия (или две) — клиенты, точки, груз и получатели — в группу отчётов">📤 В группу</button></sc-if>
+          <sc-if value="{{ planGroupShow }}"><button data-edit class="btn btn-secondary plan-group-btn" style="white-space:nowrap" sc-camel-on-click="{{ planToGroup }}" disabled="{{ dvBusy }}" title="Партия (или две) в группу отчётов: сводка и каждый клиент отдельным сообщением">📤 В группу</button></sc-if>
           <button class="btn btn-secondary" sc-camel-on-click="{{ showPlanOnMap }}">Показать на карте</button>
         </div>
       </div>
@@ -2284,8 +2284,9 @@ class Component extends DCLogic {
   }
   // ── куда везти (у отгрузки): адрес клиента, точки из его анкеты (скрипт 27), склады или новая точка ──
   // выбирать можно, если таблица хранит точки (скрипт 27) или работаем с Excel-файлом / без таблицы
-  // «📤 В группу» (скрипт 29): партия (или две через «+») — клиенты, точки (ссылкой на карту), груз и получатель — в группу
-  // отчётов. Текст — по-русски, как остальные отчёты группы; отменённые отгрузки не попадают
+  // «📤 В группу» (скрипт 29): партия (или две через «+») — в группу отчётов, как водителю: сводка, потом каждый клиент
+  // отдельной карточкой (куда, получатель, груз) с кнопками маршрута. По-русски, как остальные отчёты группы; отменённые
+  // отгрузки не попадают
   batchToGroup(date, key = 'jMsg') {
     const T = this.gsTg, D = this.derived(), ds = String(date || '').split('+'), pair = ds.length > 1;
     const say = text => this.setState({ [key]: { text, color: 'var(--color-red)' } });
@@ -2311,8 +2312,12 @@ class Component extends DCLogic {
     const head = ['📦 ' + (pair ? 'Партии ' : 'Партия ') + dLongs(date) + ' — клиентов: ' + items.length,
       f1(tot.cbm, 1) + ' м³ · ' + f0(tot.kg) + ' кг' + (tot.places ? ' · ' + tot.places + ' мест' : ''),
       ['📍 своя точка: ' + cnt.own, '🏠 адрес клиента: ' + cnt.addr].concat(cnt.none ? ['⚠️ без координат: ' + cnt.none] : []).join(' · ')];
-    if (!confirm('Отправить в группу «' + (T.group || 'отчётов') + '» партию ' + dLongs(date) + ': ' + items.length + ' клиентов — точка, груз и получатель у каждого?')) return;
-    this.dvRun('Отправляю партию в группу…', { action: 'batchinfo', batch: { head, items } }, j => (pair ? 'Партии ' : 'Партия ') + dLongs(date) + ' — в группе' + (j.sent > 1 ? ': ' + j.sent + ' сообщения' : '') + '.', key, { group: true });
+    if (!confirm('Отправить в группу «' + (T.group || 'отчётов') + '» партию ' + dLongs(date) + ': сводку и ' + items.length + ' клиентов — каждого отдельным сообщением, как водителю?')) return;
+    // Telegram пускает в группу не больше 20 сообщений в минуту: большая партия уходит с паузами
+    const mins = Math.ceil(Math.max(0, items.length + 1 - 19) * 3.2 / 60);
+    this.dvRun('Отправляю в группу: сводка и ' + items.length + ' клиентов' + (mins ? ' — около ' + mins + ' мин (Telegram пускает 20 сообщений в минуту).' : '…'),
+      { action: 'batchinfo', batch: { title: (pair ? 'Партии ' : 'Партия ') + dLongs(date), head, items } },
+      j => (pair ? 'Партии ' : 'Партия ') + dLongs(date) + ' — в группе: сводка и ' + Math.max(0, (j.sent || 0) - 1) + ' клиентов отдельными сообщениями.' + (j.of > j.sent ? ' Не дошло: ' + (j.of - j.sent) + '.' : ''), key, { group: true });
   }
   // партия планов: одна или две («+ вторая партия») — «старшая+младшая»
   get planPair() { const st = this.state; return st.planDate && st.planDate2 && st.planDate2 !== st.planDate ? [st.planDate, st.planDate2].sort().join('+') : st.planDate; }
@@ -2872,7 +2877,7 @@ class Component extends DCLogic {
       this.gsVersion < 29 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 29. ' +
         (this.gsVersion < 19 ? 'Сначала задайте свойства скрипта TOKEN (пароль скрипта) и EDITOR_TOKEN (секрет редактора): Apps Script → ⚙ Настройки проекта → Свойства скрипта; что вписать — «Настройки» → «Связь». Без них новый код не пустит сайт. ' +
           'Потом «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' : '«Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.') +
-        ' Кнопкой «📤 В группу» в журнале можно будет отправить партию в группу отчётов: клиенты, точки (ссылкой на карту), груз и получатели.' +
+        ' Кнопкой «📤 В группу» в журнале можно будет отправить партию в группу отчётов: каждого клиента отдельным сообщением, как водителю, — куда, получатель, груз и маршрут.' +
         (this.gsVersion < 28 ? ' В «Планах» можно будет сделать план на две партии и отправить его водителям одним заданием.' : '') +
         (this.gsVersion < 27 ? ' Точки доставки клиента будут храниться в его анкете, а при выборе партии в журнале сайт спросит, какая локация у каждого клиента.' : '') +
         (this.gsVersion < 26 ? ' Выпадающие списки в таблице (проверка данных) больше не остановят запись: скрипт сам переключит их на «Показывать предупреждение».' : '') +
