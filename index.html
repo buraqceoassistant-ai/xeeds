@@ -151,11 +151,12 @@
           </sc-raw-tr></sc-raw-thead>
           <sc-raw-tbody>
             <sc-for list="{{ jRows }}" as="r" hint-placeholder-count="12">
-              <sc-raw-tr>
+              <sc-raw-tr class="{{ r.cls }}">
                 <sc-raw-td class="c2 o-1" style="white-space:nowrap;color:var(--color-neutral-700)">{{ r.date }}</sc-raw-td>
                 <sc-raw-td class="c2 o-1 c-strong" style="white-space:nowrap;font-weight:500">{{ r.bl }}</sc-raw-td>
                 <sc-raw-td class="cw c-title"><div style="font-weight:500">{{ r.brand }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ r.name }}</div>
                   <sc-if value="{{ r.hasLoc }}"><div class="j-loc" title="Куда везти — своя локация отгрузки">📍 {{ r.locName }}</div></sc-if>
+                  <sc-if value="{{ r.isPick }}"><div class="j-pick-tag" title="Клиент забирает груз сам — не в планах и не у водителей">{{ r.pickText }}</div></sc-if>
                   <sc-if value="{{ r.locEdit }}"><sc-raw-select class="input j-loc-sel" value="{{ r.locVal }}" sc-camel-on-change="{{ r.onLoc }}" aria-label="Куда везти" title="Куда везти"><sc-for list="{{ r.locOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></sc-if></sc-raw-td>
                 <sc-raw-td data-label="Район" style="white-space:nowrap">{{ r.district }}</sc-raw-td>
                 <sc-raw-td data-label="Получатель"><div>{{ r.receiver }}</div><a href="{{ r.telHref }}" style="font-size:12px;white-space:nowrap">{{ r.tel }}</a></sc-raw-td>
@@ -183,6 +184,7 @@
                 <sc-raw-td class="c-actions c3" style="white-space:nowrap">
                   <div style="display:flex;gap:4px;justify-content:flex-end">
                     <sc-if value="{{ r.hasPoint }}"><a class="btn btn-ghost" href="{{ r.pointHref }}" target="_blank" title="Точка в Яндекс Картах" style="text-decoration:none">Карта</a></sc-if>
+                    <sc-if value="{{ r.needPoint }}"><button data-edit class="btn btn-ghost j-pt-btn" sc-camel-on-click="{{ r.onPoint }}" title="Нет координат: откроется анкета клиента — вставьте ссылку с карты">📍 Указать точку</button></sc-if>
                     <button data-edit class="btn btn-ghost" sc-camel-on-click="{{ r.onEdit }}">Изменить</button>
                   </div>
                 </sc-raw-td>
@@ -1288,6 +1290,10 @@
           <sc-raw-select class="input" style="width:200px" value="{{ planDate }}" sc-camel-on-change="{{ onVizDate }}">
             <sc-for list="{{ dateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for>
           </sc-raw-select>
+          <sc-raw-select class="input viz-date2" style="width:210px" value="{{ planDate2 }}" sc-camel-on-change="{{ onVizDate2 }}" title="Две партии: груз обеих вместе, как в «Планах»" aria-label="Вторая партия">
+            <option value="">+ вторая партия</option>
+            <sc-for list="{{ date2Opts }}" as="o"><option value="{{ o.v }}">+ партия {{ o.l }}</option></sc-for>
+          </sc-raw-select>
           <div class="viz-seg" style="display:flex;border:1px solid var(--color-divider)">
             <sc-for list="{{ vizPlanOpts }}" as="o"><button sc-camel-on-click="{{ o.go }}" style="border:0;padding:8px 14px;font:inherit;font-weight:500;cursor:pointer;background:{{ o.bg }};color:{{ o.fg }}">{{ o.l }}</button></sc-for>
           </div>
@@ -1787,6 +1793,9 @@ const locStr = (name, lat, lon) => (String(name || '').trim() ? String(name).tri
 const ADDR_LOC = 'Mijoz manzili';
 // строки, которые уже не везём, — окно партии их не спрашивает
 const LOC_DONE = ['Yetkazildi', 'Bekor qilindi', 'Mijoz ozi oldi'];
+// самовывоз: машина «Mijoz ozi oladi» (клиент заберёт сам) — в «Куда везти» это «🙋 Клиент заберёт сам»; такие строки
+// не идут в планы, на карту партии и водителям (бот их и раньше не слал)
+const PICK = 'Mijoz ozi oladi';
 const locParse = t => {
   const s = String(t == null ? '' : t).trim(), m = s.match(/(-?\d{1,2}(?:\.\d+)?)\s*[,;]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
   if (!m) return null;
@@ -2294,13 +2303,15 @@ class Component extends DCLogic {
     if (!this.gsUrl || !T || !T.hooked) return say('Телеграм-бот не подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».');
     if (!T.grouped) return say('Группа отчётов не привязана: код для группы — «Настройки» → «Связь».');
     if (this.gsVersion < 29) return say('Отправка партии в группу — со скриптом таблицы версии 29: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.');
-    const by = new Map();
+    // самовывоз — не карточкой (точки нет, водитель не едет), а строкой в сводке
+    const by = new Map(), picks = new Set();
     this.state.data.shipments.filter(s => ds.includes(s.date) && s.status !== 'Bekor qilindi').forEach(s => {
+      if (s.truck === PICK || s.status === 'Mijoz ozi oldi') return picks.add(s.bl + (pair ? ' · ' + dShort(s.date) : ''));
       const k = s.date + '|' + s.bl, x = by.get(k) || { s, cbm: 0, kg: 0, places: 0 };
       x.cbm += +s.cbm || 0; x.kg += +s.kg || 0; x.places += +s.places || 0; by.set(k, x);
     });
     const list = [...by.values()].sort((a, b) => (pair ? a.s.date.localeCompare(b.s.date) : 0) || ruCmp(a.s.bl, b.s.bl));
-    if (!list.length) return say('В партии ' + dLongs(date) + ' нет отгрузок.');
+    if (!list.length) return say(picks.size ? 'Все клиенты партии ' + dLongs(date) + ' забирают груз сами — в группу отправлять нечего.' : 'В партии ' + dLongs(date) + ' нет отгрузок.');
     const cnt = { own: 0, addr: 0, none: 0 }, tot = { cbm: 0, kg: 0, places: 0 };
     const items = list.map(({ s, cbm, kg, places }) => {
       const c = D.cmap[s.bl] || {}, p = D.ptOf(s), has = p.lat != null && p.lon != null;
@@ -2312,7 +2323,8 @@ class Component extends DCLogic {
     });
     const head = ['📦 ' + (pair ? 'Партии ' : 'Партия ') + dLongs(date) + ' — клиентов: ' + items.length,
       f1(tot.cbm, 1) + ' м³ · ' + f0(tot.kg) + ' кг' + (tot.places ? ' · ' + tot.places + ' мест' : ''),
-      ['📍 своя точка: ' + cnt.own, '🏠 адрес клиента: ' + cnt.addr].concat(cnt.none ? ['⚠️ без координат: ' + cnt.none] : []).join(' · ')];
+      ['📍 своя точка: ' + cnt.own, '🏠 адрес клиента: ' + cnt.addr].concat(cnt.none ? ['⚠️ без координат: ' + cnt.none] : []).join(' · ')]
+      .concat(picks.size ? ['🙋 заберут сами: ' + picks.size + ' — ' + [...picks].sort(ruCmp).join(', ')] : []);
     if (!confirm('Отправить в группу «' + (T.group || 'отчётов') + '» партию ' + dLongs(date) + ': сводку и ' + items.length + ' клиентов — каждого отдельным сообщением, как водителю?')) return;
     // Telegram пускает в группу не больше 20 сообщений в минуту: большая партия уходит с паузами
     const mins = Math.ceil(Math.max(0, items.length + 1 - 19) * 3.2 / 60);
@@ -2330,7 +2342,7 @@ class Component extends DCLogic {
       .concat(vs.map((x, i) => ({ v: 'l:' + i, l: '📍 ' + (x.name || x.lat + ', ' + x.lon) })))
       .concat(ws.map(w => ({ v: 'w:' + w.id, l: 'Склад: ' + (w.name || w.lat + ', ' + w.lon) })))
       .concat(cur === '__cur' ? [{ v: '__cur', l: '📍 ' + ((locParse(loc) || {}).name || String(loc).slice(0, 40)) }] : [])
-      .concat([{ v: '__new', l: 'Новая точка… (ссылка или координаты)' }]);
+      .concat([{ v: '__pick', l: '🙋 Клиент заберёт сам' }, { v: '__new', l: 'Новая точка… (ссылка или координаты)' }]);
   }
   locSelOf(bl, loc) {
     if (!loc || loc === ADDR_LOC) return '';
@@ -2344,6 +2356,7 @@ class Component extends DCLogic {
   // что записать в V: «Mijoz manzili» (адрес клиента) или «Название · широта, долгота»
   locFromSel(bl, sel, cur) {
     if (!sel) return ADDR_LOC;
+    if (sel === '__pick') return cur || ADDR_LOC;   // самовывоз — точка не меняется, меняется машина (setShipPick)
     if (sel === '__cur') return cur || ADDR_LOC;
     const D = this.derived();
     const x = sel.startsWith('l:') ? locsOf(D.cmap[bl])[+sel.slice(2)] : (D.whBy[bl] || []).find(w => 'w:' + w.id === sel);
@@ -2373,19 +2386,31 @@ class Component extends DCLogic {
     return { data: { ...data, clients: data.clients.map(x => x.bl === bl ? { ...x, locs: [loc].concat(lines).join('\n') } : x) }, loc };
   }
   // в партии есть строки, которые ещё везём, без выбранной точки — спросить «Какая локация на эту партию?»
-  needLoc(date) { return !!date && date !== 'all' && this.canLoc && !!this.state.ready && this.state.data.shipments.some(s => s.date === date && !LOC_DONE.includes(s.status) && !s.loc); }
+  needLoc(date) { return !!date && date !== 'all' && this.canLoc && !!this.state.ready && this.state.data.shipments.some(s => s.date === date && !LOC_DONE.includes(s.status) && s.truck !== PICK && !s.loc); }
   // спрашивать само — при работе с Google Таблицей или Excel-файлом (встроенные данные — только кнопкой «Локации партии»)
   maybeAskLoc(date) { if ((this.gsUrl || this.handle) && !this.state.dialog && this.needLoc(date)) this.openLocAsk(date); }
   // окно партии: все клиенты партии (кого ещё везём; все доставлены — все клиенты), у каждого — выбор точки
   openLocAsk(date, focus) {
     const all = this.state.data.shipments.filter(s => s.date === date), open = all.filter(s => !LOC_DONE.includes(s.status));
     const sh = open.length ? open : all, bls = [...new Set(sh.map(s => s.bl))].sort(ruCmp), picks = {};
-    bls.forEach(bl => { const set = (all.find(s => s.bl === bl && s.loc) || {}).loc, cur = set || this.locDefault(bl, date); picks[bl] = { cur, sel: bl === focus ? '__new' : this.locSelOf(bl, cur), set: !!set }; });
+    bls.forEach(bl => { const set = (all.find(s => s.bl === bl && s.loc) || {}).loc, cur = set || this.locDefault(bl, date), pick = this.isPick(date, bl);
+      picks[bl] = { cur, sel: bl === focus ? '__new' : pick ? '__pick' : this.locSelOf(bl, cur), set: !!set || pick }; });
     this.setState({ dialog: { type: 'locask', date, bls, picks, news: {}, error: '' } });
   }
   // одна локация на все строки клиента в партии (части одного груза едут в одно место)
   setShipLoc(date, bl, loc, data = this.state.data) {
     return { ...data, shipments: data.shipments.map(x => x.date === date && x.bl === bl ? { ...x, loc } : x) };
+  }
+  // самовывоз — у всех строк клиента в партии, которые ещё везём: машина «Клиент заберёт», рейса нет. Выключить —
+  // строки с «Клиент заберёт» снова «Не назначена» (машину и рейс даст план или журнал)
+  setShipPick(date, bl, on, data = this.state.data) {
+    return { ...data, shipments: data.shipments.map(x => x.date !== date || x.bl !== bl || LOC_DONE.includes(x.status) ? x
+      : on ? (x.truck === PICK && x.route == null ? x : { ...x, truck: PICK, route: null }) : x.truck === PICK ? { ...x, truck: 'Belgilanmagan' } : x) };
+  }
+  // клиент партии забирает сам: все строки, которые ещё везём, — «Клиент заберёт»
+  isPick(date, bl) {
+    const rs = this.state.data.shipments.filter(x => x.date === date && x.bl === bl && !LOC_DONE.includes(x.status));
+    return rs.length > 0 && rs.every(x => x.truck === PICK);
   }
 
   derived() {
@@ -2434,7 +2459,7 @@ class Component extends DCLogic {
   plansFor(date) {
     const { data } = this.state, D = this.derived(), E = window.LogiEngine, ds = String(date || '').split('+');
     const vehicles = this.fleetVehicles(data);
-    const stops = data.shipments.filter(s => ds.includes(s.date) && !E.NO_PLAN.includes(s.status)).map(s => {
+    const stops = data.shipments.filter(s => ds.includes(s.date) && !E.NO_PLAN.includes(s.status) && s.truck !== PICK).map(s => {
       const c = D.cmap[s.bl] || {}, p = D.ptOf(s);   // своя локация отгрузки — вместо адреса клиента
       return { id: s.id, bl: s.bl, date: s.date, cbm: +s.cbm || 0, kg: +s.kg || 0, places: +s.places || 0, lat: p.lat, lon: p.lon, zone: p.z.zone, client: c, loc: p.own ? p.name : '' };
     });
@@ -2489,7 +2514,7 @@ class Component extends DCLogic {
       trips = P.A.trips.map(t => { const v = t.vehicle || {}; t.stops.forEach(x => inPlan.add(x.id));
         return { name: t.name, truck: null, route: t.round || 1, kind: t.kind, car: t.car ? t.kind + '-' + t.car : null, stops: t.stops, price: t.price, cost: E.costSplit(t.stops, t.price, S),
           cbm: t.cbm, kg: t.kg, places: t.places, capM3: v.nomM3 ?? v.m3, capKg: v.nomKg ?? v.kg, start: t.start ?? S.dayStart * 1440, arrivals: t.arrivals, real: t.real, ret: ret(t), noVehicle: !!t.noVehicle, over: !!t.over }; });
-      left = ships.filter(s => !inPlan.has(s.id)).map(s => ({ ...stopOf(s), why: E.NO_PLAN.includes(s.status) ? ST[s.status] || s.status : D.ptOf(s).lat == null ? 'нет координат' : 'не в плане' }));
+      left = ships.filter(s => !inPlan.has(s.id)).map(s => ({ ...stopOf(s), why: E.NO_PLAN.includes(s.status) ? ST[s.status] || s.status : s.truck === PICK ? 'Клиент заберёт' : D.ptOf(s).lat == null ? 'нет координат' : 'не в плане' }));
     }
     const priced = trips.filter(t => t.price && t.price.total != null);
     const res = { date, src, trips, left, ships, sum: { trips: trips.length, unpriced: trips.length - priced.length, price: priced.reduce((a, t) => a + t.price.total, 0), cost: this.costOf(trips.map(t => t.cost)),
@@ -4331,7 +4356,7 @@ class Component extends DCLogic {
         { label: 'KG', value: f0(rows.reduce((a, s) => a + (+s.kg || 0), 0)) },
         { label: 'Мест', value: f0(rows.reduce((a, s) => a + (+s.places || 0), 0)) },
         { label: 'Рейсов / стоимость', value: tripSet.size + ' · ' + (priceSum ? f0(priceSum) : '—'), sub: priceSum ? 'платим ' + f0(jc.ours) + (jc.notPaid ? ' · не платим ' + f0(jc.notPaid) : '') : '' },
-        { label: 'Без машины', value: f0(rows.filter(s => !E.vehicleKind(s.truck) && !E.NO_PRICE.includes(s.status)).length) }
+        { label: 'Без машины', value: f0(rows.filter(s => !E.vehicleKind(s.truck) && s.truck !== PICK && !E.NO_PRICE.includes(s.status)).length) }
       ].map(k => ({ sub: '', ...k }));
       const shown = rows.slice(0, st.jLimit);
       out.jHasMore = rows.length > shown.length;
@@ -4340,14 +4365,21 @@ class Component extends DCLogic {
       const canLoc = this.canLoc;
       out.jRows = shown.map(s => {
         const c = D.cmap[s.bl] || {}, t = D.trips[D.tripOf[s.id]], sh = D.share[s.id], p = D.ptOf(s), z = p.z || {}, editing = st.editRow === s.id;
+        const pick = s.truck === PICK || s.status === 'Mijoz ozi oldi', noPt = !pick && p.lat == null && s.status !== 'Bekor qilindi';
         return { date: dShort(s.date), bl: s.bl, brand: c.brand || '—', name: c.name || (D.cmap[s.bl] ? '' : 'нет в справочнике'), district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1),
           cbm: s.cbm ? f1(s.cbm, 3) : '—', kg: s.kg ? f1(s.kg, 1) : '—', places: s.places || '—', truck: s.truck, route: s.route ?? '', status: s.status, zIn: z.zone === 'in', zOut: z.zone === 'out', zNone: !z.zone, border: !!z.border, editing: st.editRow === s.id, notEditing: st.editRow !== s.id, truckLabel: TR[s.truck] || s.truck, routeLabel: s.route ?? '—', statusLabel: ST[s.status] || s.status, onStartEdit: () => this.setState({ editRow: s.id }), onDone: () => this.setState({ editRow: null }),
           share: sh != null ? f0(sh) : '—', free: !!D.free[s.id], freeTag: D.free[s.id] === 'small' ? 'не платим · < ' + f1(S.freeOutM3, 2) + ' м³' : 'не платим', tripInfo: t ? (t.price.total != null ? 'рейс ' + f0(t.price.total) : t.price.label + ': нет тарифа') : '',
-          hasPoint: p.lat != null, pointHref: p.lat != null ? E.yPoint(p.lat, p.lon) : '',
-          // куда везти: своя локация — под клиентом; при правке строки — список (адрес клиента, склады, другая точка)
-          hasLoc: p.own && !(editing && canLoc), locName: p.own ? p.name : '', locEdit: editing && canLoc,
-          locVal: editing && canLoc ? this.locSelOf(s.bl, s.loc) : '', locOpts: editing && canLoc ? this.locOpts(s.bl, s.loc) : [],
-          onLoc: e => { const v = e.target.value; if (v === '__new') { e.target.value = this.locSelOf(s.bl, s.loc); return this.openLocAsk(s.date, s.bl); } this.commit(this.setShipLoc(s.date, s.bl, this.locFromSel(s.bl, v, s.loc))); },
+          hasPoint: p.lat != null && !pick, pointHref: p.lat != null ? E.yPoint(p.lat, p.lon) : '',
+          // самовывоз — синяя строка; без координат (кроме отменённых) — красная и «📍 Указать точку» (анкета клиента)
+          cls: pick ? 'j-pick' : noPt ? 'j-nopt' : '', isPick: pick && !(editing && canLoc), needPoint: noPt && !!D.cmap[s.bl],
+          pickText: s.status === 'Mijoz ozi oldi' ? '🙋 Клиент забрал сам' : '🙋 Клиент заберёт сам',
+          onPoint: () => { const c0 = D.cmap[s.bl]; if (c0) this.openClient(c0); },
+          // куда везти: своя локация — под клиентом; при правке строки — список (адрес клиента, склады, другая точка, самовывоз)
+          hasLoc: p.own && !pick && !(editing && canLoc), locName: p.own ? p.name : '', locEdit: editing && canLoc,
+          locVal: editing && canLoc ? (s.truck === PICK ? '__pick' : this.locSelOf(s.bl, s.loc)) : '', locOpts: editing && canLoc ? this.locOpts(s.bl, s.loc) : [],
+          onLoc: e => { const v = e.target.value; if (v === '__new') { e.target.value = s.truck === PICK ? '__pick' : this.locSelOf(s.bl, s.loc); return this.openLocAsk(s.date, s.bl); }
+            if (v === '__pick') return this.commit(this.setShipPick(s.date, s.bl, true));
+            this.commit(this.setShipPick(s.date, s.bl, false, this.setShipLoc(s.date, s.bl, this.locFromSel(s.bl, v, s.loc)))); },
           onTruck: e => this.updShip(s.id, { truck: e.target.value }), onRoute: e => this.updShip(s.id, { route: e.target.value === '' ? null : +e.target.value }), onStatus: e => this.updShip(s.id, { status: e.target.value }), onEdit: () => this.openShipment(s) };
       });
       out.jEmpty = !rows.length;
@@ -4490,7 +4522,7 @@ class Component extends DCLogic {
         const tk = new Set(sh.map(s => D.tripOf[s.id]).filter(Boolean));
         const pr = [...tk].reduce((a, k) => a + (D.trips[k].price.total || 0), 0), dc = this.costOf([...tk].map(k => D.trips[k].cost));
         return { label: dLong(d), count: sh.length, cbm: f1(sh.reduce((a, s) => a + (+s.cbm || 0), 0), 1), kg: f0(sh.reduce((a, s) => a + (+s.kg || 0), 0)), places: f0(sh.reduce((a, s) => a + (+s.places || 0), 0)),
-          out: sh.filter(s => D.ptOf(s).z.zone === 'out').length, noc: sh.filter(s => !D.ptOf(s).z.zone).length, noTruck: sh.filter(s => !E.vehicleKind(s.truck) && !E.NO_PRICE.includes(s.status)).length,
+          out: sh.filter(s => D.ptOf(s).z.zone === 'out').length, noc: sh.filter(s => !D.ptOf(s).z.zone && s.truck !== PICK).length, noTruck: sh.filter(s => !E.vehicleKind(s.truck) && s.truck !== PICK && !E.NO_PRICE.includes(s.status)).length,
           price: pr ? money(pr) : '—', ours: pr ? this.costNote(dc) : '', openJ: () => this.setState({ tab: 'journal', jDate: d }), openP: () => this.setState({ tab: 'plans', planDate: d }) };
       });
       const byD = {};
@@ -4597,7 +4629,10 @@ class Component extends DCLogic {
       const V = window.LogiViz, M = this.vizModel(), pct = x => Math.round(x * 100) + '%', over = x => x > 1 + 1e-9;
       const barCol = x => over(x) ? 'var(--color-danger)' : 'var(--color-accent)';
       const dims = b => b.flat ? 'бортовой кузов ' + f1(b.l, 2) + ' × ' + f1(b.w, 2) + ' м, борт ' + f1(b.side, 2) + ' м, груз до ' + f1(b.h, 2) + ' м' : 'кузов ≈ ' + f1(b.l, 1) + ' × ' + f1(b.w, 1) + ' × ' + f1(b.h, 1) + ' м';
+      // вторая партия — та же, что в «Планах» (planDate2): 3D показывает план на обе партии
+      const vPair = !!st.planDate2 && st.planDate2 !== st.planDate, vPre = vPair ? 'Две партии: ' + dLongs(this.planPair) + ' · ' : '';
       Object.assign(out, { planDate: st.planDate, onVizDate: e => { const v = e.target.value; this.setState(s0 => ({ planDate: v, planDate2: s0.planDate2 === v ? '' : s0.planDate2, vizTrip: 'all', vizStep: 0, vizSel: null })); },
+        planDate2: vPair ? st.planDate2 : '', date2Opts: dateOpts.filter(o => o.v !== st.planDate), onVizDate2: e => this.setState({ planDate2: e.target.value, vizTrip: 'all', vizStep: 0, vizSel: null }),
         vizTripOpts: [], vizIsAll: false, vizIsOne: false, vizSummary: '', vizNote: '', vizTitle: '',
         vizHint: 'Вращать — пальцем или мышью · масштаб — щипком или колесом · нажмите на груз — покажет точку' });
       out.vizPlanOpts = ['A', 'B', 'C', 'X'].map(k => { const on = M ? M.key === k : st.planKey === k;
@@ -4614,7 +4649,7 @@ class Component extends DCLogic {
         if (one === 'all') {
           out.vizIsAll = true;
           out.vizTitle = PLAN_INFO[M.key].title;
-          out.vizSummary = lays.length + ' ' + reys(lays.length) + ' · ' + f1(lays.reduce((a, l) => a + l.cbm, 0), 1) + ' м³ · ' + f0(lays.reduce((a, l) => a + l.kg, 0)) + ' кг';
+          out.vizSummary = vPre + lays.length + ' ' + reys(lays.length) + ' · ' + f1(lays.reduce((a, l) => a + l.cbm, 0), 1) + ' м³ · ' + f0(lays.reduce((a, l) => a + l.kg, 0)) + ' кг';
           out.vizAllRows = lays.map((l, i) => { const kgF = l.maxKg ? l.kg / l.maxKg : 0;
             return { name: l.name + ' · ' + l.label, pts: l.points.length + ' точ.', cbm: f1(l.cbm, 1) + ' / ' + f1(l.body.v, 0) + ' м³', kg: f0(l.kg) + ' / ' + f0(l.maxKg) + ' кг',
               cbmPct: Math.min(100, l.fill * 100).toFixed(0) + '%', kgPct: Math.min(100, kgF * 100).toFixed(0) + '%', cbmBar: barCol(l.fill), kgBar: barCol(kgF),
@@ -4627,7 +4662,8 @@ class Component extends DCLogic {
           out.vizIsOne = true;
           out.vizTitle = l.name;
           out.vizPrice = t.price.total != null ? money(t.price.total) : 'нет тарифа';
-          out.vizSummary = l.label + ' · ' + dims(l.body) + ' · ' + n + ' точ.';
+          out.vizSummary = vPre + l.label + ' · ' + dims(l.body) + ' · ' + n + ' точ.';
+          const dateOf = {}; if (vPair) t.stops.forEach(x => { if (x.date) dateOf[x.bl] = dShort(x.date); });   // у точки — дата её партии
           out.vizBars = [[' Объём', f1(l.cbm, 1) + ' из ' + f1(l.body.v, 1) + ' м³ · ' + pct(l.fill), l.fill], ['Вес', f0(l.kg) + ' из ' + f0(l.maxKg) + ' кг · ' + pct(kgF), kgF]]
             .map(([lb, v, x]) => ({ l: lb.trim(), v, pct: Math.min(100, x * 100).toFixed(0) + '%', bar: barCol(x), color: over(x) ? 'var(--color-danger)' : 'inherit' }));
           out.vizCg = l.cg != null && n ? 'Центр тяжести груза: ' + f1(l.cg, 1) + ' м от кабины (' + pct(l.cg / l.body.l) + ' длины кузова)' : '';
@@ -4640,7 +4676,7 @@ class Component extends DCLogic {
           out.vizStepLabel = step === 0 ? 'Всё загружено. ▶ — выгрузить точку 1, она ' + atDoor + '.' : step >= n ? 'Все точки выгружены.'
             : 'Выгружено точек: ' + step + ' (последняя — ' + l.points[step - 1].bl + '). В кузове ' + f1(l.points.slice(step).reduce((a, p) => a + p.cbm, 0), 1) + ' м³, дальше точка ' + (step + 1) + '.';
           out.vizPoints = l.points.map(p => { const c = V.colorOf(p.n), sel = st.vizSel === p.n, done = p.n <= step, cl = p.client || {};
-            return { n: p.n, color: c, fg: V.isLight(c) ? '#1d1f20' : '#ffffff', bl: p.bl + (p.parts.length ? ' · часть ' + p.parts.join(', ') : ''), name: [cl.brand, cl.name].filter(Boolean).join(' '),
+            return { n: p.n, color: c, fg: V.isLight(c) ? '#1d1f20' : '#ffffff', bl: p.bl + (dateOf[p.bl] ? ' · ' + dateOf[p.bl] : '') + (p.parts.length ? ' · часть ' + p.parts.join(', ') : ''), name: [cl.brand, cl.name].filter(Boolean).join(' '),
               info: f1(p.cbm, 2) + ' м³ · ' + f0(p.kg) + ' кг' + (p.places ? ' · ' + p.places + ' мест' : '') + (done ? ' · выгружено' : ''),
               bg: sel ? 'var(--color-accent-100)' : 'var(--color-bg)', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', opacity: done ? '0.45' : '1',
               go: () => this.setState({ vizSel: sel ? null : p.n }) }; });
@@ -4696,7 +4732,7 @@ class Component extends DCLogic {
         { const bl0 = String(dr.bl || '').trim(), setDl = patch => this.setState(s0 => s0.dialog && s0.dialog.type === 'ship' ? { dialog: { ...s0.dialog, error: '', ...patch } } : null);
           // новая строка или перенос в другую партию / к другому BL — точка клиента в этой партии (одна на все строки)
           const cur0 = this.locOfBatch(dr.date, bl0, dl.id);
-          const sel = dl.locSel !== undefined ? dl.locSel : this.locSelOf(bl0, cur0);
+          const sel = dl.locSel !== undefined ? dl.locSel : dr.truck === PICK ? '__pick' : this.locSelOf(bl0, cur0);
           Object.assign(out, { locCan: this.canLoc, locNoCan: !this.canLoc && !this.readOnly,
             locNoCanText: 'Куда везти можно выбрать с кодом скрипта таблицы версии 27: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Сейчас — адрес клиента.',
             locSelVal: sel, locSelOpts: this.locOpts(bl0, cur0), locIsNew: this.canLoc && sel === '__new',
@@ -4724,7 +4760,9 @@ class Component extends DCLogic {
           let base = data;
           if (this.canLoc) {
             const cur0 = this.locOfBatch(rec.date, rec.bl, dl.id);
-            const sel = dl.locSel !== undefined ? dl.locSel : this.locSelOf(rec.bl, cur0);
+            const sel = dl.locSel !== undefined ? dl.locSel : rec.truck === PICK ? '__pick' : this.locSelOf(rec.bl, cur0);
+            if (sel === '__pick') { rec.truck = PICK; rec.route = null; }   // самовывоз: машина «Клиент заберёт», рейса нет
+            else if (dl.locSel !== undefined && rec.truck === PICK) rec.truck = 'Belgilanmagan';   // выбрали точку — снова везём
             if (sel === '__new') {
               if (!dl.locLL) return this.setState({ dialog: { ...dl, error: 'Вставьте ссылку на карту или координаты новой точки — или выберите точку из списка.' } });
               const r = this.addClientLoc(data, rec.bl, dl.locLL, dl.locName);   // новая точка — в анкету клиента (сверху)
@@ -4732,7 +4770,9 @@ class Component extends DCLogic {
             } else rec.loc = this.locFromSel(rec.bl, sel, cur0);
           }
           const list = dl.mode === 'new' ? [...base.shipments, { ...rec, id: 's' + Date.now() }] : base.shipments.map(s => s.id === dl.id ? { ...rec, id: dl.id } : s);
-          this.commit(this.canLoc ? this.setShipLoc(rec.date, rec.bl, rec.loc || '', { ...base, shipments: list }) : { ...base, shipments: list });
+          // самовывоз выбран или снят в «Куда везти» — так же у остальных строк клиента в партии
+          const d2 = this.canLoc ? this.setShipLoc(rec.date, rec.bl, rec.loc || '', { ...base, shipments: list }) : { ...base, shipments: list };
+          this.commit(this.canLoc && dl.locSel !== undefined ? this.setShipPick(rec.date, rec.bl, dl.locSel === '__pick', d2) : d2);
           // журнал открыт на другой партии или отфильтрован — переключаем на отгрузку, иначе она «пропадает» из виду
           const js = st.jDate, q = String(st.jSearch || '').trim().toLowerCase();
           this.setState({ dialog: null, ...(js && js !== 'all' && js !== rec.date ? { jDate: rec.date, jLimit: 60 } : {}),
@@ -4772,9 +4812,10 @@ class Component extends DCLogic {
           let d1 = data; const miss = [];
           dl.bls.forEach(bl => {
             const p = dl.picks[bl]; let loc;
+            if (p.sel === '__pick') { d1 = this.setShipPick(dl.date, bl, true, d1); return; }   // самовывоз: точка не нужна
             if (p.sel === '__new') { const nw = dl.news[bl] || {}; if (!nw.ll) return miss.push(bl); const r = this.addClientLoc(d1, bl, nw.ll, nw.name); d1 = r.data; loc = r.loc; }
             else loc = this.locFromSel(bl, p.sel, p.cur);
-            d1 = this.setShipLoc(dl.date, bl, loc, d1);
+            d1 = this.setShipPick(dl.date, bl, false, this.setShipLoc(dl.date, bl, loc, d1));
           });
           if (miss.length) return this.setState({ dialog: { ...dl, error: 'Вставьте ссылку на карту или координаты новой точки: ' + miss.join(', ') + '.' } });
           this.commit(d1); this.setState({ dialog: null });

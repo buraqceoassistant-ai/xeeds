@@ -390,6 +390,19 @@ input.set-input[type="text"] { text-align: left !important; }
 /* журнал: куда везти — своя локация под клиентом и выбор при правке строки */
 .j-loc { font-size: 12px; color: var(--color-accent-700); margin-top: 2px; }
 .j-loc-sel { margin-top: 4px; min-height: 30px; padding: 3px 6px; font-size: 13px; width: 100%; max-width: 240px; }
+/* журнал: самовывоз — синяя строка, без координат — красная: лёгкий фон и полоса слева 3 px */
+.table tr.j-pick > td { background: color-mix(in srgb, var(--buraq-blue) 7%, transparent); }
+.table tr.j-pick > td:first-child { box-shadow: inset 3px 0 0 var(--buraq-blue); }
+.table tr.j-nopt > td { background: color-mix(in srgb, var(--buraq-red) 6%, transparent); }
+.table tr.j-nopt > td:first-child { box-shadow: inset 3px 0 0 var(--buraq-red); }
+.j-pick-tag { font-size: 12px; font-weight: 500; color: var(--buraq-blue); margin-top: 2px; }
+.j-pt-btn { color: var(--buraq-red) !important; white-space: nowrap; }
+/* телефон: строка — карточка, цвет у всей карточки */
+@media screen and (max-width: 760px) {
+  .tc tr.j-pick, .tc tr.j-nopt { box-shadow: inset 3px 0 0 var(--buraq-blue); background: color-mix(in srgb, var(--buraq-blue) 7%, transparent); }
+  .tc tr.j-nopt { box-shadow: inset 3px 0 0 var(--buraq-red); background: color-mix(in srgb, var(--buraq-red) 6%, transparent); }
+  .tc tr.j-pick > td, .tc tr.j-nopt > td { background: none; box-shadow: none; }
+}
 /* окно отгрузки: новая точка — ссылка и название; на телефоне одно под другим, чтобы ссылку было видно */
 .loc-new { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 @media (max-width: 600px) { .loc-new { grid-template-columns: minmax(0, 1fr); } }

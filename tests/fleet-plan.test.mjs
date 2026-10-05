@@ -57,3 +57,30 @@ test('«Машин в автопарке» больше, чем названны
   const names = [...new Set(P.A.trips.filter(t => t.kind === 'gazel').map(t => t.carName))].sort();
   assert.ok(names.every(x => ['Gazel-1', 'Gazel-2', 'Gazel-Ali'].includes(x)), names.join());
 });
+
+// группы по 3 мелких клиента (0,9 м³) в разных концах города: каждая группа — ровно Labo; Labo дешевле Gazel
+const groups = k => { const out = []; let m = 0;
+  for (let g = 0; g < k; g++) { const a = g * 2 * Math.PI / k;
+    for (let i = 0; i < 3; i++) out.push({ id: 'g' + (++m), bl: 'BL-G' + m, cbm: 0.9, kg: 120, places: 2, lat: 41.38 + 0.11 * Math.sin(a) + i * 0.002, lon: 69.23 + 0.14 * Math.cos(a) + i * 0.002, zone: 'in', client: { district: 'G' + g } }); }
+  return out; };
+const SL = { ...S, gazelCount: 9, laboCount: 1, smartLabo: 1, laboBase: 150000, laboPt: 30000 };
+
+test('рейсов Labo — не больше, чем Labo в автопарке, пока есть свободные Gazel; «нет машины» нет', () => {
+  const P = E.buildPlans(groups(6), SL);
+  ['A', 'B', 'X'].forEach(k => {
+    const ts = P[k].trips, labo = ts.filter(t => t.kind === 'labo');
+    assert.ok(labo.length <= 1, k + ': рейсов Labo ' + labo.length + ' — ' + ts.map(t => t.name).join());
+    assert.ok(!ts.some(t => t.noVehicle || t.round > 1), k + ': ' + ts.map(t => t.name).join());
+    assert.equal(ts.reduce((a, t) => a + t.stops.length, 0), 18, k + ': все точки в плане');
+  });
+});
+
+test('второй рейс — только когда заняты все машины', () => {
+  // 1 Gazel и 1 Labo, груза больше, чем на один круг: второй круг есть, но у каждой машины сначала первый рейс
+  const P = E.buildPlans(groups(6), { ...SL, gazelCount: 1, cTrucks: 0, aMaxStops: 6, bcMaxStops: 6 });
+  ['A', 'B'].forEach(k => {
+    const ts = P[k].trips, kinds = new Set(ts.filter(t => (t.round || 1) === 1).map(t => t.kind));
+    assert.ok(kinds.has('labo') && kinds.has('gazel'), k + ': первый круг у обеих машин — ' + ts.map(t => t.name).join());
+    assert.ok(ts.some(t => t.round === 2), k + ': второй круг, раз машин не хватает — ' + ts.map(t => t.name).join());
+  });
+});

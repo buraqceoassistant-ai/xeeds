@@ -2346,4 +2346,11 @@ window.I18N_UZ = {"BURAQ logistics — отгрузки и клиенты":"BURA
 "Партия {d} — в группе: сводка и {n} клиентов отдельными сообщениями.":"{d} partiyasi — guruhda: umumiy ma’lumot va {n} ta mijoz alohida xabarlarda.",
 "Партии {d} — в группе: сводка и {n} клиентов отдельными сообщениями.":"{d} partiyalari — guruhda: umumiy ma’lumot va {n} ta mijoz alohida xabarlarda.",
 "Не дошло: {n}.":"Yetib bormadi: {n}.",
-"Кнопкой «📤 В группу» в журнале можно будет отправить партию в группу отчётов: каждого клиента отдельным сообщением, как водителю, — куда, получатель, груз и маршрут.":"Jurnaldagi «📤 Guruhga» tugmasi bilan partiyani hisobotlar guruhiga yuborish mumkin bo‘ladi: har bir mijoz alohida xabarda, haydovchiga kabi — qayerga, qabul qiluvchi, yuk va yo‘nalish."};
+"Кнопкой «📤 В группу» в журнале можно будет отправить партию в группу отчётов: каждого клиента отдельным сообщением, как водителю, — куда, получатель, груз и маршрут.":"Jurnaldagi «📤 Guruhga» tugmasi bilan partiyani hisobotlar guruhiga yuborish mumkin bo‘ladi: har bir mijoz alohida xabarda, haydovchiga kabi — qayerga, qabul qiluvchi, yuk va yo‘nalish.",
+"🙋 Клиент заберёт сам":"🙋 Mijoz o‘zi oladi",
+"🙋 Клиент забрал сам":"🙋 Mijoz o‘zi oldi",
+"Клиент забирает груз сам — не в планах и не у водителей":"Mijoz yukni o‘zi oladi — rejalarda ham, haydovchilarda ham yo‘q",
+"📍 Указать точку":"📍 Nuqtani ko‘rsatish",
+"Нет координат: откроется анкета клиента — вставьте ссылку с карты":"Koordinata yo‘q: mijoz anketasi ochiladi — xaritadan havolani qo‘ying",
+"Две партии: груз обеих вместе, как в «Планах»":"Ikki partiya: ikkalasining yuki birga, «Rejalar»dagidek",
+"Все клиенты партии {d} забирают груз сами — в группу отправлять нечего.":"{d} partiyasidagi barcha mijozlar yukni o‘zlari oladi — guruhga yuboradigan narsa yo‘q."};
