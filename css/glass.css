@@ -1,11 +1,12 @@
 /* Glassmorphism по брендбуку BURAQ: светлое матовое стекло поверх мягкого фона из фирменных цветов.
    Основа — тёмно-синий и белый, красный — только акценты (тонкая линия под шапкой, главные кнопки, капля в фоне).
    Подключается последним (после design-system.css, app.css, mobile.css). Цвета — только из токенов --buraq-*.
-   Компьютер: размытие у всех панелей. Телефон (узкий экран или палец): размытие только у шапки и окон, панели —
-   плотные полупрозрачные (без тормозов при прокрутке). Браузер без backdrop-filter и «уменьшить прозрачность» в
-   системе — панели плотнее, читаемость та же. */
+   Размытие (backdrop-filter) — только у шапки, подвкладок и окон. Панели — полупрозрачные с бликом, без размытия:
+   под ними плавный градиент, размытие там почти не видно, а пересчитывается на каждом кадре прокрутки
+   (замер: «Клиенты» — 70 мс на кадр с размытием панелей, 16,7 мс без него). На телефоне панели ещё плотнее.
+   Браузер без backdrop-filter и «уменьшить прозрачность» в системе — панели плотнее, читаемость та же. */
 :root {
-  --glass-blur: 16px;
+  --glass-blur: 16px;   /* шапка и подвкладки */
   --glass-sat: 150%;
   --glass-bg: color-mix(in srgb, var(--buraq-white) 58%, transparent);
   --glass-bg-strong: color-mix(in srgb, var(--buraq-white) 80%, transparent);   /* таблицы, окна — плотнее, текст читается */
@@ -49,14 +50,13 @@ body::before {
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
 }
 
-/* ── стеклянные панели: карточки, таблицы, сводки, окна ── */
+/* ── стеклянные панели: карточки, таблицы, сводки (без размытия — см. начало файла) ── */
 .glass, .tbl-wrap, .kpi-strip, .dv-card, .rep-cost, .trip, .imp-alert, .plan-accept, .plan-send-ask, .dv-msg,
 .ai-box, .tg-box, .cl-locs, .tg-client, .blueprint:not(.btn, .dialog), .plan-cards > button, .imp-doc, .imp-check, .plan-notes, .viz-side, .gs-help, .dv-send {
   background: var(--glass-sheen), var(--glass-bg) !important;
   border: 1px solid var(--glass-edge) !important;
   border-radius: var(--radius-lg);
   box-shadow: var(--glass-shadow);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
 }
 /* левая полоса-акцент у сообщений остаётся: ошибки — красная, остальное — синяя */
 .imp-alert, .dv-msg, .dv-send { border-left-width: 2px !important; }
@@ -109,7 +109,7 @@ body::before {
   -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
 }
 
-/* ── телефон и планшет пальцем: размытие только у шапки и окон, панели — плотные ── */
+/* ── телефон и планшет пальцем: размытие только у шапки и окон, панели и подвкладки — плотные ── */
 @media (max-width: 760px), (hover: none) and (pointer: coarse) {
   .glass, .tbl-wrap, .kpi-strip, .dv-card, .rep-cost, .trip, .imp-alert, .plan-accept, .plan-send-ask, .dv-msg,
   .ai-box, .tg-box, .cl-locs, .tg-client, .blueprint:not(.btn, .dialog), .plan-cards > button, .imp-doc, .imp-check, .plan-notes, .viz-side, .gs-help, .dv-send, .subtabs,
