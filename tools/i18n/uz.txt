@@ -2409,3 +2409,39 @@ https://yandex.uz/maps/… или 41.311, 69.279	https://yandex.uz/maps/… yoki
 Нет координат: откроется анкета клиента — вставьте ссылку с карты	Koordinata yo‘q: mijoz anketasi ochiladi — xaritadan havolani qo‘ying
 Две партии: груз обеих вместе, как в «Планах»	Ikki partiya: ikkalasining yuki birga, «Rejalar»dagidek
 Все клиенты партии {d} забирают груз сами — в группу отправлять нечего.	{d} partiyasidagi barcha mijozlar yukni o‘zlari oladi — guruhga yuboradigan narsa yo‘q.
+
+# ── оплата доставки: компания платит / с клиента (фиксированная доплата); одно место — одна точка ──
+компания {n}	kompaniya {n}
+с клиентов {n}	mijozlardan {n}
+с клиента {n}	mijozdan {n}
+Компания платит	Kompaniya to‘laydi
+Компания платит, сум	Kompaniya to‘laydi, so‘m
+С клиентов, сум	Mijozlardan, so‘m
+С клиентов < {n} м³	Mijozlardan < {n} m³
+С клиентов < порога	Mijozlardan < chegara
+С клиентов за кольцом	Halqadan tashqarida mijozlardan
+С клиентов, мелкий	Mijozlardan, kichik
+С клиентов	Mijozlardan
+С клиента	Mijozdan
+С клиента, сум	Mijozdan, so‘m
+{n}. Компания платит — внутри кольца, от {n2} м³	{n}. Kompaniya to‘laydi — halqa ichida, {n2} m³ dan
+{n}. Компания платит — внутри кольца	{n}. Kompaniya to‘laydi — halqa ichida
+{n}. С клиента — меньше {n2} м³	{n}. Mijozdan — {n2} m³ dan kam
+{n}. С клиента — за кольцом	{n}. Mijozdan — halqadan tashqarida
+С клиентов за доставку: груз меньше {n} м³ — {s}; за кольцом — {s2}.	Yetkazish uchun mijozlardan: yuk {n} m³ dan kam — {s}; halqadan tashqarida — {s2}.
+С клиентов за доставку: за кольцом — {s}.	Yetkazish uchun mijozlardan: halqadan tashqarida — {s}.
+С клиентов за доставку: груз меньше {n} м³ — {s}.	Yetkazish uchun mijozlardan: yuk {n} m³ dan kam — {s}.
+Компания платит — {n} сум.	Kompaniya to‘laydi — {n} so‘m.
+Компания платит — {n} сум (рейсы без тарифа не входят).	Kompaniya to‘laydi — {n} so‘m (tarifsiz reyslar kirmaydi).
+С клиента — доплата за заезд по тарифу точки машины (за кольцом — свой), машина только к нему — вся цена рейса.	Mijozdan — mashina manzil tarifi bo‘yicha qo‘shimcha haq (halqadan tashqarida — o‘ziniki), mashina faqat unga borsa — reysning to‘liq narxi.
+Доставку оплачивает клиент: груз меньше порога из «Тарифов» или точка за кольцом — доплата за заезд по тарифу точки, машина только к нему — вся цена рейса	Yetkazishni mijoz to‘laydi: yuk «Tariflar»dagi chegaradan kam yoki manzil halqadan tashqarida — manzil tarifi bo‘yicha qo‘shimcha haq, mashina faqat unga borsa — reysning to‘liq narxi
+Мелкие (меньше {n} м³) — доставку оплачивает клиент	Mayda ({n} m³ dan kam) — yetkazishni mijoz to‘laydi
+Доставку оплачивает клиент, если груз точки меньше	Manzil yuki kichik bo‘lsa, yetkazishni mijoz to‘laydi:
+И за точки за кольцом — при любом объёме. С клиента — доплата за заезд по тарифу точки машины (за кольцом — свой), машина только к нему — вся цена рейса; компания платит остальное. Рейсы не меняются. 0 — клиент платит только за кольцом	Halqadan tashqaridagi manzillar uchun ham — har qanday hajmda. Mijozdan — mashina manzil tarifi bo‘yicha qo‘shimcha haq (halqadan tashqarida — o‘ziniki), mashina faqat unga borsa — reysning to‘liq narxi; qolganini kompaniya to‘laydi. Reyslar o‘zgarmaydi. 0 — mijoz faqat halqadan tashqarida to‘laydi
+то же место	o‘sha joy
+выгоднее всех	eng foydali
+Меньше всех платит компания (доставку за кольцом и мелкий груз оплачивают клиенты)	Kompaniya eng kam to‘laydi (halqadan tashqariga va mayda yukni yetkazishni mijozlar to‘laydi)
++{n} сум расходов компании к самому выгодному	eng foydalidan kompaniya xarajati +{n} so‘m
++{n} сум к самому выгодному	eng foydalidan +{n} so‘m
+компания	kompaniya
+· с клиентов	· mijozlardan

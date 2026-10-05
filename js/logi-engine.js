@@ -51,7 +51,17 @@
     if (/^changan/i.test(truck)) return 'changan';
     return null;
   }
-  // stops: [{bl, zone, cbm, kg, ref}] in order. kind: gazel|labo|kamaz|auto
+  // клиенты ближе 200 м друг к другу (один рынок, один дом) — одно место: перевозчик берёт доплату за адрес, а не за клиента
+  const PLACE_KM = 0.2;
+  // тариф точки машины: заезд внутри кольца и за кольцом (у Labo, Changan и Kamaz — один)
+  function pointTariff(kind, S) {
+    if (kind === 'labo') return { ptIn: S.laboPt, ptOut: S.laboPt };
+    if (kind === 'kamaz') return { ptIn: S.kamazPt, ptOut: S.kamazPt };
+    if (kind === 'changan') return { ptIn: S.changanPt, ptOut: S.changanPt };
+    return { ptIn: S.gazelPtIn, ptOut: S.gazelPtOut };
+  }
+  // stops: [{bl, zone, cbm, kg, lat, lon}] in order. kind: gazel|labo|kamaz|auto. Повтор BL и клиент в том же месте
+  // (ближе PLACE_KM к уже учтённой точке) — без доплаты; доля такой точки делится между её клиентами по объёму
   function priceTrip(stops, kind, S) {
     const kg = stops.reduce((a, s) => a + (s.kg || 0), 0);
     const cbm = stops.reduce((a, s) => a + (s.cbm || 0), 0);
@@ -61,14 +71,17 @@
     else if (kind === 'kamaz') { label = 'Kamaz'; base = S.kamazBase; ptIn = ptOut = S.kamazPt; }
     else if (kind === 'changan') { label = 'Changan'; base = S.changanBase; ptIn = ptOut = S.changanPt; }
     else { const heavy = kg > S.gazelHeavyKg; label = heavy ? 'Gazel (тяжёлый)' : 'Gazel'; base = heavy ? S.gazelHeavy : S.gazelBase; ptIn = S.gazelPtIn; ptOut = S.gazelPtOut; }
-    if (base == null || ptIn == null) return { label, total: null, points: 0, formula: 'нет тарифа', perStop: stops.map(() => null) };
+    if (base == null || ptIn == null) return { label, kind, total: null, points: 0, formula: 'нет тарифа', perStop: stops.map(() => null) };
     // points already included in the base price: separate setting per vehicle (Gazel B52, Labo B55, Kamaz B56)
     const inc = +(kind === 'labo' ? S.laboBaseIncludesPts : kind === 'kamaz' ? S.kamazBaseIncludesPts : kind === 'changan' ? S.changanBaseIncludesPts : S.baseIncludesPts) || 0;
-    const seen = {}; let idx = 0;
+    const seen = {}, places = []; let idx = 0;
     const pts = [];
     stops.forEach((s, i) => {
       if (seen[s.bl] != null) { pts.push({ dup: seen[s.bl] }); return; }
+      const near = s.lat != null && s.lon != null ? places.find(q => km([q.lat, q.lon], [s.lat, s.lon]) <= PLACE_KM) : null;
+      if (near) { seen[s.bl] = near.i; pts.push({ dup: near.i, place: true }); return; }
       seen[s.bl] = i; idx++;
+      if (s.lat != null && s.lon != null) places.push({ i, lat: s.lat, lon: s.lon });
       const w = s.zone === 'out' ? ptOut : ptIn;
       pts.push({ tariff: idx <= inc ? 0 : w, weight: w, zone: s.zone });
     });
@@ -92,25 +105,38 @@
       const gc = group.reduce((a, j) => a + (stops[j].cbm || 0), 0);
       group.forEach(j => { perStop[j] = gc ? pointShare * (stops[j].cbm || 0) / gc : pointShare / group.length; });
     });
-    return { label, total, points: uniq.length, formula: formula + ' тыс.', perStop, dupFlags: pts.map(p => p.dup != null) };
+    return { label, kind, total, points: uniq.length, formula: formula + ' тыс.', perStop, dupFlags: pts.map(p => p.dup != null), placeFlags: pts.map(p => !!p.place) };
   }
 
-  // Расходы рейса тремя частями: 1) платим — внутри кольца, груз точки от порога (S.freeOutM3, обычно 1 м³);
-  // 2) не платим — груз точки меньше порога (внутри кольца); 3) не платим — за кольцом, при любом объёме.
-  // Рейсы и груз не меняются, делится только цена: доля точки — как в журнале (perStop, пропорционально тарифу
-  // точки). Точка — BL в рейсе, её объём — отгрузки целиком (у разделённой — вся). Груз без объёма — «платим»:
-  // объём неизвестен. (freeOutM3 — имя настройки порога мелкого груза, строка 70 «Sozlamalar».)
+  // Расходы рейса тремя частями: 1) компания платит — внутри кольца, груз точки от порога (S.freeOutM3, обычно 1 м³);
+  // 2) с клиента — груз точки меньше порога (внутри кольца); 3) с клиента — за кольцом, при любом объёме.
+  // Рейсы и груз не меняются, делится только цена. С клиента — фиксированно (charge по строкам): заезд по тарифу
+  // точки машины, машина только к нему — вся цена рейса; компания — остальное. Точка — BL в рейсе, её объём —
+  // отгрузки целиком (у разделённой — вся). Груз без объёма — «компания»: объём неизвестен.
+  // (freeOutM3 — имя настройки порога мелкого груза, строка 70 «Sozlamalar».)
   function costSplit(stops, price, S) {
     if (!price || price.total == null) return null;
     const lim = +S.freeOutM3 || 0, vol = {};
     stops.forEach(s => { vol[s.bl] = (vol[s.bl] || 0) + (+(s.whole != null ? s.whole : s.cbm) || 0); });
     const why = stops.map(s => s.zone === 'out' ? 'out' : lim > 0 && vol[s.bl] > 0 && vol[s.bl] < lim - 1e-9 ? 'small' : null);
-    const r = { paid: 0, small: 0, outside: 0, why, free: why.map(Boolean) };
-    stops.forEach((s, i) => { const v = price.perStop[i] || 0; if (why[i] === 'out') r.outside += v; else if (why[i] === 'small') r.small += v; else r.paid += v; });
+    // с клиента — фиксированная доплата: заезд по тарифу точки этой машины (за кольцом — свой); машина только к нему —
+    // вся цена рейса. Больше цены рейса со всех вместе не берём. Доплата клиента делится между его строками по объёму
+    const bls = [...new Set(stops.map(s => s.bl))], pt = pointTariff(price.kind, S), fee = {};
+    bls.forEach(bl => { const i = stops.findIndex(s => s.bl === bl); if (why[i]) fee[bl] = bls.length === 1 ? price.total : +(why[i] === 'out' ? pt.ptOut : pt.ptIn) || 0; });
+    const sum = Object.values(fee).reduce((a, b) => a + b, 0), k = sum > price.total ? price.total / sum : 1;
+    const charge = stops.map(() => 0);
+    Object.keys(fee).forEach(bl => {
+      const idx = stops.map((s, i) => s.bl === bl ? i : -1).filter(i => i >= 0), v = idx.reduce((a, i) => a + (+stops[i].cbm || 0), 0);
+      idx.forEach(i => { charge[i] = fee[bl] * k * (v ? (+stops[i].cbm || 0) / v : 1 / idx.length); });
+    });
+    const r = { paid: 0, small: 0, outside: 0, why, free: why.map(Boolean), charge };
+    stops.forEach((s, i) => { if (why[i] === 'out') r.outside += charge[i]; else if (why[i] === 'small') r.small += charge[i]; });
+    r.paid = price.total - r.small - r.outside;
     const pts = w => new Set(stops.filter((s, i) => why[i] === w).map(s => s.bl)).size;
     r.smallPts = pts('small'); r.outPts = pts('out'); r.ours = r.paid; r.notPaid = r.small + r.outside;
     return r;
   }
+
 
   // Координаты из ссылки на карту или из текста «41.31, 69.27». Понимает Google, Яндекс, 2ГИС, Apple, OSM и geo:.
   // Возвращает { lat, lon, how }; { short: true }, если это короткая ссылка (maps.app.goo.gl, yandex…/maps/-/…),
@@ -176,7 +202,7 @@
   // a tariff) carries only cargo that fits no regular vehicle: Gazel first, Kamaz only when it does not fit.
   // Plan B may load a Gazel above its body by a tolerance (bTolM3 / bTolKg), so Kamaz there only takes cargo bigger than that.
   // Plan A keeps every vehicle within its body: Gazel up to gazelM3 / gazelKg.
-  const EPS = 1e-6, UNPRICED = 1e8, KM_COST = 1000;
+  const EPS = 1e-6, UNPRICED = 1e8, KM_COST = 1000, MAX_SPREAD = 120;
   const known = s => (s.cbm || 0) > 0 || (s.kg || 0) > 0;
   const small = v => v.kind === 'labo' || v.kind === 'changan';   // груз без объёма и веса на маленькую машину не ставим
   function fleetOf(S, kinds, opt = {}) {
@@ -202,9 +228,23 @@
   const fitsIn = (l, v) => l.cbm <= v.m3 + EPS && l.kg <= v.kg + EPS && (!v.places || l.places <= v.places + EPS);
   // load exceeds every vehicle or the point limit — longer segments will not fit either
   const tooBig = (l, fleet, maxStops) => l.points > maxStops || !fleet.some(v => fitsIn(l, v));
+  // Направление рейса (планы A и B, S.maxSpread): точки дальше SPREAD_KM от склада лежат в секторе не шире maxSpread
+  // градусов — машина едет в одну сторону. Так мелкий груз и точки за кольцом едут попутно с машиной своего
+  // направления, а не крюком через весь город. Точки у склада (ближе SPREAD_KM) — в любой рейс.
+  const SPREAD_KM = 3;
+  function spreadOk(stops, S, depot) {
+    if (!S.maxSpread) return true;
+    const a = stops.filter(s => s.lat != null && (s.depotKm != null ? s.depotKm : km(depot, [s.lat, s.lon])) > SPREAD_KM)
+      .map(s => s.angle != null ? s.angle : bearing(depot, [s.lat, s.lon])).sort((x, y) => x - y);
+    if (a.length < 2) return true;
+    let gap = 360 - (a[a.length - 1] - a[0]);
+    for (let i = 1; i < a.length; i++) gap = Math.max(gap, a[i] - a[i - 1]);
+    return 360 - gap <= S.maxSpread + 1e-9;
+  }
   function evalTrip(stops, fleet, maxStops, S, depot) {
     const l = load(stops);
     if (l.points > maxStops) return null;
+    if (!spreadOk(stops, S, depot)) return null;
     const ordered = nnOrder(depot, stops);
     const regular = fleet.filter(v => v.priced && !v.onlyIfNeeded);
     const needsBig = s => !regular.some(v => fitsIn(load([s]), v) && (!small(v) || known(s)));
@@ -647,7 +687,7 @@
         const fleet = fleetOf(S, kinds, { ...opt, caps, avail: AVAIL }), splits = [];
         if (!fleet.length) return { trips: [], splits, noFleet: true };
         const items = splitOversize(withC, fleet, splits), raw = build(items, fleet);
-        return { trips: finish(opt.fit ? fitFleet(raw, fleet, CARS, PER, opt.fit.maxStops, S, depot, opt.fit.join) : raw), splits, fleet };
+        return { trips: finish(opt.fit ? fitFleet(raw, fleet, CARS, PER, opt.fit.maxStops, opt.fit.S || S, depot, opt.fit.join) : raw), splits, fleet };
       };
       const r = run(CAPS), bl = (r.trips.blocked || []).filter(k => MINCAP[k] && (MINCAP[k][0] < CAPS[k][0] || MINCAP[k][1] < CAPS[k][1]));
       if (!bl.length) return r;
@@ -657,9 +697,11 @@
       return nv(r2) < nv(r) ? r2 : r;
     };
     const lab = kinds => S.smartLabo !== 0 ? kinds : kinds.filter(k => k !== 'labo');
-    const A = plan(lab(['labo', 'changan', 'gazel', 'kamaz']), (items, fleet) => cheapest(items, fleet, S.aMaxStops || 99, S, depot), { onlyIfNeeded: ['kamaz'], fit: { maxStops: S.aMaxStops || 99, join: true } });   // строго по кузову
-    const B = plan(lab(['labo', 'gazel', 'kamaz']), (items, fleet) => cheapest(items, fleet, S.bcMaxStops || 99, S, depot),   // тот же поиск, свои правила
-      { onlyIfNeeded: ['kamaz'], tol: { gazel: { m3: S.bTolM3, kg: S.bTolKg } }, fit: { maxStops: S.bcMaxStops || 99, join: true } });   // Gazel с допуском
+    // планы A и B: рейс — в одну сторону (сектор не шире MAX_SPREAD), мелкий груз и точки за кольцом — попутно
+    const SD = { ...S, maxSpread: S.maxSpread != null ? +S.maxSpread : MAX_SPREAD };
+    const A = plan(lab(['labo', 'changan', 'gazel', 'kamaz']), (items, fleet) => cheapest(items, fleet, S.aMaxStops || 99, SD, depot), { onlyIfNeeded: ['kamaz'], fit: { maxStops: S.aMaxStops || 99, join: true, S: SD } });   // строго по кузову
+    const B = plan(lab(['labo', 'gazel', 'kamaz']), (items, fleet) => cheapest(items, fleet, S.bcMaxStops || 99, SD, depot),   // тот же поиск, свои правила
+      { onlyIfNeeded: ['kamaz'], tol: { gazel: { m3: S.bTolM3, kg: S.bTolKg } }, fit: { maxStops: S.bcMaxStops || 99, join: true, S: SD } });   // Gazel с допуском
     const C = plan(['kamaz'], (items, fleet) => kamazRuns(items, fleet, CARS.kamaz ? { ...S, cTrucks: CARS.kamaz.length } : S, depot));
     const xNotes = [], X = plan(lab(['labo', 'changan', 'gazel', 'kamaz']), (items, fleet) => districtTrips(items, fleet, S.aMaxStops || 99, S, depot, xNotes), { onlyIfNeeded: ['kamaz'], fit: { maxStops: S.aMaxStops || 99, join: false } });   // план X (пробный): загрузка как в A
     X.districts = xNotes;
@@ -757,5 +799,5 @@
     return best ? { district: best[0], km: pts[0][1] } : null;
   }
 
-  window.LogiEngine = { guessDistrict, km, bearing, inside, distToRing, zoneOf, nnOrder, tripMetrics, priceTrip, costSplit, coordsFromLink, vehicleKind, buildPlans, yRoute, yPoint, xlsx, NO_PRICE, NO_PLAN, withKeles, ringLength, KELES, TKAD_V2 };
+  window.LogiEngine = { guessDistrict, km, bearing, inside, distToRing, zoneOf, nnOrder, tripMetrics, priceTrip, pointTariff, PLACE_KM, costSplit, coordsFromLink, vehicleKind, buildPlans, yRoute, yPoint, xlsx, NO_PRICE, NO_PLAN, withKeles, ringLength, KELES, TKAD_V2 };
 })();
