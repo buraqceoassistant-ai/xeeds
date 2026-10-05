@@ -1269,7 +1269,7 @@
               </div>
             </div>
             <sc-raw-table class="table tc">
-              <sc-raw-thead><sc-raw-tr><sc-raw-th style="width:40px">№</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">Груз</sc-raw-th><sc-raw-th>Прибытие</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Точка, сум</sc-raw-th><sc-raw-th data-edit style="width:120px"></sc-raw-th></sc-raw-tr></sc-raw-thead>
+              <sc-raw-thead><sc-raw-tr><sc-raw-th style="width:40px">№</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">Груз</sc-raw-th><sc-raw-th>Прибытие</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right" title="Сколько адрес добавляет к цене рейса у перевозчика: первый адрес — база рейса, каждый следующий — заезд (за кольцом — дороже), клиенты в том же месте (ближе 200 м) — без доплаты. Сумма столбца — цена рейса">Цена адреса, сум</sc-raw-th><sc-raw-th data-edit style="width:120px"></sc-raw-th></sc-raw-tr></sc-raw-thead>
               <sc-raw-tbody>
                 <sc-for list="{{ t.stops }}" as="s">
                   <sc-raw-tr>
@@ -1285,7 +1285,7 @@
                       <sc-if value="{{ s.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
                       <sc-if value="{{ s.free }}"><span class="tag tag-outline" title="Доставку оплачивает клиент: груз меньше порога из «Тарифов» или точка за кольцом — доплата за заезд по тарифу точки, машина только к нему — вся цена рейса">{{ s.freeTag }}</span></sc-if>
                     </sc-raw-td>
-                    <sc-raw-td class="c2" data-label="Точка, сум" style="text-align:right">{{ s.pt }}</sc-raw-td>
+                    <sc-raw-td class="c2" data-label="Цена адреса, сум" style="text-align:right;white-space:nowrap">{{ s.pt }}<div class="j-sub">{{ s.ptSub }}</div></sc-raw-td>
                     <sc-raw-td data-edit class="c-actions plan-mv-td"><sc-raw-select class="input plan-mv" value="" sc-camel-on-change="{{ s.onMove }}" title="Перенести точку в другой рейс" aria-label="Перенести в рейс"><option value="">→ рейс</option><sc-for list="{{ s.moveOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></sc-raw-td>
                   </sc-raw-tr>
                 </sc-for>
@@ -1838,6 +1838,8 @@ const TAB_GROUP = { import: 'journal', dash: 'reports', reports: 'reports', tari
 const f0 = n => (n == null || isNaN(n)) ? '—' : Math.round(n).toLocaleString('ru-RU');
 const f1 = (n, d = 1) => (n == null || isNaN(n)) ? '—' : (+n).toLocaleString('ru-RU', { maximumFractionDigits: d });
 const money = n => n == null ? '—' : Math.round(n).toLocaleString('ru-RU') + ' сум';
+// доля строки в цене рейса: с доплатой клиента — его доплата, остальное — поровну на адрес, внутри адреса по объёму (costSplit)
+const shareOf = (t, j) => t.cost && t.cost.share ? t.cost.share[j] : t.price && t.price.perStop ? t.price.perStop[j] : null;
 const dShort = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) : '';
 const dLong = d => d ? d.slice(8, 10) + '.' + d.slice(5, 7) + '.' + d.slice(0, 4) : '';
 // партия или две через «+» (план на две партии): «30.09.2026 + 02.10.2026»
@@ -1867,7 +1869,9 @@ const locsOf = c => String((c && c.locs) || '').split('\n').map(locParse).filter
 // «Точка N» / «Nuqta N» — имя по умолчанию (раньше): сайт сам заменит его адресом (autoNamePoints)
 const ptName = (name, addr, n) => { const nm = String(name || '').trim(), a = String(addr || '').trim();
   return nm && a && !nm.includes(a) ? nm + ' — ' + a : nm || a || (window.I18N && window.I18N.lang === 'uz' ? 'Nuqta ' : 'Точка ') + n; };
-const DEF_PT = /^(Точка|Nuqta) \d+$/;
+// плюс-код Google («964V+JXW», «964V+JXW Toshkent») — не адрес: в имени точки не оставляем, такие имена переименовываем
+const PLUS_CODE = /^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}(?=[\s,]|$)/i;
+const DEF_PT = { test: n => /^(Точка|Nuqta) \d+$/.test(n) || PLUS_CODE.test(n) };
 const sameLL = (a, b, eps = 1e-5) => !!a && !!b && Math.abs(a.lat - b.lat) < eps && Math.abs(a.lon - b.lon) < eps;
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 // маркировки клиента: «CBETKO,  svetko ; CBETKO» → «CBETKO, SVETKO» (без повторов, как пишут в манифестах — капсом)
@@ -2524,7 +2528,7 @@ class Component extends DCLogic {
       const stops = t.items.map(s => { const q = ptOf(s); return { bl: s.bl, cbm: s.cbm, kg: s.kg, zone: q.z.zone, lat: q.lat, lon: q.lon }; });   // координаты — одно место = одна точка
       const p = E.priceTrip(stops, t.kind, S);
       t.price = p; t.cost = E.costSplit(stops, p, S);   // компания платит / с клиента: меньше порога или за кольцом
-      t.items.forEach((s, i) => { share[s.id] = p.perStop[i]; tripOf[s.id] = k; if (t.cost && t.cost.why[i]) { free[s.id] = t.cost.why[i]; charge[s.id] = t.cost.charge[i]; } });
+      t.items.forEach((s, i) => { share[s.id] = t.cost ? t.cost.share[i] : p.perStop[i]; tripOf[s.id] = k; if (t.cost && t.cost.why[i]) { free[s.id] = t.cost.why[i]; charge[s.id] = t.cost.charge[i]; } });
     });
     const dates = [...new Set(data.shipments.map(s => s.date))].sort();
     this._memo = { ver, data, cmap, zones, share, tripOf, trips, dates, free, charge, ptOf, whBy };
@@ -3411,7 +3415,7 @@ class Component extends DCLogic {
           return { n: j + 1, bl: x.bl + (x.parts ? ' · ' + x.part + '/' + x.parts : ''), brand: cl.brand || '—', name: cl.name || '', address: cl.address || '', district: distName(cl.district), receiver: cl.receiver || '', tel, telHref: telHref(tel),
             cbm: f1(x.cbm, 3), kg: f1(x.kg, 1), places: x.places || '—', eta: t.arrivals && t.arrivals[j] != null ? hhmm(t.arrivals[j]) : '—',
             zIn: x.zone === 'in', zOut: x.zone === 'out', free: !!why, freeTag: this.chargeTag(why, t.cost && t.cost.charge[j], S),
-            share: t.price && t.price.total != null && !(t.price.dupFlags && t.price.dupFlags[j] && !t.price.perStop[j]) ? f0(t.price.perStop[j]) : '—' }; }) }));
+            share: t.price && t.price.total != null ? f0(shareOf(t, j) || 0) : '—' }; }) }));
       out.repLeft = r.left.map(x => ({ bl: x.bl, name: ((x.client.brand || '') + ' ' + (x.client.name || '')).trim() || '—', cbm: f1(x.cbm, 2), kg: f0(x.kg), why: x.why }));
       out.repHasLeft = r.left.length > 0;
     } else {
@@ -3457,7 +3461,7 @@ class Component extends DCLogic {
         R.forEach(r => r.trips.forEach(t => t.stops.forEach((x, j) => {
           const dn = distName((x.client || {}).district), o = byD[dn] = byD[dn] || { pts: new Set(), cbm: 0, price: 0, paid: 0, free: 0 };
           o.pts.add(r.date + '|' + x.bl); o.cbm += x.cbm;
-          if (t.price && t.price.total != null) { const v = t.price.perStop[j] || 0, ch = (t.cost && t.cost.charge[j]) || 0; o.price += v; o.free += ch; o.paid += v - ch; }   // доля точки: компания + с клиента
+          if (t.price && t.price.total != null) { const v = shareOf(t, j) || 0, ch = (t.cost && t.cost.charge[j]) || 0; o.price += v; o.free += ch; o.paid += v - ch; }   // доля точки: компания + с клиента
         })));
         const dl = Object.entries(byD).sort((a, b) => b[1].price - a[1].price || b[1].cbm - a[1].cbm), maxD = Math.max(1, ...dl.map(x => x[1].price));
         out.repByDistrict = dl.map(([name, o]) => ({ name, pts: f0(o.pts.size), cbm: f1(o.cbm, 1), price: f0(o.price), paid: f0(o.paid), free: f0(o.free), bar: (o.price / maxD * 100).toFixed(1) + '%',
@@ -3544,7 +3548,7 @@ class Component extends DCLogic {
       r.trips.forEach(t => t.stops.forEach((s, j) => { const c = s.client || {}, why = t.cost && t.cost.why[j];
         rows.push([t.name, t.price ? t.price.label : VEH[t.kind], j + 1, s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : ''), c.brand || '', c.name || '', c.address || '', c.district || '', c.receiver || '', c.receiverTel || c.tel1 || '', num(s.cbm), num(s.kg), s.places || '',
           t.arrivals && t.arrivals[j] != null ? hhmm(t.arrivals[j]) : '', s.zone === 'out' ? 'Снаружи' : s.zone === 'in' ? 'Внутри' : '', why === 'small' ? '< порога' : why === 'out' ? 'за кольцом' : '', why && t.cost ? Math.round(t.cost.charge[j] || 0) : '',
-          t.price && t.price.total != null ? Math.round(t.price.perStop[j] || 0) : '', j === 0 && t.price && t.price.total != null ? t.price.total : '', j === 0 ? Math.round((t.real || 0) * 10) / 10 : '']); }));
+          t.price && t.price.total != null ? Math.round(shareOf(t, j) || 0) : '', j === 0 && t.price && t.price.total != null ? t.price.total : '', j === 0 ? Math.round((t.real || 0) * 10) / 10 : '']); }));
       sheets.push({ name: 'Рейсы ' + dShorts(r.date), rows });
       if (r.left.length) sheets.push({ name: 'Без рейса', rows: [['BL', 'Клиент', 'CBM', 'KG', 'Почему']].concat(r.left.map(s => [s.bl, ((s.client.brand || '') + ' ' + (s.client.name || '')).trim(), num(s.cbm), num(s.kg), s.why])) });
       sheets.push({ name: 'Итоги', rows: kp.concat(o.repCost.map(c => [c.l, c.v])) });
@@ -3640,7 +3644,7 @@ class Component extends DCLogic {
     R.forEach(r => r.trips.forEach(t => t.stops.forEach((x, j) => {
       const k = dn((x.client || {}).district), o = byD[k] = byD[k] || { pts: new Set(), cbm: 0, price: 0, notPaid: 0 };
       o.pts.add(r.date + '|' + x.bl); o.cbm += x.cbm;
-      if (t.price && t.price.total != null) { const v = t.price.perStop[j] || 0; o.price += v; o.notPaid += (t.cost && t.cost.charge[j]) || 0; }
+      if (t.price && t.price.total != null) { const v = shareOf(t, j) || 0; o.price += v; o.notPaid += (t.cost && t.cost.charge[j]) || 0; }
     })));
     f.districts = Object.entries(byD).sort((a, b) => b[1].price - a[1].price || b[1].cbm - a[1].cbm).slice(0, 20)
       .map(([name, o]) => ({ district: name, points: o.pts.size, cbm: r1(o.cbm), price: r0(o.price), notPaid: r0(o.notPaid), pricePerM3: o.cbm > 0 ? r0(o.price / o.cbm) : null }));
@@ -4343,8 +4347,8 @@ class Component extends DCLogic {
   async pointAddr(lat, lon) {
     const k = (+lat).toFixed(5) + ',' + (+lon).toFixed(5), c = this._ptAddr || (this._ptAddr = new Map());
     if (c.has(k)) return c.get(k);
-    const a = await this.addressOf(lat, lon, !!this.gsUrl && this.gsVersion >= 7), city = /^(Tashkent|Toshkent|Ташкент|Тошкент)( shahri| city)?$/i;
-    const v = a ? (a.short || a.address.split(',').map(x => x.trim()).filter(x => x && !city.test(x)).slice(0, 2).join(', ')) : '';
+    const a = await this.addressOf(lat, lon, !!this.gsUrl && this.gsVersion >= 7), city = /^(Tashkent|Toshkent|Ташкент|Тошкент)( shahri| city)?( \d{6})?$/i;
+    const v = a ? (a.short || a.address.split(',').map(x => x.trim()).filter(x => x && !city.test(x) && !PLUS_CODE.test(x) && !/^\d{6}$/.test(x) && !/^(Ўзбекистон|O[ʻ'‘’`]?zbekiston)$/i.test(x)).slice(0, 2).join(', ')) : '';
     if (a) c.set(k, v);
     return v;
   }
@@ -4900,7 +4904,9 @@ class Component extends DCLogic {
           km: f1(t.real, 1) + ' км (реальн.)', time: hhmm(t.start ?? S.dayStart * 1440) + '–' + hhmm(t.finish + t.back / S.speed * 60 * S.roadK), price: t.price.total != null ? money(t.price.total) : 'нет тарифа', formula: t.price.formula,
           yHref: E.yRoute(depot, t.stops.map(s => [s.lat, s.lon])), open3d: () => this.setState({ tab: 'viz', planKey, vizTrip: ti, vizStep: 0, vizSel: null }),
           stops: t.stops.map((s, j) => { const c = s.client, leg = E.km(prev, [s.lat, s.lon]); prev = [s.lat, s.lon]; const my = moveOpts.filter(o => o.v !== String(ti));
-            return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : '') + (pair && s.date ? ' · ' + dShort(s.date) : ''), brand: c.brand || '—', name: c.name || '', district: s.loc ? '📍 ' + s.loc : distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', free: !!(tc && tc.why[j]), freeTag: this.chargeTag(tc && tc.why[j], tc && tc.charge[j], S), pointHref: E.yPoint(s.lat, s.lon), pt: t.price.placeFlags && t.price.placeFlags[j] ? (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') + ' · то же место' : t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—'),
+            const addr = t.price.addr ? t.price.addr[j] : j, fee = t.price.fee ? t.price.fee[j] : null;   // цена адреса у перевозчика
+            return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : '') + (pair && s.date ? ' · ' + dShort(s.date) : ''), brand: c.brand || '—', name: c.name || '', district: s.loc ? '📍 ' + s.loc : distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', free: !!(tc && tc.why[j]), freeTag: this.chargeTag(tc && tc.why[j], tc && tc.charge[j], S), pointHref: E.yPoint(s.lat, s.lon), pt: t.price.total == null ? '—' : addr !== j ? '—' : f0(j === 0 ? t.price.base + (fee || 0) : fee || 0),
+              ptSub: t.price.total == null ? '' : addr !== j ? 'тот же адрес, что №' + (addr + 1) : j === 0 ? (fee ? 'база + заезд' : 'база рейса') : !fee ? 'в базе' : s.zone === 'out' ? 'заезд за кольцом' : 'заезд',
               cbmL: f1(s.cbm, 3) + ' м³', kgPl: f0(s.kg) + ' кг · ' + (s.places || 0) + ' мест', legL: f1(leg, 1) + ' км',
               moveOpts: my, onMove: e => { const v = e.target.value; e.target.value = ''; if (v) this.planMove(pd, planKey, plan, E.stopKey(s), v); } }; }) };
       });

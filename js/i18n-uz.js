@@ -2452,4 +2452,12 @@ window.I18N_UZ = {"BURAQ logistics — отгрузки и клиенты":"BURA
 "Он сейчас на линии — бот перестанет вести его по точкам.":"U hozir yo‘lda — bot uni nuqtalar bo‘yicha boshqarishni to‘xtatadi.",
 "Водитель пропадёт из списка, бот закроет ему доступ. Напишет боту снова — придёт новая заявка.":"Haydovchi ro‘yxatdan yo‘qoladi, bot unga ruxsatni yopadi. Botga qayta yozsa — yangi ariza keladi.",
 "Обновите код до 30.":"Kodni 30-versiyaga yangilang.",
-"Имя и телефон водителя можно будет поправить на сайте (✎ в списке водителей), а водителя — удалить.":"Haydovchi ismi va telefonini saytda tuzatish (haydovchilar ro‘yxatidagi ✎), haydovchini esa o‘chirish mumkin bo‘ladi."};
+"Имя и телефон водителя можно будет поправить на сайте (✎ в списке водителей), а водителя — удалить.":"Haydovchi ismi va telefonini saytda tuzatish (haydovchilar ro‘yxatidagi ✎), haydovchini esa o‘chirish mumkin bo‘ladi.",
+"Цена адреса, сум":"Manzil narxi, so‘m",
+"Сколько адрес добавляет к цене рейса у перевозчика: первый адрес — база рейса, каждый следующий — заезд (за кольцом — дороже), клиенты в том же месте (ближе 200 м) — без доплаты. Сумма столбца — цена рейса":"Manzil tashuvchida reys narxiga qancha qo‘shadi: birinchi manzil — reysning bazaviy narxi, keyingi har biri — kirish (halqadan tashqarida — qimmatroq), bir joydagi mijozlar (200 m dan yaqin) — qo‘shimcha to‘lovsiz. Ustun yig‘indisi — reys narxi",
+"база рейса":"reys bazasi",
+"база + заезд":"baza + kirish",
+"в базе":"bazada",
+"заезд":"kirish",
+"заезд за кольцом":"halqadan tashqari kirish",
+"тот же адрес, что №{n}":"№{n} bilan bir manzil"};

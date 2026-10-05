@@ -105,7 +105,10 @@
       const gc = group.reduce((a, j) => a + (stops[j].cbm || 0), 0);
       group.forEach(j => { perStop[j] = gc ? pointShare * (stops[j].cbm || 0) / gc : pointShare / group.length; });
     });
-    return { label, kind, total, points: uniq.length, formula: formula + ' тыс.', perStop, dupFlags: pts.map(p => p.dup != null), placeFlags: pts.map(p => !!p.place) };
+    // addr — к какому адресу относится строка (номер первой строки этого адреса); fee — что адрес добавляет к цене рейса
+    // у перевозчика: первые адреса — в базе (0), дальше — заезд; у строк того же адреса — null
+    return { label, kind, total, base, points: uniq.length, formula: formula + ' тыс.', perStop, dupFlags: pts.map(p => p.dup != null), placeFlags: pts.map(p => !!p.place),
+      addr: pts.map((p, i) => p.dup != null ? p.dup : i), fee: pts.map(p => p.dup != null ? null : p.tariff), weight: pts.map(p => p.dup != null ? null : p.weight) };
   }
 
   // Расходы рейса тремя частями: 1) компания платит — внутри кольца, груз точки от порога (S.freeOutM3, обычно 1 м³);
@@ -119,17 +122,36 @@
     const lim = +S.freeOutM3 || 0, vol = {};
     stops.forEach(s => { vol[s.bl] = (vol[s.bl] || 0) + (+(s.whole != null ? s.whole : s.cbm) || 0); });
     const why = stops.map(s => s.zone === 'out' ? 'out' : lim > 0 && vol[s.bl] > 0 && vol[s.bl] < lim - 1e-9 ? 'small' : null);
-    // с клиента — фиксированная доплата: заезд по тарифу точки этой машины (за кольцом — свой); машина только к нему —
-    // вся цена рейса. Больше цены рейса со всех вместе не берём. Доплата клиента делится между его строками по объёму
+    // с клиента — фиксированная доплата: заезд по тарифу точки этой машины (за кольцом — свой) — за адрес: несколько
+    // клиентов с доплатой в одном месте делят её по объёму. Машина только к ним (все клиенты рейса с доплатой, один
+    // адрес) — вся цена рейса. Больше цены рейса со всех вместе не берём. Доплата клиента делится между его строками по объёму
     const bls = [...new Set(stops.map(s => s.bl))], pt = pointTariff(price.kind, S), fee = {};
-    bls.forEach(bl => { const i = stops.findIndex(s => s.bl === bl); if (why[i]) fee[bl] = bls.length === 1 ? price.total : +(why[i] === 'out' ? pt.ptOut : pt.ptIn) || 0; });
+    const first = bl => stops.findIndex(s => s.bl === bl), addr = price.addr || stops.map((s, i) => i);
+    const paying = bls.filter(bl => why[first(bl)]), byAddr = {};
+    paying.forEach(bl => (byAddr[addr[first(bl)]] = byAddr[addr[first(bl)]] || []).push(bl));
+    const only = paying.length === bls.length && Object.keys(byAddr).length === 1;
+    Object.values(byAddr).forEach(list => {
+      const f = only ? price.total : +(list.some(bl => why[first(bl)] === 'out') ? pt.ptOut : pt.ptIn) || 0, v = list.reduce((a, bl) => a + (vol[bl] || 0), 0);
+      list.forEach(bl => { fee[bl] = f * (v ? (vol[bl] || 0) / v : 1 / list.length); });
+    });
     const sum = Object.values(fee).reduce((a, b) => a + b, 0), k = sum > price.total ? price.total / sum : 1;
     const charge = stops.map(() => 0);
     Object.keys(fee).forEach(bl => {
       const idx = stops.map((s, i) => s.bl === bl ? i : -1).filter(i => i >= 0), v = idx.reduce((a, i) => a + (+stops[i].cbm || 0), 0);
       idx.forEach(i => { charge[i] = fee[bl] * k * (v ? (+stops[i].cbm || 0) / v : 1 / idx.length); });
     });
-    const r = { paid: 0, small: 0, outside: 0, why, free: why.map(Boolean), charge };
+    // доля строки в цене рейса (журнал, отчёты, Excel): у клиента с доплатой — его доплата; остальное (платит компания) —
+    // строкам без доплаты: поровну на адрес (по тарифу заезда, как у перевозчика), внутри адреса — по объёму.
+    // Все клиенты рейса с доплатой — остаток делится так же между всеми строками. Сумма долей — цена рейса
+    const wt = price.weight || [], payer = i => fee[stops[i].bl] == null;
+    const anyOurs = stops.some((s, i) => payer(i)), take = i => !anyOurs || payer(i);
+    const rest = Math.max(0, price.total - charge.reduce((a, b) => a + b, 0)), share = charge.slice();
+    const heads = [...new Set(stops.map((s, i) => i).filter(take).map(i => addr[i]))], sumW = heads.reduce((a, h) => a + (+wt[h] || 1), 0);
+    heads.forEach(h => {
+      const rows = stops.map((s, i) => i).filter(i => addr[i] === h && take(i)), part = rest * (+wt[h] || 1) / sumW, v = rows.reduce((a, i) => a + (+stops[i].cbm || 0), 0);
+      rows.forEach(i => { share[i] += v ? part * (+stops[i].cbm || 0) / v : part / rows.length; });
+    });
+    const r = { paid: 0, small: 0, outside: 0, why, free: why.map(Boolean), charge, share };
     stops.forEach((s, i) => { if (why[i] === 'out') r.outside += charge[i]; else if (why[i] === 'small') r.small += charge[i]; });
     r.paid = price.total - r.small - r.outside;
     const pts = w => new Set(stops.filter((s, i) => why[i] === w).map(s => s.bl)).size;

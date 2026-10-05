@@ -235,7 +235,8 @@
     // trips for R–U
     const trips = {}, share = {};
     data.shipments.forEach(s => { const k = E.vehicleKind(s.truck); if (!k || s.route == null || E.NO_PRICE.includes(s.status)) return; const key = s.date + '|' + s.truck + '|' + s.route; (trips[key] = trips[key] || { k, items: [] }).items.push(s); });
-    Object.values(trips).forEach(t => { const p = E.priceTrip(t.items.map(s => ({ bl: s.bl, cbm: s.cbm, kg: s.kg, zone: (zones[s.bl] || {}).zone, lat: C(s.bl).lat, lon: C(s.bl).lon })), t.k, S); t.items.forEach((s, i) => { share[s.id] = { label: p.label, pts: p.points, total: p.total, part: p.perStop[i] }; }); });
+    Object.values(trips).forEach(t => { const st = t.items.map(s => ({ bl: s.bl, cbm: s.cbm, kg: s.kg, zone: (zones[s.bl] || {}).zone, lat: C(s.bl).lat, lon: C(s.bl).lon })), p = E.priceTrip(st, t.k, S), c = E.costSplit(st, p, S);   // доля — как на сайте: с доплатой клиента — его доплата
+      t.items.forEach((s, i) => { share[s.id] = { label: p.label, pts: p.points, total: p.total, part: c ? c.share[i] : p.perStop[i] }; }); });
 
     const ship = patchTable(txt(z, P[SH.ship]), { firstRow: 5, tplRow: 6, keyCol: 'C', items: data.shipments,
       inputs: { A: s => isoToSerial(s.date), C: s => s.bl, J: s => +s.cbm || null, K: s => +s.kg || null, L: s => +s.places || null, M: s => s.truck, N: s => s.route ?? null, O: s => s.status, P: s => s.note, V: s => s.loc || null },

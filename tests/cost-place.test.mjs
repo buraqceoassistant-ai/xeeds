@@ -87,3 +87,29 @@ test('направление: мелкий груз едет попутно с �
     assert.ok(t.stops.some(s => s.bl.startsWith('U')), k + ': юг — с южной машиной: ' + Q[k].trips.map(x => x.stops.map(s => s.bl).join('+')).join(' | '));
   });
 });
+
+test('цена адреса — как у перевозчика; доля клиента с доплатой — его доплата, остальное — поровну на адрес, по объёму', () => {
+  // рейс со скриншота: свой адрес 8,5 м³; в одном месте — мелкий (0,01 м³), 1,8 м³ и 3,2 м³. Gazel тяжёлый: 500 + 1×100
+  const stops = [st('W', 41.30, 69.24, 8.5), st('L', 41.31, 69.25, 0.01), st('B', 41.3101, 69.2501, 1.8), st('T', 41.3102, 69.2502, 3.2)];
+  stops.forEach(s => { s.kg = 600; });
+  const p = E.priceTrip(stops, 'gazel', S), c = E.costSplit(stops, p, S);
+  assert.equal(p.total, 600000);
+  assert.deepEqual(p.addr, [0, 1, 1, 1], 'три клиента — один адрес (№2)');
+  assert.deepEqual(p.fee, [0, 100000, null, null], 'первый адрес — в базе, второй — заезд, тот же адрес — без доплаты');
+  assert.equal(p.base + p.fee.reduce((a, f) => a + (f || 0), 0), p.total, 'база + заезды = цена рейса');
+  assert.deepEqual(c.share.map(Math.round), [250000, 100000, 90000, 160000], 'мелкий — его доплата 100 000; 500 000 компании — по 250 000 на адрес, внутри — по объёму');
+  assert.equal(Math.round(c.share.reduce((a, b) => a + b, 0)), p.total);
+  assert.ok(c.share.every((v, i) => v >= c.charge[i] - 1e-6), 'доля не меньше доплаты: компания за клиента не «зарабатывает»');
+  // все с доплатой (машина к одному клиенту за кольцом) — доля = цена рейса
+  const one = [st('O', 41.45, 69.40, 3, 'out')], po = E.priceTrip(one, 'gazel', S), co = E.costSplit(one, po, S);
+  assert.equal(Math.round(co.share[0]), po.total);
+});
+
+test('два мелких клиента в одном месте делят доплату за адрес по объёму, а не платят по 100 000 каждый', () => {
+  const stops = [st('BIG', 41.30, 69.24, 8), st('S1', 41.32, 69.25, 0.3), st('S2', 41.3203, 69.25, 0.45)];
+  const p = E.priceTrip(stops, 'gazel', S), c = E.costSplit(stops, p, S);
+  assert.equal(p.total, 450000 + 100000);
+  assert.deepEqual(c.charge.map(Math.round), [0, 40000, 60000], 'адрес 100 000 — 0,3 : 0,45');
+  assert.equal(Math.round(c.notPaid), 100000);
+  assert.equal(Math.round(c.ours), 450000);
+});
