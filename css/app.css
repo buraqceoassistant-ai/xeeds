@@ -390,6 +390,23 @@ input.set-input[type="text"] { text-align: left !important; }
 /* журнал: куда везти — своя локация под клиентом и выбор при правке строки */
 .j-loc { font-size: 12px; color: var(--color-accent-700); margin-top: 2px; }
 .j-loc-sel { margin-top: 4px; min-height: 30px; padding: 3px 6px; font-size: 13px; width: 100%; max-width: 240px; }
+/* журнал: группы по рейсам (или районам) — строка-заголовок с итогом; один размер шрифта: основное 14 px, вторая строка 12 px */
+.j-tbl td { font-size: 14px; }
+.j-tbl .j-sub { display: block; font-size: 12px; color: var(--color-neutral-700); margin-top: 1px; }
+.j-tbl.one-date .j-date { display: none; }
+.j-tbl tr.j-grp > td { padding: 9px 14px; background: color-mix(in srgb, var(--buraq-navy) 6%, transparent); border-top: 1px solid var(--color-divider); }
+.j-tbl tbody tr.j-grp:hover { background: none; }
+.j-grp-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; }
+.j-grp-name { font-family: var(--font-heading); font-weight: 500; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--buraq-navy); }
+.j-grp-sum { font-size: 13px; color: var(--color-neutral-700); font-variant-numeric: tabular-nums; }
+.j-grp-pay { font-size: 12px; color: var(--color-neutral-700); margin-left: auto; }
+.j-tbl tr.j-grp-pick > td { background: color-mix(in srgb, var(--buraq-blue) 9%, transparent); }
+.j-tbl tr.j-grp-none > td { background: color-mix(in srgb, var(--buraq-gray) 28%, transparent); }
+@media screen and (max-width: 760px) {
+  .tc tr.j-grp { display: block; padding: 9px 14px; background: color-mix(in srgb, var(--buraq-navy) 6%, transparent); }
+  .tc tr.j-grp > td { display: block; padding: 0 !important; background: none !important; }
+  .j-grp-pay { margin-left: 0; width: 100%; }
+}
 /* журнал: самовывоз — синяя строка, без координат — красная: лёгкий фон и полоса слева 3 px */
 .table tr.j-pick > td { background: color-mix(in srgb, var(--buraq-blue) 7%, transparent); }
 .table tr.j-pick > td:first-child { box-shadow: inset 3px 0 0 var(--buraq-blue); }

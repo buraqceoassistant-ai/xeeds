@@ -120,6 +120,13 @@
           <sc-raw-select class="input" style="width:170px" value="{{ jDate }}" sc-camel-on-change="{{ onJDate }}">
             <sc-for list="{{ jDateOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for>
           </sc-raw-select>
+          <sc-if value="{{ jPairShow }}"><sc-raw-select class="input j-date2" style="width:190px" value="{{ jDate2 }}" sc-camel-on-change="{{ onJDate2 }}" title="Две партии одним списком, у строки — дата" aria-label="Вторая партия">
+            <option value="">+ вторая партия</option>
+            <sc-for list="{{ jDate2Opts }}" as="o"><option value="{{ o.v }}">+ партия {{ o.l }}</option></sc-for>
+          </sc-raw-select></sc-if>
+          <sc-raw-select class="input j-grp-sel" style="width:170px" value="{{ jGroup }}" sc-camel-on-change="{{ onJGroup }}" title="Как собрать строки журнала" aria-label="Группировка">
+            <option value="truck">По машинам</option><option value="district">По районам</option><option value="none">Без групп</option>
+          </sc-raw-select>
           <sc-if value="{{ jGroupShow }}"><button data-edit class="btn btn-secondary j-group-btn" style="white-space:nowrap" sc-camel-on-click="{{ jToGroup }}" disabled="{{ dvBusy }}" title="Партия в группу отчётов: сводка и каждый клиент отдельным сообщением — куда, получатель, груз, маршрут">📤 В группу</button></sc-if>
           <sc-if value="{{ jLocShow }}"><button data-edit class="btn btn-secondary j-loc-btn" style="white-space:nowrap" sc-camel-on-click="{{ openJLoc }}" title="Какая локация на эту партию?">📍 Локации партии<sc-if value="{{ jLocNeed }}"><span class="j-loc-dot" title="Есть клиенты без выбранной точки"></span></sc-if></button></sc-if>
           <sc-raw-select class="input" style="width:190px" value="{{ jStatus }}" sc-camel-on-change="{{ onJStatus }}">
@@ -145,24 +152,23 @@
       </div>
 
       <div class="tbl-wrap" style="overflow-x:auto;border:1px solid var(--color-divider)">
-        <sc-raw-table class="table tc" style="min-width:1180px">
+        <sc-raw-table class="table tc j-tbl {{ jTblCls }}" style="min-width:1080px">
           <sc-raw-thead><sc-raw-tr>
-            <sc-raw-th>Дата</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">KG</sc-raw-th><sc-raw-th style="text-align:right">Мест</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Рейс №</sc-raw-th><sc-raw-th>Статус</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Доля, сум</sc-raw-th><sc-raw-th></sc-raw-th>
+            <sc-raw-th class="j-date">Дата</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">Груз</sc-raw-th><sc-raw-th>Машина</sc-raw-th><sc-raw-th>Рейс</sc-raw-th><sc-raw-th>Статус</sc-raw-th><sc-raw-th>Зона · оплата</sc-raw-th><sc-raw-th style="text-align:right">Доля, сум</sc-raw-th><sc-raw-th></sc-raw-th>
           </sc-raw-tr></sc-raw-thead>
           <sc-raw-tbody>
             <sc-for list="{{ jRows }}" as="r" hint-placeholder-count="12">
-              <sc-raw-tr class="{{ r.cls }}">
-                <sc-raw-td class="c2 o-1" style="white-space:nowrap;color:var(--color-neutral-700)">{{ r.date }}</sc-raw-td>
+              <sc-if value="{{ r.isHead }}"><sc-raw-tr class="j-grp {{ r.cls }}"><sc-raw-td colspan="12"><div class="j-grp-row"><span class="j-grp-name">{{ r.title }}</span><span class="j-grp-sum">{{ r.sum }}</span><sc-if value="{{ r.pay }}"><span class="j-grp-pay">{{ r.pay }}</span></sc-if></div></sc-raw-td></sc-raw-tr></sc-if>
+              <sc-if value="{{ r.isRow }}"><sc-raw-tr class="{{ r.cls }}">
+                <sc-raw-td class="c2 o-1 j-date" style="white-space:nowrap;color:var(--color-neutral-700)">{{ r.date }}</sc-raw-td>
                 <sc-raw-td class="c2 o-1 c-strong" style="white-space:nowrap;font-weight:500">{{ r.bl }}</sc-raw-td>
-                <sc-raw-td class="cw c-title"><div style="font-weight:500">{{ r.brand }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ r.name }}</div>
+                <sc-raw-td class="cw c-title"><div style="font-weight:500">{{ r.brand }}</div><div class="j-sub">{{ r.name }}</div>
                   <sc-if value="{{ r.hasLoc }}"><div class="j-loc" title="Куда везти — своя локация отгрузки">📍 {{ r.locName }}</div></sc-if>
                   <sc-if value="{{ r.isPick }}"><div class="j-pick-tag" title="Клиент забирает груз сам — не в планах и не у водителей">{{ r.pickText }}</div></sc-if>
                   <sc-if value="{{ r.locEdit }}"><sc-raw-select class="input j-loc-sel" value="{{ r.locVal }}" sc-camel-on-change="{{ r.onLoc }}" aria-label="Куда везти" title="Куда везти"><sc-for list="{{ r.locOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></sc-if></sc-raw-td>
                 <sc-raw-td data-label="Район" style="white-space:nowrap">{{ r.district }}</sc-raw-td>
-                <sc-raw-td data-label="Получатель"><div>{{ r.receiver }}</div><a href="{{ r.telHref }}" style="font-size:12px;white-space:nowrap">{{ r.tel }}</a></sc-raw-td>
-                <sc-raw-td class="c2" data-label="CBM" style="text-align:right;font-variant-numeric:tabular-nums">{{ r.cbm }}</sc-raw-td>
-                <sc-raw-td class="c2" data-label="KG" style="text-align:right;font-variant-numeric:tabular-nums">{{ r.kg }}</sc-raw-td>
-                <sc-raw-td class="c2" data-label="Мест" style="text-align:right;font-variant-numeric:tabular-nums">{{ r.places }}</sc-raw-td>
+                <sc-raw-td data-label="Получатель"><div>{{ r.receiver }}</div><a class="j-sub" href="{{ r.telHref }}" style="white-space:nowrap">{{ r.tel }}</a></sc-raw-td>
+                <sc-raw-td data-label="Груз" style="text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums"><div>{{ r.cbm }}</div><div class="j-sub">{{ r.kgPl }}</div></sc-raw-td>
                 <sc-if value="{{ r.editing }}">
                   <sc-raw-td data-label="Машина"><sc-raw-select class="input" style="min-height:30px;padding:3px 6px;font-size:13px;width:130px" value="{{ r.truck }}" sc-camel-on-change="{{ r.onTruck }}"><sc-for list="{{ truckOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></sc-raw-td>
                   <sc-raw-td data-label="Рейс №"><input class="input" type="number" min="1" style="min-height:30px;padding:3px 6px;font-size:13px;width:64px" value="{{ r.route }}" sc-camel-on-change="{{ r.onRoute }}"></sc-raw-td>
@@ -188,7 +194,7 @@
                     <button data-edit class="btn btn-ghost" sc-camel-on-click="{{ r.onEdit }}">Изменить</button>
                   </div>
                 </sc-raw-td>
-              </sc-raw-tr>
+              </sc-raw-tr></sc-if>
             </sc-for>
           </sc-raw-tbody>
         </sc-raw-table>
@@ -381,6 +387,10 @@
             <option value="all">Все клиенты</option>
             <sc-for list="{{ mapDateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for>
           </sc-raw-select>
+          <sc-if value="{{ mapPairShow }}"><sc-raw-select class="input map-date2" style="min-width:170px" value="{{ mapDate2 }}" sc-camel-on-change="{{ onMapDate2 }}" title="Две партии вместе, как в «Планах»" aria-label="Вторая партия">
+            <option value="">+ вторая партия</option>
+            <sc-for list="{{ mapDate2Opts }}" as="o"><option value="{{ o.v }}">+ партия {{ o.l }}</option></sc-for>
+          </sc-raw-select></sc-if>
         </div>
         <div class="field"><label>Подложка карты</label>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--color-divider)">
@@ -524,6 +534,10 @@
         <div class="page-tools no-print" style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
           <sc-if value="{{ repIsBatch }}">
             <sc-raw-select class="input" style="width:190px" value="{{ repDate }}" sc-camel-on-change="{{ onRepDate }}"><sc-for list="{{ repDateOpts }}" as="o"><option value="{{ o.v }}">Партия {{ o.l }}</option></sc-for></sc-raw-select>
+            <sc-if value="{{ repIsBatch }}"><sc-raw-select class="input rep-date2" style="min-width:170px" value="{{ repDate2 }}" sc-camel-on-change="{{ onRepDate2 }}" title="Две партии вместе, как в «Планах»" aria-label="Вторая партия">
+            <option value="">+ вторая партия</option>
+            <sc-for list="{{ repDate2Opts }}" as="o"><option value="{{ o.v }}">+ партия {{ o.l }}</option></sc-for>
+          </sc-raw-select></sc-if>
           </sc-if>
           <sc-if value="{{ repIsPeriod }}">
             <sc-raw-select class="input" style="width:170px" value="{{ repPeriod }}" sc-camel-on-change="{{ onRepPeriod }}"><sc-for list="{{ repPeriodOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select>
@@ -1023,6 +1037,8 @@
       <section class="dv-send">
         <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Партия</span>
           <select class="input" value="{{ dvDate }}" sc-camel-on-change="{{ onDvDate }}" style="min-width:190px"><sc-for list="{{ dvDateOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></label>
+        <label class="field" style="margin:0"><span style="font-size:12px;color:var(--color-neutral-700)">Вторая партия</span>
+          <select class="input dv-date2" value="{{ dvDate2 }}" sc-camel-on-change="{{ onDvDate2 }}" style="min-width:170px" title="Одно задание водителям на две партии"><option value="">+ вторая партия</option><sc-for list="{{ dvDate2Opts }}" as="o"><option value="{{ o.v }}">+ партия {{ o.l }}</option></sc-for></select></label>
         <sc-if value="{{ dvShowSend }}"><button class="btn btn-primary dv-send-btn" sc-camel-on-click="{{ dvSendAll }}" disabled="{{ dvSendOff }}">🚚 Отправить груз водителям</button></sc-if>
         <div class="dv-send-note">{{ dvSendNote }}</div>
         <sc-if value="{{ dvCan }}">
@@ -1841,7 +1857,7 @@ const telHref = t => t ? 'tel:' + String(t).replace(/[^\d+]/g, '').replace(/^998
 
 class Component extends DCLogic {
   state = { ready: false, tab: 'journal', data: null, ver: 0, savedAt: null,
-    jDate: 'all', jLimit: 60, cLimit: 100, editRow: null, jStatus: 'all', jSearch: '', cSearch: '', cDistrict: 'all', cZone: 'all',
+    jDate: 'all', jDate2: '', jGroup: (() => { try { return localStorage.getItem('logi-j-group') || 'truck'; } catch (e) { return 'truck'; } })(), jLimit: 60, cLimit: 100, editRow: null, jStatus: 'all', jSearch: '', cSearch: '', cDistrict: 'all', cZone: 'all',
     mapDate: 'all', mapPlan: 'none', mapBase: (() => { try { return localStorage.getItem('logi-map-base') || 'yandex'; } catch (e) { return 'yandex'; } })(), planDate: '', planDate2: '', planKey: 'A', planC: (() => { try { return localStorage.getItem('logi-plan-c') === '1'; } catch (e) { return false; } })(), dialog: null,
     vizTrip: 'all', vizStep: 0, vizSel: null, vizView: '3d', vizErr: '',
     calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 },
@@ -2335,6 +2351,13 @@ class Component extends DCLogic {
       { action: 'batchinfo', batch: { title: (pair ? 'Партии ' : 'Партия ') + dLongs(date), head, items } },
       j => (pair ? 'Партии ' : 'Партия ') + dLongs(date) + ' — в группе: сводка и ' + Math.max(0, (j.sent || 0) - 1) + ' клиентов отдельными сообщениями.' + (j.of > j.sent ? ' Не дошло: ' + (j.of - j.sent) + '.' : ''), key, { group: true });
   }
+  // выбор партии и «+ вторая партия»: cur — дата или пара «A+B» (по возрастанию); основная — поздняя дата пары
+  pairSel(cur, dates, set) {
+    const ps = String(cur || '').split('+'), pair = ps.length > 1, main = pair ? ps[1] : cur, second = pair ? ps[0] : '';
+    return { main, second, pair, secOpts: dates.filter(d => d !== main).slice().reverse().map(v => ({ v, l: dLong(v) })),
+      onMain: v => set(second && v && v !== second && v !== 'all' ? [v, second].sort().join('+') : v),
+      onSecond: v => set(v && v !== main ? [main, v].sort().join('+') : main) };
+  }
   // партия планов: одна или две («+ вторая партия») — «старшая+младшая»
   get planPair() { const st = this.state; return st.planDate && st.planDate2 && st.planDate2 !== st.planDate ? [st.planDate, st.planDate2].sort().join('+') : st.planDate; }
   get canLoc() { return !this.readOnly && (!this.gsUrl || this.gsVersion >= 27); }
@@ -2490,14 +2513,15 @@ class Component extends DCLogic {
     const ret = t => t.finish + t.back / S.speed * 60 * S.roadK;
     const caps = { labo: [S.laboM3, S.laboKg], changan: [S.changanM3, S.changanKg], gazel: [S.gazelM3, S.gazelKg], kamaz: [S.cM3, S.cKg] };
     const stopOf = s => { const c = D.cmap[s.bl] || {}, p = D.ptOf(s); return { id: s.id, bl: s.bl, cbm: +s.cbm || 0, kg: +s.kg || 0, places: +s.places || 0, lat: p.lat, lon: p.lon, zone: p.z.zone, client: c, loc: p.own ? p.name : '' }; };
-    const ships = data.shipments.filter(s => s.date === date), keys = Object.keys(D.trips).filter(k => k.startsWith(date + '|'));
+    const ds = String(date).split('+'), pair = ds.length > 1;   // «A+B» — две партии вместе: рейсы обеих
+    const ships = data.shipments.filter(s => ds.includes(s.date)), keys = Object.keys(D.trips).filter(k => ds.includes(k.slice(0, 10)));
     let src, trips, left;
     if (keys.length) {
       src = 'journal';
       trips = keys.map(k => {
-        const t = D.trips[k], rest = k.slice(date.length + 1), j = rest.lastIndexOf('|'), truck = rest.slice(0, j), route = +rest.slice(j + 1) || 1;
+        const t = D.trips[k], kd = k.slice(0, 10), rest = k.slice(11), j = rest.lastIndexOf('|'), truck = rest.slice(0, j), route = +rest.slice(j + 1) || 1;
         const stops = t.items.map(stopOf), cap = (data.lists.fleet || {})[truck] ? this.vehCap(data, truck, t.kind) : caps[t.kind] || [0, 0];
-        return { name: truck + (route > 1 ? ' · рейс ' + route : ''), truck, route, kind: t.kind, car: truck, stops, price: t.price, cost: t.cost,
+        return { name: truck + (route > 1 ? ' · рейс ' + route : '') + (pair ? ' · ' + dShort(kd) : ''), truck, route, kind: t.kind, car: truck, stops, price: t.price, cost: t.cost,
           cbm: stops.reduce((a, x) => a + x.cbm, 0), kg: stops.reduce((a, x) => a + x.kg, 0), places: stops.reduce((a, x) => a + x.places, 0), capM3: +cap[0] || 0, capKg: +cap[1] || 0 };
       });
       const byCar = {};
@@ -2979,10 +3003,10 @@ class Component extends DCLogic {
       } });
     const online = drivers.filter(d => d.today && !d.today.ended), ended = drivers.filter(d => d.today && d.today.ended);
     Object.assign(out, {
-      dvDate: date, onDvDate: e => set({ dvDate: e.target.value }),
-      // пары партий: выбранная во вкладке «Водители» или из «Планов», и задания водителям на две партии
-      dvDateOpts: [...new Set([date].concat(drivers.map(d => (d.assign || {}).date), drivers.map(d => (d.today || {}).date)).filter(x => x && String(x).includes('+') && String(x).split('+').every(y => D.dates.includes(y))))]
-        .map(v => ({ v, l: dLongs(v) })).concat(D.dates.slice().reverse().map(v => ({ v, l: dLong(v) + (v === today ? ' · сегодня' : '') }))),
+      // партия и «+ вторая партия»: одно задание водителям на две партии (как из «Планов»)
+      ...(() => { const ps = this.pairSel(date, D.dates, v => set({ dvDate: v }));
+        return { dvDate: ps.main, onDvDate: e => ps.onMain(e.target.value), dvDate2: ps.second, dvDate2Opts: ps.secOpts, onDvDate2: e => ps.onSecond(e.target.value),
+          dvDateOpts: D.dates.slice().reverse().map(v => ({ v, l: dLong(v) + (v === today ? ' · сегодня' : '') })) }; })(),
       dvSendAll: () => this.dvDispatch(date, [], null),
       dvWriteOnline: () => online.length ? this.dvWrite('online', 'всем на линии (' + online.map(d => d.name).join(', ') + ')') : set({ dvMsg: { text: 'Сейчас на линии никого нет.', color: 'var(--color-red)' } }),
       dvSummary: () => this.dvRun('Отправляю итог дня…', { action: 'summary' }, j => 'Итог дня отправлен в группу:\n\n' + (j.text || '')),
@@ -3201,9 +3225,12 @@ class Component extends DCLogic {
     if (!ds.length) return Object.assign(out, { repTitle: 'Отчёты', repSub: 'Нет данных', repPrintTitle: '' });
 
     if (kind === 'batch') {
-      const date = ds.includes(st.repDate) ? st.repDate : last, r = this.reportBatch(date), c = r.sum.cost;
-      Object.assign(out, { repDate: date, onRepDate: e => this.setState({ repDate: e.target.value }), repTitle: 'Отчёт по партии', repSub: 'Партия ' + dLong(date) + ' · ' + (r.src === 'journal' ? 'по журналу' : 'по плану A') });
-      out.repPrintTitle = 'Отчёт по партии ' + dLong(date);
+      // партия или две («+ вторая партия»: день, когда возили обе вместе)
+      const date = String(st.repDate || '').split('+').every(x => ds.includes(x)) && st.repDate ? st.repDate : last, r = this.reportBatch(date), c = r.sum.cost, pair = date.includes('+');
+      const rp = this.pairSel(date, ds, v => this.setState({ repDate: v }));
+      Object.assign(out, { repDate: rp.main, onRepDate: e => rp.onMain(e.target.value), repDate2: rp.second, repDate2Opts: rp.secOpts, onRepDate2: e => rp.onSecond(e.target.value),
+        repTitle: pair ? 'Отчёт по двум партиям' : 'Отчёт по партии', repSub: (pair ? 'Партии ' + dLongs(date) : 'Партия ' + dLong(date)) + ' · ' + (r.src === 'journal' ? 'по журналу' : 'по плану A') });
+      out.repPrintTitle = pair ? 'Отчёт по партиям ' + dLongs(date) : 'Отчёт по партии ' + dLong(date); out.repDateFull = date;
       out.repNote = r.src === 'plan' ? 'В журнале у этой партии машин ещё нет, поэтому рейсы и стоимость — по плану A. Чтобы записать их в журнал: «Планы» → «Принять план A».'
         : r.left.length ? r.left.length + ' отгр. без рейса — не входят в стоимость (список внизу).' : '';
       if (r.ships.length && !r.sum.cbm && !r.sum.kg) out.repNote += (out.repNote ? ' ' : '') + 'У отгрузок партии нет объёма и веса (CBM и KG пустые) — рейсы посчитаны как пустые. Проверьте журнал.';
@@ -3351,12 +3378,12 @@ class Component extends DCLogic {
     const kp = [[o.repPrintTitle || o.repTitle], ['Сформирован ' + o.repMade]].concat(o.repNote ? [[o.repNote]] : []).concat([[], ['Показатель', 'Значение', 'Пояснение']]).concat(o.repKpis.map(k => [k.label, k.value, k.sub]));
     let name;
     if (x.kind === 'batch') {
-      const r = this.reportBatch(o.repDate), rows = [['Рейс', 'Машина', '№', 'BL', 'Бренд', 'Клиент', 'Адрес', 'Район', 'Получатель', 'Телефон', 'CBM', 'KG', 'Мест', 'Прибытие', 'Зона', 'С клиента', 'С клиента, сум', 'Доля, сум', 'Цена рейса', 'Км рейса']];
+      const r = this.reportBatch(o.repDateFull || o.repDate), rows = [['Рейс', 'Машина', '№', 'BL', 'Бренд', 'Клиент', 'Адрес', 'Район', 'Получатель', 'Телефон', 'CBM', 'KG', 'Мест', 'Прибытие', 'Зона', 'С клиента', 'С клиента, сум', 'Доля, сум', 'Цена рейса', 'Км рейса']];
       r.trips.forEach(t => t.stops.forEach((s, j) => { const c = s.client || {}, why = t.cost && t.cost.why[j];
         rows.push([t.name, t.price ? t.price.label : VEH[t.kind], j + 1, s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : ''), c.brand || '', c.name || '', c.address || '', c.district || '', c.receiver || '', c.receiverTel || c.tel1 || '', num(s.cbm), num(s.kg), s.places || '',
           t.arrivals && t.arrivals[j] != null ? hhmm(t.arrivals[j]) : '', s.zone === 'out' ? 'Снаружи' : s.zone === 'in' ? 'Внутри' : '', why === 'small' ? '< порога' : why === 'out' ? 'за кольцом' : '', why && t.cost ? Math.round(t.cost.charge[j] || 0) : '',
           t.price && t.price.total != null ? Math.round(t.price.perStop[j] || 0) : '', j === 0 && t.price && t.price.total != null ? t.price.total : '', j === 0 ? Math.round((t.real || 0) * 10) / 10 : '']); }));
-      sheets.push({ name: 'Рейсы ' + dShort(r.date), rows });
+      sheets.push({ name: 'Рейсы ' + dShorts(r.date), rows });
       if (r.left.length) sheets.push({ name: 'Без рейса', rows: [['BL', 'Клиент', 'CBM', 'KG', 'Почему']].concat(r.left.map(s => [s.bl, ((s.client.brand || '') + ' ' + (s.client.name || '')).trim(), num(s.cbm), num(s.kg), s.why])) });
       sheets.push({ name: 'Итоги', rows: kp.concat(o.repCost.map(c => [c.l, c.v])) });
       name = 'partiya_' + r.date;
@@ -4350,7 +4377,9 @@ class Component extends DCLogic {
       Object.assign(out, { goImport: () => this.setState({ tab: 'import', impId: null }), jHasDrafts: drafts.length > 0,
         jDraftsNote: 'Черновиков импорта ждут проверки: ' + drafts.length + ' (' + drafts.slice(0, 3).map(d => (d.file && d.file.name) || d.id).join(', ') + (drafts.length > 3 ? '…' : '') + '). Партии появятся в журнале после подтверждения.' });
       const q = st.jSearch.trim().toLowerCase();
-      const rows = data.shipments.filter(s => (st.jDate === 'all' || s.date === st.jDate) && (st.jStatus === 'all' || s.status === st.jStatus) && (!q || [s.bl, s.note, ...(Object.values(D.cmap[s.bl] || {}))].join(' ').toLowerCase().includes(q)))
+      // партия, две партии («+ вторая партия» — одним списком, у строки дата) или все
+      const jd2 = st.jDate !== 'all' && st.jDate2 && st.jDate2 !== st.jDate && D.dates.includes(st.jDate2) ? st.jDate2 : '', jDs = [st.jDate, jd2].filter(Boolean);
+      const rows = data.shipments.filter(s => (st.jDate === 'all' || jDs.includes(s.date)) && (st.jStatus === 'all' || s.status === st.jStatus) && (!q || [s.bl, s.note, ...(Object.values(D.cmap[s.bl] || {}))].join(' ').toLowerCase().includes(q)))
         .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0) || ruCmp(a.bl, b.bl));   // даты ГГГГ-ММ-ДД — простым сравнением
       const tripSet = new Set();
       rows.forEach(s => D.tripOf[s.id] && tripSet.add(D.tripOf[s.id]));
@@ -4363,16 +4392,40 @@ class Component extends DCLogic {
         { label: 'Рейсов / стоимость', value: tripSet.size + ' · ' + (priceSum ? f0(priceSum) : '—'), sub: priceSum ? 'компания ' + f0(jc.ours) + (jc.notPaid ? ' · с клиентов ' + f0(jc.notPaid) : '') : '' },
         { label: 'Без машины', value: f0(rows.filter(s => !E.vehicleKind(s.truck) && s.truck !== PICK && !E.NO_PRICE.includes(s.status)).length) }
       ].map(k => ({ sub: '', ...k }));
-      const shown = rows.slice(0, st.jLimit);
-      out.jHasMore = rows.length > shown.length;
-      out.jMoreLabel = 'Показать ещё (' + (rows.length - shown.length) + ')';
+      // группы: по машинам (рейс — заголовок с итогом, внутри — порядок объезда), по районам или без групп
+      const grp = ['truck', 'district', 'none'].includes(st.jGroup) ? st.jGroup : 'truck', manyD = st.jDate === 'all' || jDs.length > 1;
+      const RANK = { labo: 0, changan: 1, gazel: 2, kamaz: 3 };
+      const gOf = s => {
+        if (grp === 'district') { const d = distName((D.cmap[s.bl] || {}).district) || 'Не определён'; return { k: 'd|' + d, o: [d === 'Не определён' ? 1 : 0, d], title: d }; }
+        if (s.status === 'Bekor qilindi') return { k: 'x', o: [9], title: 'Отменено' };
+        if (s.truck === PICK || s.status === 'Mijoz ozi oldi') return { k: 'p', o: [8], title: '🙋 Самовывоз', cls: 'j-grp-pick' };
+        const tk = D.tripOf[s.id];
+        if (tk) { const [d, truck, route] = tk.split('|'), kind = E.vehicleKind(truck);
+          return { k: 't|' + tk, o: [0, d, RANK[kind] ?? 5, truck, +route || 0], title: truck + ' · рейс ' + route + (manyD ? ' · ' + dShort(d) : ''), trip: tk }; }
+        if (E.vehicleKind(s.truck)) return { k: 'n|' + s.truck, o: [1, s.truck], title: s.truck + ' · без номера рейса' };
+        return { k: 'z', o: [7], title: 'Без машины', cls: 'j-grp-none' };
+      };
+      const cmpO = (a, b) => { for (let i = 0; i < Math.max(a.length, b.length); i++) { const x = a[i], y = b[i]; if (x === y) continue; if (x == null) return -1; if (y == null) return 1;
+        const c = typeof x === 'number' && typeof y === 'number' ? x - y : ruCmp(String(x), String(y)); if (c) return c; } return 0; };
+      const groups = new Map();
+      if (grp !== 'none') rows.forEach(s => { const g = gOf(s); if (!groups.has(g.k)) groups.set(g.k, { ...g, rows: [] }); groups.get(g.k).rows.push(s); });
+      const gList = [...groups.values()].sort((a, b) => cmpO(a.o, b.o));
+      gList.forEach(g => { if (g.trip) { const ord = new Map(D.trips[g.trip].items.map((x, i) => [x.id, i])); g.rows.sort((a, b) => (ord.get(a.id) ?? 99) - (ord.get(b.id) ?? 99)); } });
+      const ordered = grp === 'none' ? rows : gList.flatMap(g => g.rows);
+      const shown = ordered.slice(0, st.jLimit), shownSet = new Set(shown.map(s => s.id));
+      out.jHasMore = ordered.length > shown.length;
+      out.jMoreLabel = 'Показать ещё (' + (ordered.length - shown.length) + ')';
       out.jShowMore = () => this.setState(s => ({ jLimit: s.jLimit + 60 }));
       const canLoc = this.canLoc;
-      out.jRows = shown.map(s => {
+      const tochN = n => n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? 'точка' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'точки' : 'точек');
+      const headOf = g => { const n = new Set(g.rows.map(s => s.date + s.bl)).size, cb = g.rows.reduce((a, s) => a + (+s.cbm || 0), 0), kg = g.rows.reduce((a, s) => a + (+s.kg || 0), 0);
+        const t = g.trip && D.trips[g.trip], pr = t && t.price.total != null ? ' · ' + money(t.price.total) : t ? ' · ' + t.price.label + ': нет тарифа' : '';
+        return { isHead: true, isRow: false, title: g.title, cls: g.cls || '', sum: tochN(n) + ' · ' + f1(cb, 1) + ' м³ · ' + f0(kg) + ' кг' + pr, pay: t ? this.costNote(t.cost) : '' }; };
+      const rowOf = s => {
         const c = D.cmap[s.bl] || {}, t = D.trips[D.tripOf[s.id]], sh = D.share[s.id], p = D.ptOf(s), z = p.z || {}, editing = st.editRow === s.id;
         const pick = s.truck === PICK || s.status === 'Mijoz ozi oldi', noPt = !pick && p.lat == null && s.status !== 'Bekor qilindi';
         return { date: dShort(s.date), bl: s.bl, brand: c.brand || '—', name: c.name || (D.cmap[s.bl] ? '' : 'нет в справочнике'), district: distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1),
-          cbm: s.cbm ? f1(s.cbm, 3) : '—', kg: s.kg ? f1(s.kg, 1) : '—', places: s.places || '—', truck: s.truck, route: s.route ?? '', status: s.status, zIn: z.zone === 'in', zOut: z.zone === 'out', zNone: !z.zone, border: !!z.border, editing: st.editRow === s.id, notEditing: st.editRow !== s.id, truckLabel: TR[s.truck] || s.truck, routeLabel: s.route ?? '—', statusLabel: ST[s.status] || s.status, onStartEdit: () => this.setState({ editRow: s.id }), onDone: () => this.setState({ editRow: null }),
+          cbm: (s.cbm ? f1(s.cbm, 3) : '—') + ' м³', kgPl: (s.kg ? f0(s.kg) : '—') + ' кг · ' + (s.places || '—') + ' мест', truck: s.truck, route: s.route ?? '', status: s.status, zIn: z.zone === 'in', zOut: z.zone === 'out', zNone: !z.zone, border: !!z.border, editing: st.editRow === s.id, notEditing: st.editRow !== s.id, truckLabel: TR[s.truck] || s.truck, routeLabel: s.route ?? '—', statusLabel: ST[s.status] || s.status, onStartEdit: () => this.setState({ editRow: s.id }), onDone: () => this.setState({ editRow: null }),
           share: sh != null ? f0(sh) : '—', free: !!D.free[s.id], freeTag: this.chargeTag(D.free[s.id], D.charge[s.id], S), tripInfo: t ? (t.price.total != null ? 'рейс ' + f0(t.price.total) : t.price.label + ': нет тарифа') : '',
           hasPoint: p.lat != null && !pick, pointHref: p.lat != null ? E.yPoint(p.lat, p.lon) : '',
           // самовывоз — синяя строка; без координат (кроме отменённых) — красная и «📍 Указать точку» (анкета клиента)
@@ -4386,14 +4439,21 @@ class Component extends DCLogic {
             if (v === '__pick') return this.commit(this.setShipPick(s.date, s.bl, true));
             this.commit(this.setShipPick(s.date, s.bl, false, this.setShipLoc(s.date, s.bl, this.locFromSel(s.bl, v, s.loc)))); },
           onTruck: e => this.updShip(s.id, { truck: e.target.value }), onRoute: e => this.updShip(s.id, { route: e.target.value === '' ? null : +e.target.value }), onStatus: e => this.updShip(s.id, { status: e.target.value }), onEdit: () => this.openShipment(s) };
-      });
+      };
+      out.jRows = grp === 'none' ? shown.map(s => ({ ...rowOf(s), isRow: true, isHead: false }))
+        : gList.flatMap(g => { const rs = g.rows.filter(s => shownSet.has(s.id)); return rs.length ? [headOf(g)].concat(rs.map(s => ({ ...rowOf(s), isRow: true, isHead: false }))) : []; });
+      out.jTblCls = manyD ? '' : 'one-date';
+      out.jGroup = grp; out.onJGroup = e => { const v = e.target.value; try { localStorage.setItem('logi-j-group', v); } catch (x) {} this.setState({ jGroup: v }); };
+      // «+ вторая партия» — у выбранной партии (не «Все партии»)
+      out.jPairShow = st.jDate !== 'all' && dateOpts.length > 1; out.jDate2 = jd2; out.jDate2Opts = dateOpts.filter(o => o.v !== st.jDate);
+      out.onJDate2 = e => this.setState({ jDate2: e.target.value, jLimit: 60 });
       out.jEmpty = !rows.length;
       out.jDateOpts = [{ v: 'all', l: 'Все партии' }].concat(dateOpts);
       out.jDateKey = 'jd-' + st.jDate;
-      Object.assign(out, { jDate: st.jDate, jStatus: st.jStatus, jSearch: st.jSearch, onJDate: e => { const v = e.target.value; this.setState({ jDate: v, jLimit: 60 }); this.maybeAskLoc(v); },   // выбрали партию — «Какая локация на эту партию?», пока не ответили
+      Object.assign(out, { jDate: st.jDate, jStatus: st.jStatus, jSearch: st.jSearch, onJDate: e => { const v = e.target.value; this.setState(s0 => ({ jDate: v, jDate2: s0.jDate2 === v || v === 'all' ? '' : s0.jDate2, jLimit: 60 })); this.maybeAskLoc(v); },   // выбрали партию — «Какая локация на эту партию?», пока не ответили
         jLocShow: this.canLoc && !!st.jDate && st.jDate !== 'all', jLocNeed: this.needLoc(st.jDate), openJLoc: () => this.openLocAsk(st.jDate),
         // «📤 В группу»: выбранная партия — в группу отчётов (бот подключён)
-        jGroupShow: !this.readOnly && !!this.gsUrl && !!(this.gsTg && this.gsTg.hooked) && !!st.jDate && st.jDate !== 'all', jToGroup: () => this.batchToGroup(st.jDate, 'jMsg'), dvBusy: !!st.dvBusy,
+        jGroupShow: !this.readOnly && !!this.gsUrl && !!(this.gsTg && this.gsTg.hooked) && !!st.jDate && st.jDate !== 'all', jToGroup: () => this.batchToGroup(jd2 ? [st.jDate, jd2].sort().join('+') : st.jDate, 'jMsg'), dvBusy: !!st.dvBusy,
         jHasMsg: !!st.jMsg, jMsg: st.jMsg ? st.jMsg.text : '', jMsgColor: st.jMsg ? st.jMsg.color : 'var(--color-divider)', jMsgClose: () => this.setState({ jMsg: null }), onJStatus: e => this.setState({ jStatus: e.target.value, jLimit: 60 }), onJSearch: e => this.setState({ jSearch: e.target.value, jLimit: 60 }), newShipment: () => this.openShipment(null) });
     }
 
@@ -4479,8 +4539,10 @@ class Component extends DCLogic {
     }
 
     if (st.tab === 'map') {
-      out.mapDate = st.mapDate; out.onMapDate = e => this.setState({ mapDate: e.target.value });
-      out.mapDateOpts = (String(st.mapDate).includes('+') ? [{ v: st.mapDate, l: dLongs(st.mapDate) }] : []).concat(dateOpts);   // план на две партии — «Показать на карте»
+      // партия и «+ вторая партия» (план на две партии — и из «Планов» → «Показать на карте»)
+      const ms = this.pairSel(st.mapDate, D.dates, v => this.setState({ mapDate: v }));
+      Object.assign(out, { mapDate: ms.main, onMapDate: e => ms.onMain(e.target.value), mapDateOpts: dateOpts,
+        mapPairShow: st.mapDate !== 'all', mapDate2: ms.second, mapDate2Opts: ms.secOpts, onMapDate2: e => ms.onSecond(e.target.value) });
       out.mapHasDate = st.mapDate !== 'all';
       const ringNow = st.ringEdit ? this.ringDraft : data.ring;
       out.ringEditing = !!st.ringEdit; out.ringNotEditing = !st.ringEdit;

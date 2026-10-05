@@ -2387,4 +2387,16 @@ window.I18N_UZ = {"BURAQ logistics — отгрузки и клиенты":"BURA
 "+{n} сум расходов компании к самому выгодному":"eng foydalidan kompaniya xarajati +{n} so‘m",
 "+{n} сум к самому выгодному":"eng foydalidan +{n} so‘m",
 "компания":"kompaniya",
-"· с клиентов":"· mijozlardan"};
+"· с клиентов":"· mijozlardan",
+"Без групп":"Guruhlarsiz",
+"Груз":"Yuk",
+"Зона · оплата":"Hudud · to‘lov",
+"🙋 Самовывоз":"🙋 O‘zi olib ketadi",
+"Как собрать строки журнала":"Jurnal qatorlarini qanday guruhlash",
+"Группировка":"Guruhlash",
+"Две партии одним списком, у строки — дата":"Ikki partiya bitta ro‘yxatda, qatorda — sana",
+"Две партии вместе, как в «Планах»":"Ikki partiya birga, «Rejalar»dagidek",
+"Одно задание водителям на две партии":"Haydovchilarga ikki partiya uchun bitta topshiriq",
+"Отчёт по двум партиям":"Ikki partiya bo‘yicha hisobot",
+"Отчёт по партиям {d}":"{d} partiyalari bo‘yicha hisobot",
+"Партии {d}":"{d} partiyalari"};
