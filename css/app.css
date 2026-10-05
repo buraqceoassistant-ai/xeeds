@@ -442,3 +442,34 @@ input.set-input[type="text"] { text-align: left !important; }
 .cl-loc-del { min-height: 28px; padding: 2px 8px; }
 .cl-loc-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; }
 @media (max-width: 600px) { .cl-loc-add { grid-template-columns: minmax(0, 1fr); } .cl-loc-ll { display: none; } }
+
+/* Планы: рейсы слева, карта рейсов справа (не уезжает при прокрутке); на узком экране — карта над рейсами */
+.plan-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.plan-list { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.plan-map-wrap { order: -1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.plan-map { position: relative; height: 340px; z-index: 0; overflow: hidden; border: 1px solid var(--color-divider); border-radius: var(--radius-lg); background: var(--color-surface); }
+.plan-map-msg { position: absolute; inset: 0; z-index: 500; display: grid; place-items: center; font-size: 13px; color: var(--color-neutral-700); pointer-events: none; }
+.plan-map-note { font-size: 12px; color: var(--color-neutral-700); text-wrap: pretty; }
+@media (min-width: 1200px) {
+  .plan-body { grid-template-columns: minmax(0, 1fr) minmax(340px, 36%); }
+  .plan-map-wrap { order: 0; position: sticky; top: 112px; }
+  .plan-map { height: calc(100vh - 170px); min-height: 420px; }
+}
+/* номер рейса — цвет его линии на карте; нажатие выделяет рейс */
+.trip-no { flex: none; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  color: var(--color-bg); font: 500 14px/30px var(--font-num); text-align: center; }
+.trip-no:focus-visible { outline: 2px solid var(--buraq-red); outline-offset: 2px; }
+.trip.trip-hi { box-shadow: 0 0 0 2px var(--buraq-blue), var(--glass-shadow, none) !important; }
+/* ручная правка плана */
+.plan-edit-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border: 1px solid var(--buraq-blue); border-left-width: 3px;
+  border-radius: var(--radius-lg); background: color-mix(in srgb, var(--buraq-blue) 7%, var(--buraq-white)); }
+.plan-edit-bar > div > div:last-child { white-space: pre-line; }
+.plan-edit-hint { font-size: 12.5px; color: var(--color-neutral-700); text-wrap: pretty; }
+.plan-kind { width: auto !important; min-width: 108px; height: 34px; padding-top: 4px !important; padding-bottom: 4px !important; font-size: 13px; }
+.plan-mv { width: 112px !important; height: 32px; padding-top: 2px !important; padding-bottom: 2px !important; font-size: 12.5px; }
+.plan-mv-td { width: 124px; }
+@media (max-width: 760px) {
+  .plan-map { height: 300px; }
+  .tc td.plan-mv-td { width: auto; }
+  .tc td.plan-mv-td select.input { width: 100% !important; }
+}

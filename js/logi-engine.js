@@ -605,6 +605,8 @@
     return trips;
   }
 
+  // ключ точки плана: отгрузка и её часть (большая отгрузка делится на части)
+  const stopKey = s => s.id + '#' + (s.part || 1);
   function buildPlans(stopsAll, S) {
     const depot = [S.depotLat, S.depotLon];
     const withC = stopsAll.filter(s => s.lat != null), noC = stopsAll.filter(s => s.lat == null);
@@ -635,7 +637,7 @@
     const back = t => t.finish + t.back / S.speed * 60 * S.roadK;
     const RANK = { labo: 0, changan: 1, gazel: 2, kamaz: 3 };
     const finish = raw => {
-      const trips = raw.map(t => ({ name: t.name, car: t.car, round: t.round, stops: t.stops, cbm: t.l.cbm, kg: t.l.kg, places: t.l.places, ...tripMetrics(depot, t.stops, S), start: S.dayStart * 1440,
+      const trips = raw.map(t => ({ name: t.name, car: t.car, round: t.round, manual: !!t.manual, stops: t.stops, cbm: t.l.cbm, kg: t.l.kg, places: t.l.places, ...tripMetrics(depot, t.stops, S), start: S.dayStart * 1440,
         price: t.price, kind: t.v.kind, vehicle: t.v, over: !!t.over, outside: t.stops.filter(s => s.zone === 'out') }));
       const leave = (t, at) => Object.assign(t, tripMetrics(depot, t.stops, S, at), { start: at });   // the trip starts later: arrivals move
       // рейс на конкретной машине: её имя и вместимость (у плана B — плюс допуск Gazel)
@@ -648,7 +650,7 @@
       trips.filter(t => t.car).forEach(t => (own[t.kind + t.car] = own[t.kind + t.car] || []).push(t));
       Object.values(own).forEach(runs => runs.sort((a, b) => a.round - b.round).reduce((at, t) => {
         const c = (CARS[t.kind] || [])[t.car - 1];
-        if (c) onCar(t, c, t.round, c.name + ' · рейс ' + t.round);
+        if (c) onCar(t, c, t.round, t.manual && t.round === 1 ? c.name : c.name + ' · рейс ' + t.round);
         return (leave(t, at), back(t));
       }, S.dayStart * 1440));
       const byKind = {};
@@ -721,6 +723,45 @@
     };
     const out = { noCoords: noC };
     [['A', A], ['B', B], ['C', C], ['X', X]].forEach(([k, p]) => { out[k] = { ...p, sum: sum(p.trips) }; });
+    // Ручная правка плана (вкладка «Планы»): руководитель сам разложил точки по рейсам. groups — [{ kind, car, round, keys }],
+    // ключ точки — stopKey (id отгрузки и часть). Машина и круг — как в группе; рейс без машины или со сменой вида
+    // получает свободную машину вида (или следующий круг самой свободной). Порядок объезда, цена и время — заново.
+    // Точки плана, которых в группах нет (план изменился после правки), едут отдельными рейсами своего вида.
+    out.cars = CARS; out.per = PER;
+    out.manual = (key, groups) => {
+      const base = out[key], fleet = base.fleet || [], by = new Map(), used = new Set();
+      base.trips.forEach(t => t.stops.forEach(s => by.set(stopKey(s), { s, t })));
+      const gs = groups.map(g => {
+        const stops = [];
+        (g.keys || []).forEach(k => { const x = by.get(k); if (x && !used.has(k)) { used.add(k); stops.push(x.s); } });
+        return { kind: g.kind, car: g.car || null, round: g.round || null, stops };
+      });
+      let extra = 0;
+      base.trips.forEach(t => { const rest = t.stops.filter(s => !used.has(stopKey(s))); if (rest.length) { extra += rest.length; gs.push({ kind: t.kind, car: null, round: null, stops: rest }); } });
+      // вида нет в этом плане (правка от другого плана) — вид рейса, где точка была в плане
+      const live = gs.filter(g => g.stops.length);
+      live.forEach(g => { if (!fleet.some(v => v.kind === g.kind)) { g.kind = by.get(stopKey(g.stops[0])).t.kind; g.car = null; } });
+      // машина: та же (если вид её), иначе свободная машина вида, иначе следующий круг той, у которой меньше рейсов
+      const taken = {};
+      live.forEach(g => { if (g.car && (!CARS[g.kind] || CARS[g.kind][g.car - 1])) { const k = g.kind + g.car; taken[k] = Math.max(taken[k] || 0, g.round || 1); } else g.car = null; });
+      live.filter(g => !g.car).forEach(g => {
+        const cars = CARS[g.kind], n = cars ? cars.length : live.length;
+        let best = null;
+        for (let no = 1; no <= Math.max(1, n); no++) { const r = taken[g.kind + no] || 0; if (!best || r < best.r) best = { no, r }; }
+        g.car = best.no; g.round = best.r + 1; taken[g.kind + best.no] = g.round;
+      });
+      const raw = live.map(g => {
+        const v = fleet.find(x => x.kind === g.kind), ordered = nnOrder(depot, g.stops);
+        return { stops: ordered, l: load(ordered), v, price: priceTrip(ordered, g.kind, S), car: g.car, round: g.round, manual: true,
+          name: LABEL[g.kind] + '-' + g.car + (g.round > 1 ? ' · рейс ' + g.round : '') };
+      });
+      const trips = finish(raw);
+      trips.forEach(t => {
+        t.overload = t.cbm > t.vehicle.m3 + EPS || t.kg > t.vehicle.kg + EPS || (!!t.vehicle.places && t.places > t.vehicle.places + EPS);
+        t.extraRound = t.round > PER;
+      });
+      return { ...base, trips, sum: sum(trips), manual: true, extra };
+    };
     return out;
   }
 
@@ -799,5 +840,5 @@
     return best ? { district: best[0], km: pts[0][1] } : null;
   }
 
-  window.LogiEngine = { guessDistrict, km, bearing, inside, distToRing, zoneOf, nnOrder, tripMetrics, priceTrip, pointTariff, PLACE_KM, costSplit, coordsFromLink, vehicleKind, buildPlans, yRoute, yPoint, xlsx, NO_PRICE, NO_PLAN, withKeles, ringLength, KELES, TKAD_V2 };
+  window.LogiEngine = { guessDistrict, km, bearing, inside, distToRing, zoneOf, nnOrder, tripMetrics, priceTrip, pointTariff, PLACE_KM, costSplit, coordsFromLink, vehicleKind, buildPlans, stopKey, yRoute, yPoint, xlsx, NO_PRICE, NO_PLAN, withKeles, ringLength, KELES, TKAD_V2 };
 })();

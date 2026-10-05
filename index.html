@@ -1183,7 +1183,10 @@
             <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
               <div style="font-family:var(--font-heading);font-weight:500;font-size:24px">{{ p.title }}</div>
-              <sc-if value="{{ p.cheapest }}"><span class="tag tag-accent" title="Меньше всех платит компания (доставку за кольцом и мелкий груз оплачивают клиенты)">выгоднее всех</span></sc-if>
+              <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+                <sc-if value="{{ p.manual }}"><span class="tag tag-outline plan-manual-tag" title="План изменён вручную: точки переложены по рейсам">вручную</span></sc-if>
+                <sc-if value="{{ p.cheapest }}"><span class="tag tag-accent" title="Меньше всех платит компания (доставку за кольцом и мелкий груз оплачивают клиенты)">выгоднее всех</span></sc-if>
+              </span>
             </div>
             <div style="font-size:13px;color:var(--color-neutral-800);text-wrap:pretty;min-height:40px">{{ p.desc }}</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--color-divider);padding-top:12px;gap:8px">
@@ -1211,6 +1214,13 @@
         <span style="margin-left:auto;color:var(--color-accent-700);white-space:nowrap">{{ planCAct }}</span>
       </button>
 
+      <sc-if value="{{ peShow }}">
+        <div class="plan-edit-bar">
+          <div style="flex:1;min-width:220px"><div style="font-weight:500">{{ peTitle }}</div><div style="font-size:13px;color:var(--color-neutral-700);text-wrap:pretty">{{ peNote }}</div></div>
+          <button data-edit class="btn btn-secondary plan-undo" sc-camel-on-click="{{ peUndo }}">↶ Отменить правку</button>
+          <button data-edit class="btn btn-ghost plan-reset" sc-camel-on-click="{{ peReset }}">Сбросить правки</button>
+        </div>
+      </sc-if>
       <sc-if value="{{ planCanAccept }}">
         <div class="plan-accept" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid {{ acceptBorder }};border-radius:var(--radius-lg);padding:12px 16px;background:var(--color-bg)">
           <div style="flex:1;min-width:220px;font-size:13px;text-wrap:pretty">{{ acceptText }}</div>
@@ -1233,12 +1243,16 @@
         </div>
       </sc-if>
 
-      <div style="display:flex;flex-direction:column;gap:20px">
+      <div class="plan-body">
+       <div class="plan-list">
+        <sc-if value="{{ peHint }}"><div data-edit class="plan-edit-hint">✎ Можно поправить план вручную: «→ рейс» у точки переносит её в другой рейс или в новый, список у названия рейса меняет машину. Маршрут, цена и время пересчитываются сразу, план записывается в журнал кнопкой «Принять план».</div></sc-if>
         <sc-for list="{{ planTrips }}" as="t" hint-placeholder-count="3">
-          <section class="trip" style="border:1px solid var(--color-divider)">
+          <section class="trip {{ t.hiCls }}" data-trip="{{ t.no }}" style="border:1px solid var(--color-divider)">
             <div class="trip-head" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--color-divider);background:var(--color-surface)">
-              <div style="font-family:var(--font-heading);font-weight:500;font-size:22px;min-width:150px">{{ t.name }}</div>
+              <button class="trip-no" style="background:{{ t.col }}" sc-camel-on-click="{{ t.focus }}" title="Показать рейс на карте" aria-label="Показать рейс на карте">{{ t.no }}</button>
+              <div class="trip-name" style="font-family:var(--font-heading);font-weight:500;font-size:22px;min-width:150px">{{ t.name }}</div>
               <span class="tag tag-outline">{{ t.tariff }}</span>
+              <sc-if value="{{ t.canKind }}"><sc-raw-select data-edit class="input plan-kind" value="{{ t.kind }}" sc-camel-on-change="{{ t.onKind }}" title="Сменить машину рейса" aria-label="Машина рейса"><sc-for list="{{ t.kindOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></sc-if>
               <sc-if value="{{ t.dists }}"><span class="tag tag-accent-2">{{ t.dists }}</span></sc-if>
               <div style="display:flex;gap:18px;font-size:13px;flex-wrap:wrap">
                 <span>{{ t.stopsN }} точ.</span>
@@ -1254,7 +1268,7 @@
               </div>
             </div>
             <sc-raw-table class="table tc">
-              <sc-raw-thead><sc-raw-tr><sc-raw-th style="width:40px">№</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">CBM</sc-raw-th><sc-raw-th style="text-align:right">KG</sc-raw-th><sc-raw-th style="text-align:right">Мест</sc-raw-th><sc-raw-th style="text-align:right">км</sc-raw-th><sc-raw-th>Прибытие</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Точка, сум</sc-raw-th></sc-raw-tr></sc-raw-thead>
+              <sc-raw-thead><sc-raw-tr><sc-raw-th style="width:40px">№</sc-raw-th><sc-raw-th>BL</sc-raw-th><sc-raw-th>Клиент</sc-raw-th><sc-raw-th>Район</sc-raw-th><sc-raw-th>Получатель</sc-raw-th><sc-raw-th style="text-align:right">Груз</sc-raw-th><sc-raw-th>Прибытие</sc-raw-th><sc-raw-th>Зона</sc-raw-th><sc-raw-th style="text-align:right">Точка, сум</sc-raw-th><sc-raw-th data-edit style="width:120px"></sc-raw-th></sc-raw-tr></sc-raw-thead>
               <sc-raw-tbody>
                 <sc-for list="{{ t.stops }}" as="s">
                   <sc-raw-tr>
@@ -1263,17 +1277,15 @@
                     <sc-raw-td class="cw c-title"><div>{{ s.brand }}</div><div style="font-size:12px;color:var(--color-neutral-700)">{{ s.name }}</div></sc-raw-td>
                     <sc-raw-td data-label="Район">{{ s.district }}</sc-raw-td>
                     <sc-raw-td data-label="Получатель"><div>{{ s.receiver }}</div><a href="{{ s.telHref }}" style="font-size:12px">{{ s.tel }}</a></sc-raw-td>
-                    <sc-raw-td class="c2" data-label="CBM" style="text-align:right">{{ s.cbm }}</sc-raw-td>
-                    <sc-raw-td class="c2" data-label="KG" style="text-align:right">{{ s.kg }}</sc-raw-td>
-                    <sc-raw-td class="c2" data-label="Мест" style="text-align:right">{{ s.places }}</sc-raw-td>
-                    <sc-raw-td class="c2" data-label="км" style="text-align:right">{{ s.leg }}</sc-raw-td>
-                    <sc-raw-td class="c2" data-label="Прибытие">{{ s.eta }}</sc-raw-td>
+                    <sc-raw-td class="c3" data-label="Груз" style="text-align:right;white-space:nowrap">{{ s.cbmL }}<div class="j-sub">{{ s.kgPl }}</div></sc-raw-td>
+                    <sc-raw-td class="c3" data-label="Прибытие" style="white-space:nowrap">{{ s.eta }}<div class="j-sub">{{ s.legL }}</div></sc-raw-td>
                     <sc-raw-td class="c2 o-1 c-end">
                       <sc-if value="{{ s.zIn }}"><span class="tag tag-accent">Внутри</span></sc-if>
                       <sc-if value="{{ s.zOut }}"><span class="tag" style="background:var(--color-accent-900);color:var(--color-bg)">Снаружи</span></sc-if>
                       <sc-if value="{{ s.free }}"><span class="tag tag-outline" title="Доставку оплачивает клиент: груз меньше порога из «Тарифов» или точка за кольцом — доплата за заезд по тарифу точки, машина только к нему — вся цена рейса">{{ s.freeTag }}</span></sc-if>
                     </sc-raw-td>
                     <sc-raw-td class="c2" data-label="Точка, сум" style="text-align:right">{{ s.pt }}</sc-raw-td>
+                    <sc-raw-td data-edit class="c-actions plan-mv-td"><sc-raw-select class="input plan-mv" value="" sc-camel-on-change="{{ s.onMove }}" title="Перенести точку в другой рейс" aria-label="Перенести в рейс"><option value="">→ рейс</option><sc-for list="{{ s.moveOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></sc-raw-select></sc-raw-td>
                   </sc-raw-tr>
                 </sc-for>
               </sc-raw-tbody>
@@ -1290,6 +1302,11 @@
             </sc-raw-tbody></sc-raw-table>
           </section>
         </sc-if>
+       </div>
+       <aside class="plan-map-wrap">
+         <div class="plan-map"><div ref="{{ planMapRef }}" style="position:absolute;inset:0"></div><sc-if value="{{ planMapMsg }}"><div class="plan-map-msg">{{ planMapMsg }}</div></sc-if></div>
+         <div class="plan-map-note">{{ planMapNote }}</div>
+       </aside>
       </div>
     </main>
   </sc-if>
@@ -1786,6 +1803,9 @@ const PLAN_INFO = {
   X: { title: 'X — по районам', desc: () => 'Пробный. Каждый район целиком везёт одна машина; районы с малым грузом — вместе, сначала соседние. Район больше машины — остаток едет с машиной соседнего района. Загрузка как в плане A.' }
 };
 const VEH = { labo: 'Labo', changan: 'Changan', gazel: 'Gazel', kamaz: 'Kamaz' };
+// рейсы плана на картах («Карта», «Планы»): свой оттенок синего и штрих, номер рейса — как в списке
+const PLAN_SHADES = ['--color-accent-500', '--color-accent-800', '--color-accent-600', '--color-accent-900', '--color-accent-400', '--color-accent-700'];
+const PLAN_DASHES = [null, '8 5', null, '2 5', '10 4 2 4', null];
 // Машины автопарка для журнала (Sozlamalar C24:C39). Госномера придут позже — тогда имена поменяются.
 const FLEET_TRUCKS = ['Gazel-1', 'Gazel-2', 'Gazel-3', 'Gazel-4', 'Gazel-5', 'Gazel-6', 'Gazel-7', 'Gazel-8', 'Gazel-9', 'Changan', 'Labo', 'Kamaz-1', 'Kamaz-2', 'Mijoz ozi oladi', 'Belgilanmagan'];
 const reys = n => n % 10 === 1 && n % 100 !== 11 ? 'рейс' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'рейса' : 'рейсов';
@@ -1859,11 +1879,13 @@ class Component extends DCLogic {
   state = { ready: false, tab: 'journal', data: null, ver: 0, savedAt: null,
     jDate: 'all', jDate2: '', jGroup: (() => { try { return localStorage.getItem('logi-j-group') || 'truck'; } catch (e) { return 'truck'; } })(), jLimit: 60, cLimit: 100, editRow: null, jStatus: 'all', jSearch: '', cSearch: '', cDistrict: 'all', cZone: 'all',
     mapDate: 'all', mapPlan: 'none', mapBase: (() => { try { return localStorage.getItem('logi-map-base') || 'yandex'; } catch (e) { return 'yandex'; } })(), planDate: '', planDate2: '', planKey: 'A', planC: (() => { try { return localStorage.getItem('logi-plan-c') === '1'; } catch (e) { return false; } })(), dialog: null,
+    planEdits: (() => { try { const v = JSON.parse(localStorage.getItem('logi-plan-edits') || '{}'); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } })(), planHi: null,
     vizTrip: 'all', vizStep: 0, vizSel: null, vizView: '3d', vizErr: '',
     calc: { kind: 'gazel', nin: 3, nout: 0, kg: 1200, cbm: 8 },
     dvTab: 'day', dvDate: '', dvPeriod: '7', dvTruck: 'all', dvRes: 'all', dvMsg: null, dvBusy: false, dvSet: null, dvCarryTo: '' };
   mapRef = React.createRef();
   dvMapRef = React.createRef();
+  planMapRef = React.createRef();
   impPdfRef = React.createRef();
   impFileRef = React.createRef();
   vizRef = React.createRef();
@@ -1993,7 +2015,7 @@ class Component extends DCLogic {
     if (!this.gsUrl) setTimeout(() => { if (this.state.tab === 'journal') this.maybeAskLoc(this.state.jDate); }, 0);
   }
   componentDidUpdate() {
-    this.syncMap(); this.syncDvMap(); this.syncViz(); this.syncSmooth(); this.syncImport();
+    this.syncMap(); this.syncDvMap(); this.syncPlanMap(); this.syncViz(); this.syncSmooth(); this.syncImport();
     // страница «Связь» открыта — черновик есть; ушли с неё — черновик убираем (Esc, кнопки вкладок)
     { const st = this.state, gs = st.dialog && st.dialog.type === 'gs';
       if (st.tab === 'link' && !st.dialog) this.setState({ dialog: this.gsDraft() });
@@ -2501,6 +2523,55 @@ class Component extends DCLogic {
     return res;
   }
 
+  // ---------- ручная правка плана ----------
+  // Правки — на устройстве (localStorage «logi-plan-edits»), по партии (или паре «A+B») и плану: { groups, hist, at }.
+  // groups — рейсы как группы точек [{ kind, car, round, keys }] (LogiEngine: buildPlans → manual), hist — прошлые groups
+  // для «Отменить правку» (null — план сайта). В журнал план попадает только кнопкой «Принять план».
+  planOf(P, pd, key) {
+    const ed = (this.state.planEdits || {})[pd + '|' + key], base = P && P[key];
+    if (!ed || !base || !P.manual || !base.trips.length || !Array.isArray(ed.groups)) return base;
+    const c = this._pe || (this._pe = new Map()), hit = c.get(pd + '|' + key);
+    if (hit && hit.P === P && hit.ed === ed) return hit.res;
+    const res = P.manual(key, ed.groups);
+    c.set(pd + '|' + key, { P, ed, res });
+    return res;
+  }
+  planGroups(plan) {
+    const E = window.LogiEngine;
+    return plan.trips.map(t => ({ kind: t.kind, car: t.noVehicle ? null : t.car || null, round: t.noVehicle ? null : t.round || null, keys: t.stops.map(E.stopKey) }));
+  }
+  planEditSet(pd, key, groups) {   // groups — новые рейсы; 'undo' — шаг назад; null — сбросить правки
+    const k = pd + '|' + key, all = { ...(this.state.planEdits || {}) }, cur = all[k];
+    if (groups === 'undo') { if (!cur) return; const hist = (cur.hist || []).slice(), prev = hist.pop(); if (prev) all[k] = { groups: prev, hist, at: Date.now() }; else delete all[k]; }
+    else if (groups === null) delete all[k];
+    else all[k] = { groups, hist: (cur ? (cur.hist || []).concat([cur.groups]) : [null]).slice(-30), at: Date.now() };
+    const keep = Object.fromEntries(Object.entries(all).sort((a, b) => b[1].at - a[1].at).slice(0, 20));   // на устройстве — 20 последних
+    try { localStorage.setItem('logi-plan-edits', JSON.stringify(keep)); } catch (e) {}
+    this.setState({ planEdits: keep });
+  }
+  // перенос клиента (его строки в этом рейсе) в другой рейс: to — номер рейса в плане (с 0) или «new:gazel» — новый рейс
+  planMove(pd, key, plan, sk, to) {
+    const E = window.LogiEngine, g = this.planGroups(plan), fi = g.findIndex(x => x.keys.includes(sk));
+    if (fi < 0) return;
+    const t = plan.trips[fi], st = t.stops.find(x => E.stopKey(x) === sk), keys = t.stops.filter(x => x.bl === st.bl && x.date === st.date).map(E.stopKey);
+    let dst;
+    if (String(to).startsWith('new:')) g.push(dst = { kind: String(to).slice(4), car: null, round: null, keys: [] });
+    else dst = g[+to];
+    if (!dst || dst === g[fi]) return;
+    g[fi].keys = g[fi].keys.filter(k => !keys.includes(k)); dst.keys.push(...keys);
+    this.planEditSet(pd, key, g.filter(x => x.keys.length));
+  }
+  planKindSet(pd, key, plan, ti, kind) {
+    const g = this.planGroups(plan);
+    if (!g[ti] || g[ti].kind === kind) return;
+    g[ti] = { ...g[ti], kind, car: null, round: null };
+    this.planEditSet(pd, key, g);
+  }
+  planFocus(i, scroll) {
+    this.setState({ planHi: i });
+    if (scroll) setTimeout(() => { const el = document.querySelector('.plan-list section.trip[data-trip="' + (i + 1) + '"]'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 60);
+  }
+
   // ---------- Отчёты ----------
   // Рейсы партии для отчётов. Источник — журнал (машина и номер рейса у отгрузок); если в журнале у партии
   // нет ни одного рейса — план A. Время по журналу: первый рейс машины выезжает в начале дня,
@@ -2508,7 +2579,7 @@ class Component extends DCLogic {
   reportBatch(date) {
     const D = this.derived(), E = window.LogiEngine, data = this.state.data, S = data.settings, depot = [S.depotLat, S.depotLon];
     const key = D.ver + '|' + JSON.stringify(S);
-    if (!this._rep || this._rep.key !== key) this._rep = { key, byDate: new Map() };
+    if (!this._rep || this._rep.key !== key || this._rep.pe !== this.state.planEdits) this._rep = { key, pe: this.state.planEdits, byDate: new Map() };
     if (this._rep.byDate.has(date)) return this._rep.byDate.get(date);
     const ret = t => t.finish + t.back / S.speed * 60 * S.roadK;
     const caps = { labo: [S.laboM3, S.laboKg], changan: [S.changanM3, S.changanKg], gazel: [S.gazelM3, S.gazelKg], kamaz: [S.cM3, S.cKg] };
@@ -2538,7 +2609,7 @@ class Component extends DCLogic {
     } else {
       src = 'plan';
       const P = this.plansFor(date), inPlan = new Set();
-      trips = P.A.trips.map(t => { const v = t.vehicle || {}; t.stops.forEach(x => inPlan.add(x.id));
+      trips = this.planOf(P, date, 'A').trips.map(t => { const v = t.vehicle || {}; t.stops.forEach(x => inPlan.add(x.id));
         return { name: t.name, truck: null, route: t.round || 1, kind: t.kind, car: t.car ? t.kind + '-' + t.car : null, stops: t.stops, price: t.price, cost: E.costSplit(t.stops, t.price, S),
           cbm: t.cbm, kg: t.kg, places: t.places, capM3: v.nomM3 ?? v.m3, capKg: v.nomKg ?? v.kg, start: t.start ?? S.dayStart * 1440, arrivals: t.arrivals, real: t.real, ret: ret(t), noVehicle: !!t.noVehicle, over: !!t.over }; });
       left = ships.filter(s => !inPlan.has(s.id)).map(s => ({ ...stopOf(s), why: E.NO_PLAN.includes(s.status) ? ST[s.status] || s.status : s.truck === PICK ? 'Клиент заберёт' : D.ptOf(s).lat == null ? 'нет координат' : 'не в плане' }));
@@ -3158,6 +3229,54 @@ class Component extends DCLogic {
     });
     return out;
   }
+  // карта рейсов во вкладке «Планы»: рейс — свой оттенок и номер («2.3» — рейс 2, точка 3), выбранный рейс ярче, остальные
+  // бледнее; нажатие на линию выделяет рейс в списке, на точку — карточка точки и «Перенести в рейс» (ручная правка)
+  syncPlanMap() {
+    const M = this._planMap, on = this.state.tab === 'plans' && this.state.ready && !!M && !!this.state.planDate;
+    if (!on) { if (this.plMap) { this.plMap.remove(); this.plMap = null; this.plMapEl = null; } return; }
+    const el = this.planMapRef.current, L = window.L;
+    if (!el || !L) return;
+    const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim(), S = this.state.data.settings;
+    if (!this.plMap || this.plMapEl !== el) {
+      if (this.plMap) this.plMap.remove();
+      this.plMap = L.map(el, { crs: L.CRS.EPSG3395, zoomControl: true }).setView([S.depotLat, S.depotLon], 11);
+      L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=1&lang=ru_RU', { maxZoom: 19, attribution: '© Яндекс' }).addTo(this.plMap);
+      this.plMapEl = el; this.plLayer = L.layerGroup().addTo(this.plMap); this.plMapPlan = null; this.plFit = null;
+      setTimeout(() => this.plMap && this.plMap.invalidateSize(), 50);
+    }
+    if (this.plMapPlan === M.plan && this.plMapHi === M.hi) return;
+    const fitKey = M.pd + '|' + M.key + '|' + M.hi, fit = this.plFit !== fitKey;
+    this.plMapPlan = M.plan; this.plMapHi = M.hi; this.plFit = fitKey;
+    const lay = this.plLayer, depot = [S.depotLat, S.depotLon], all = [depot], sel = [depot];
+    lay.clearLayers();
+    L.marker(depot, { icon: L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border:2px solid ' + v('--color-text') + ';background:' + v('--color-bg') + ';transform:rotate(45deg)"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) }).bindTooltip('Склад: ' + escHtml(S.depotName)).addTo(lay);
+    M.plan.trips.forEach((t, i) => {
+      const col = v(PLAN_SHADES[i % PLAN_SHADES.length]), lit = M.hi == null || M.hi === i;
+      L.polyline([depot].concat(t.stops.map(s => [s.lat, s.lon])), { color: col, weight: M.hi === i ? 5 : 3, opacity: lit ? 0.9 : 0.22, dashArray: PLAN_DASHES[i % PLAN_DASHES.length] })
+        .bindTooltip(escHtml((i + 1) + ' · ' + t.name)).on('click', () => this.planFocus(i, true)).addTo(lay);
+      t.stops.forEach((s, j) => {
+        all.push([s.lat, s.lon]); if (M.hi === i) sel.push([s.lat, s.lon]);
+        L.marker([s.lat, s.lon], { opacity: lit ? 1 : 0.35, zIndexOffset: M.hi === i ? 600 : 0, title: s.bl, icon: L.divIcon({ className: '', html: '<div style="font:500 11px Inter,sans-serif;color:' + v('--color-bg') + ';background:' + col + ';min-width:22px;height:18px;line-height:18px;text-align:center;padding:0 3px;border-radius:3px">' + (i + 1) + '.' + (j + 1) + '</div>', iconSize: [28, 18], iconAnchor: [14, 22] }) })
+          .bindPopup(() => this.planPopup(M, t, i, s)).addTo(lay);
+      });
+    });
+    if (fit) { const pts = M.hi != null ? sel : all; if (pts.length > 1) this.plMap.fitBounds(pts, { padding: [30, 30], maxZoom: 14 }); }
+  }
+  // карточка точки на карте плана: клиент, рейс, груз; «Перенести в рейс» — ручная правка
+  planPopup(M, t, i, s) {
+    const c = s.client || {}, div = document.createElement('div');
+    div.style.cssText = 'font-family:Inter,sans-serif;font-size:13px;line-height:1.4;min-width:200px';
+    div.innerHTML = '<b>' + escHtml(s.bl) + '</b> ' + escHtml(c.brand || '') + '<br>' + escHtml(c.name || '') + (s.loc ? '<br>📍 ' + escHtml(s.loc) : '') +
+      '<br>' + escHtml((i + 1) + ' · ' + t.name) + '<br>' + f1(s.cbm, 2) + ' м³ · ' + f0(s.kg) + ' кг' + '<br><a target="_blank" href="' + window.LogiEngine.yPoint(s.lat, s.lon) + '">Открыть в Яндекс Картах</a>';
+    if (M.canEdit) {
+      const sel = document.createElement('select');
+      sel.className = 'input plan-mv-pop'; sel.style.cssText = 'margin-top:8px;width:100%'; sel.setAttribute('aria-label', 'Перенести в рейс');
+      [{ v: '', l: '→ Перенести в рейс' }].concat(M.moveOpts.filter(o => o.v !== String(i))).forEach(o => { const op = document.createElement('option'); op.value = o.v; op.textContent = o.l; sel.appendChild(op); });
+      sel.onchange = () => { const to = sel.value; if (!to) return; if (this.plMap) this.plMap.closePopup(); this.planMove(M.pd, M.key, M.plan, window.LogiEngine.stopKey(s), to); };
+      div.appendChild(sel);
+    }
+    return div;
+  }
   // карта партии на вкладке «Водители»: точки по итогу, последние места водителей
   syncDvMap() {
     const on = this.state.tab === 'drivers' && this.state.ready && (this.state.dvTab || 'day') === 'day';
@@ -3628,9 +3747,9 @@ class Component extends DCLogic {
   vizModel() {
     const st = this.state;
     if (!st.ready || !st.planDate || !window.LogiViz) return null;
-    const P = this.plansFor(this.planPair), key = ['A', 'B', 'C', 'X'].includes(st.planKey) ? st.planKey : 'A';
-    if (this._vizM && this._vizM.P === P && this._vizM.key === key) return this._vizM;
-    const plan = P[key], lays = plan.trips.map(t => window.LogiViz.layout(t));
+    const P = this.plansFor(this.planPair), key = ['A', 'B', 'C', 'X'].includes(st.planKey) ? st.planKey : 'A', plan = this.planOf(P, this.planPair, key);
+    if (this._vizM && this._vizM.P === P && this._vizM.key === key && this._vizM.plan === plan) return this._vizM;
+    const lays = plan.trips.map(t => window.LogiViz.layout(t));
     this._vizM = { P, key, plan, lays, id: (this._vizM ? this._vizM.id : 0) + 1 };
     return this._vizM;
   }
@@ -3725,11 +3844,9 @@ class Component extends DCLogic {
     if (this.state.mapDate === 'all') {
       this.state.data.clients.forEach(c => { if (c.lat != null) { dot(c); pts.push([c.lat, c.lon]); } });
     } else {
-      const P = this.plansFor(this.state.mapDate);
-      const shades = ['--color-accent-500', '--color-accent-800', '--color-accent-600', '--color-accent-900', '--color-accent-400', '--color-accent-700'];
-      const dashes = [null, '8 5', null, '2 5', '10 4 2 4', null];
+      const P = this.plansFor(this.state.mapDate), shades = PLAN_SHADES, dashes = PLAN_DASHES;
       if (this.state.mapPlan !== 'none') {
-        P[this.state.mapPlan].trips.forEach((t, i) => {
+        this.planOf(P, this.state.mapDate, this.state.mapPlan).trips.forEach((t, i) => {
           L.polyline([depot].concat(t.stops.map(s => [s.lat, s.lon])), { color: v(shades[i % 6]), weight: 3, opacity: 0.9, dashArray: dashes[i % 6] }).bindTooltip(escHtml(t.name)).addTo(lay);
           t.stops.forEach((s, j) => L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div style="font:500 11px Inter,sans-serif;color:' + v('--color-bg') + ';background:' + v(shades[i % 6]) + ';min-width:18px;height:18px;line-height:18px;text-align:center;padding:0 3px">' + (i + 1) + '.' + (j + 1) + '</div>', iconSize: [24, 18], iconAnchor: [12, 22] }) }).addTo(lay));
         });
@@ -3769,7 +3886,7 @@ class Component extends DCLogic {
       const P = this.plansFor(this.planPair);
       ['A', 'B', 'C', 'X'].forEach(k => {
         const rows = [['Рейс', '№', 'BL код', 'Клиент', 'Район', 'Получатель', 'Тел.', 'CBM', 'KG', 'Прибытие', 'Зона', 'Тариф', 'Цена рейса', 'Маршрут Яндекс']];
-        P[k].trips.forEach(t => t.stops.forEach((s, j) => rows.push([t.name, j + 1, s.bl, (s.client.brand || '') + ' ' + (s.client.name || ''), s.loc ? '📍 ' + s.loc : s.client.district || '', s.client.receiver || '', s.client.receiverTel || '', s.cbm, s.kg, hhmm(t.arrivals[j]), s.zone === 'out' ? 'Снаружи' : 'Внутри', j === 0 ? t.price.label : '', j === 0 && t.price.total != null ? t.price.total : '', j === 0 ? E.yRoute([S.depotLat, S.depotLon], t.stops.map(x => [x.lat, x.lon])) : ''])));
+        this.planOf(P, this.planPair, k).trips.forEach(t => t.stops.forEach((s, j) => rows.push([t.name, j + 1, s.bl, (s.client.brand || '') + ' ' + (s.client.name || ''), s.loc ? '📍 ' + s.loc : s.client.district || '', s.client.receiver || '', s.client.receiverTel || '', s.cbm, s.kg, hhmm(t.arrivals[j]), s.zone === 'out' ? 'Снаружи' : 'Внутри', j === 0 ? t.price.label : '', j === 0 && t.price.total != null ? t.price.total : '', j === 0 ? E.yRoute([S.depotLat, S.depotLon], t.stops.map(x => [x.lat, x.lon])) : ''])));
         sheets.push({ name: 'План ' + k + ' ' + dShorts(this.planPair), rows });
       });
     }
@@ -4243,7 +4360,7 @@ class Component extends DCLogic {
   }
   acceptPlan(date, key) {
     if (this.readOnly) return;
-    const E = window.LogiEngine, data = this.state.data, P = this.plansFor(date), plan = P[key];
+    const E = window.LogiEngine, data = this.state.data, P = this.plansFor(date), plan = this.planOf(P, date, key);
     if (!plan || !plan.trips.length) return;
     const { list, parts } = this.planAssign(plan, data), byId = new Map(data.shipments.map(s => [s.id, s])), ids = Object.keys(parts);
     const had = ids.filter(id => { const s = byId.get(id); return s && (E.vehicleKind(s.truck) || s.route != null); }).length;
@@ -4252,6 +4369,7 @@ class Component extends DCLogic {
       .concat(had ? ['У ' + had + ' отгрузок машина уже указана — заменится.'] : [])
       .concat(split.length ? ['Большие отгрузки разделятся на части (строки в журнале): ' + split.map(id => byId.get(id).bl + ' → ' + parts[id].length).join(', ') + '.'] : [])
       .concat(noCar ? [noCar + ' ' + reys(noCar) + ' без машины — эти отгрузки останутся «Belgilanmagan».'] : [])
+      .concat(plan.manual ? ['План изменён вручную — записываются рейсы, как вы их разложили.'] : [])
       .concat(P.noCoords.length ? ['Без координат ' + P.noCoords.length + ' — в план не вошли, их не трогаем.'] : [])
       .concat(['', 'Статусы не меняются. Отменить можно сразу после записи.']).join('\n');
     if (!confirm(msg)) return;
@@ -4324,7 +4442,7 @@ class Component extends DCLogic {
     const curSub = top === 'reports' ? (st.tab === 'dash' ? 'dash' : st.repKind || 'batch') : st.tab;
     const subtabs = (SUB[top] || []).filter(([k]) => !(k === 'link' && this.readOnly)).map(([k, l]) => ({ l, cls: k === curSub ? 'subtab on' : 'subtab',
       go: () => top === 'reports' ? this.setState(k === 'dash' ? { tab: 'dash' } : { tab: 'reports', repKind: k }) : this.goSettings(k) }));
-    const base = { tabs, subtabs, hasSubtabs: subtabs.length > 0, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isDrivers: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isLocAskDialog: false, isWhDialog: false, isVehDialog: false, isGsDialog: false, isCheck: false, isFleetSet: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, vizRef: this.vizRef,
+    const base = { tabs, subtabs, hasSubtabs: subtabs.length > 0, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isDrivers: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isLocAskDialog: false, isWhDialog: false, isVehDialog: false, isGsDialog: false, isCheck: false, isFleetSet: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, planMapRef: this.planMapRef, vizRef: this.vizRef,
       fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
       account: () => window.LogiAuth && window.LogiAuth.openAccount(), readOnly: this.readOnly };
     const fs = st.fileStatus, fat = st.fileAt ? hhmm(st.fileAt.getHours() * 60 + st.fileAt.getMinutes()) : '';
@@ -4564,7 +4682,7 @@ class Component extends DCLogic {
       } else {
         const P = this.plansFor(st.mapDate);
         const wc = P.all.filter(s => s.lat != null);
-        out.mapStats = [{ label: 'Отгрузок', value: P.all.length }, { label: 'На карте', value: wc.length }, { label: 'Снаружи', value: wc.filter(s => s.zone === 'out').length }, { label: 'Рейсов в плане', value: st.mapPlan === 'none' ? '—' : P[st.mapPlan].trips.length }];
+        out.mapStats = [{ label: 'Отгрузок', value: P.all.length }, { label: 'На карте', value: wc.length }, { label: 'Снаружи', value: wc.filter(s => s.zone === 'out').length }, { label: 'Рейсов в плане', value: st.mapPlan === 'none' ? '—' : this.planOf(P, st.mapDate, st.mapPlan).trips.length }];
         out.mapNoCoords = P.noCoords.map(s => ({ bl: s.bl, name: s.client.brand || s.client.name || '' }));
         out.mapHasRoute = wc.length > 0;
         out.mapRouteHref = E.yRoute(depot, wc.slice().sort((a, b) => E.bearing(depot, [a.lat, a.lon]) - E.bearing(depot, [b.lat, b.lon])).map(s => [s.lat, s.lon]));
@@ -4605,28 +4723,29 @@ class Component extends DCLogic {
 
     if (st.tab === 'plans' && st.planDate) {
       const pd = this.planPair, pair = pd.includes('+'), P = this.plansFor(pd);   // одна партия или две («+ вторая партия»)
+      const PL = k => this.planOf(P, pd, k);   // план с ручной правкой, если её делали
       // план C свёрнут, пока его не откроют; «самый дешёвый» — среди показанных планов, где у всех рейсов есть цена
       const shown = st.planC ? ['A', 'B', 'X', 'C'] : ['A', 'B', 'X'], planKey = shown.includes(st.planKey) ? st.planKey : 'A';   // план X (пробный)
-      const full = shown.filter(k => P[k].sum.trips && !P[k].sum.unpriced), minP = full.length ? Math.min(...full.map(k => P[k].sum.price)) : null;
+      const full = shown.filter(k => PL(k).sum.trips && !PL(k).sum.unpriced), minP = full.length ? Math.min(...full.map(k => PL(k).sum.price)) : null;
       const kindsOf = s => ['labo', 'changan', 'gazel', 'kamaz'].filter(k => s[k]).map(k => VEH[k] + ' ' + s[k]).join(' · ');
       out.planCols = shown.length;
-      const costs = {}; ['A', 'B', 'C', 'X'].forEach(k => { costs[k] = this.costOf(P[k].trips.map(t => E.costSplit(t.stops, t.price, S))); });
+      const costs = {}; ['A', 'B', 'C', 'X'].forEach(k => { costs[k] = this.costOf(PL(k).trips.map(t => E.costSplit(t.stops, t.price, S))); });
       // «выгоднее всех» — где меньше всех платит компания (остальное — с клиентов); поровну — где дешевле в целом
-      const ourOf = k => costs[k].n ? Math.round(costs[k].ours) : P[k].sum.price, minC = full.length ? Math.min(...full.map(ourOf)) : null;
-      const best = full.filter(k => ourOf(k) === minC).sort((a, b) => P[a].sum.price - P[b].sum.price)[0];
-      out.planCards = shown.map(k => { const s = P[k].sum, sel = planKey === k, noPrice = s.unpriced && !s.price, c = costs[k];
+      const ourOf = k => costs[k].n ? Math.round(costs[k].ours) : PL(k).sum.price, minC = full.length ? Math.min(...full.map(ourOf)) : null;
+      const best = full.filter(k => ourOf(k) === minC).sort((a, b) => PL(a).sum.price - PL(b).sum.price)[0];
+      out.planCards = shown.map(k => { const s = PL(k).sum, sel = planKey === k, noPrice = s.unpriced && !s.price, c = costs[k];
         return { title: PLAN_INFO[k].title, desc: PLAN_INFO[k].desc(S), trips: s.trips, kinds: kindsOf(s), real: f0(s.real) + ' км', outside: s.outside + ' · ' + f1(s.outsideCbm, 1) + ' м³',
-          price: P[k].noFleet ? 'нет машин' : noPrice ? 'нет тарифа' : money(s.price) + (s.unpriced ? ' +' : ''),
-          cheapest: full.length > 1 && k === best,
-          hasCost: !P[k].noFleet && c.n > 0, cost: this.costRows(c, S, s.unpriced),
-          diff: P[k].noFleet ? 'Задайте объём и грузоподъёмность Kamaz во вкладке «Тарифы»' : s.unpriced ? '+ ' + s.unpriced + ' ' + reys(s.unpriced) + ' Kamaz без тарифа — заполните тариф во вкладке «Тарифы»' : (minP == null || minC == null || k === best || !full.includes(k) ? '' : ourOf(k) > minC ? '+' + f0(ourOf(k) - minC) + ' сум расходов компании к самому выгодному' : '+' + f0(s.price - P[best].sum.price) + ' сум к самому выгодному'),
-          cls: sel ? 'plan-sel' : '', bg: sel ? 'var(--color-accent-100)' : 'transparent', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', go: () => this.setState({ planKey: k }) }; });
-      const cS = P.C.sum;
+          price: PL(k).noFleet ? 'нет машин' : noPrice ? 'нет тарифа' : money(s.price) + (s.unpriced ? ' +' : ''),
+          cheapest: full.length > 1 && k === best, manual: !!PL(k).manual,
+          hasCost: !PL(k).noFleet && c.n > 0, cost: this.costRows(c, S, s.unpriced),
+          diff: PL(k).noFleet ? 'Задайте объём и грузоподъёмность Kamaz во вкладке «Тарифы»' : s.unpriced ? '+ ' + s.unpriced + ' ' + reys(s.unpriced) + ' Kamaz без тарифа — заполните тариф во вкладке «Тарифы»' : (minP == null || minC == null || k === best || !full.includes(k) ? '' : ourOf(k) > minC ? '+' + f0(ourOf(k) - minC) + ' сум расходов компании к самому выгодному' : '+' + f0(s.price - PL(best).sum.price) + ' сум к самому выгодному'),
+          cls: sel ? 'plan-sel' : '', bg: sel ? 'var(--color-accent-100)' : 'transparent', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', go: () => this.setState({ planKey: k, planHi: null }) }; });
+      const cS = PL('C').sum;
       out.planCTitle = PLAN_INFO.C.title;
       out.planCInfo = st.planC ? '' : P.C.noFleet ? 'нет машин' : cS.trips + ' ' + reys(cS.trips) + (cS.unpriced && !cS.price ? ' · нет тарифа' : ' · ' + money(cS.price) + (cS.unpriced ? ' +' : '') + (costs.C.notPaid ? ' · компания ' + f0(costs.C.ours) : ''));
       out.planCAct = st.planC ? 'Свернуть ▴' : 'Показать ▾';
       out.togglePlanC = () => { const v = !st.planC; try { localStorage.setItem('logi-plan-c', v ? '1' : '0'); } catch (e) {} this.setState({ planC: v, planKey: !v && st.planKey === 'C' ? 'A' : st.planKey }); };
-      const plan = P[planKey];
+      const plan = PL(planKey);
       const notes = [];
       const fleetN = { gazel: S.gazelCount, changan: S.changanCount, labo: S.laboCount, kamaz: S.cTrucks };
       if (plan.fleet) notes.push('Машины: ' + plan.fleet.map(v => (fleetN[v.kind] ? fleetN[v.kind] + ' × ' : '') + v.label + ' ' + f1(v.nomM3, 1) + ' м³ / ' + f0(v.nomKg) + ' кг' + (v.tolM3 || v.tolKg ? ' + допуск ' + f1(v.tolM3, 1) + ' м³ / ' + f0(v.tolKg) + ' кг' : '') + (v.priced ? '' : ' (нет тарифа)')).join(' · ') + '; рейсов на машину в день — до ' + (S.tripsPerVehicle || 1) + (S.maxPlaces ? ' · до ' + S.maxPlaces + ' мест' : '') + '. Меняется во вкладке «Тарифы».');
@@ -4669,19 +4788,44 @@ class Component extends DCLogic {
           sendAskNo: () => { this._tgHold = 0; this.setState({ sendAsk: null }); this.gsTgRelease(); },
           planHasMsg: !!pm, planMsg: pm ? pm.text : '', planMsgColor: pm ? pm.color : 'var(--color-divider)', planMsgSent: !!pm && pm.color === 'var(--color-accent)' && !pm.group,
           planMsgClose: () => this.setState({ planMsg: null }), planGoDrivers: () => this.setState({ tab: 'drivers', dvDate: pd, planMsg: null }) }); }
+      // ручная правка: «→ рейс» у точки (в другой рейс или новый), машина рейса — список у названия; номер и цвет рейса —
+      // как на карте рядом. Полоса правки: что изменилось против плана сайта, «Отменить правку», «Сбросить правки»
+      const canEdit = !this.readOnly && !!P.manual && plan.trips.length > 0 && !plan.noFleet;
+      const kinds = [...new Set((plan.fleet || []).map(v => v.kind))];
+      const moveOpts = plan.trips.map((t, i) => ({ v: String(i), l: (i + 1) + ' · ' + t.name + ' · ' + f1(t.cbm, 1) + ' м³' })).concat(kinds.map(k => ({ v: 'new:' + k, l: '+ новый рейс ' + VEH[k] })));
+      const hi = st.planHi != null && plan.trips[st.planHi] ? st.planHi : null;
+      { const ed = (st.planEdits || {})[pd + '|' + planKey], base = P[planKey], bc = this.costOf(base.trips.map(t => E.costSplit(t.stops, t.price, S))), pe = [];
+        if (plan.manual) {
+          pe.push('Итого: было ' + money(base.sum.price) + ' → стало ' + money(plan.sum.price) + '; компания платит: было ' + money(bc.ours) + ' → стало ' + money(pc.ours) + '.');
+          const ov = plan.trips.filter(t => t.overload).map(t => t.name);
+          if (ov.length) pe.push('Сверх кузова: ' + ov.join(', ') + ' — уберите точки или смените машину.');
+          const xr = [...new Set(plan.trips.filter(t => t.extraRound).map(t => t.carName || t.name.split(' · ')[0]))];
+          if (xr.length) pe.push('Больше рейсов, чем «Рейсов на машину в день» (' + (S.tripsPerVehicle || 1) + '): ' + xr.join(', ') + '.');
+          if (plan.extra) pe.push('После правки в партии изменились точки: ' + plan.extra + ' — в отдельных рейсах. Проверьте или сбросьте правки.');
+        }
+        Object.assign(out, { peShow: !!plan.manual, peTitle: '✎ План ' + planKey + ' изменён вручную', peNote: pe.join('\n'), peHint: canEdit && !plan.manual,
+          peUndo: () => this.planEditSet(pd, planKey, 'undo'), peReset: () => { if (confirm('Сбросить ручные правки плана ' + planKey + '? План вернётся к расчёту сайта.')) this.planEditSet(pd, planKey, null); } });
+        if (ed && plan.manual) out.peTitle += ' · правок: ' + ((ed.hist || []).length || 1); }
+      this._planMap = { plan, pd, key: planKey, hi, canEdit, moveOpts };
+      out.planMapMsg = window.L ? (plan.trips.length ? '' : 'В плане нет рейсов') : st.mapError ? 'Не удалось загрузить карту — проверьте интернет' : 'Загрузка карты…';
+      out.planMapNote = plan.trips.length ? 'Номер на карте — рейс и точка («2.3» — рейс 2, точка 3). Нажмите номер рейса в списке — рейс выделится на карте' + (canEdit ? '; нажмите точку на карте — её можно перенести в другой рейс.' : '.') : '';
       out.planTrips = plan.trips.map((t, ti) => {
         const v = t.vehicle;
         let prev = depot;
         const nM3 = v.nomM3 ?? v.m3, nKg = v.nomKg ?? v.kg, upM3 = t.cbm > nM3 + 1e-6, upKg = t.kg > nKg + 1e-6;   // сверх кузова — за счёт допуска Gazel в плане B
         const tc = E.costSplit(t.stops, t.price, S);
-        return { dists: planKey === 'X' ? 'Районы: ' + [...new Set(t.stops.map(x => dnX(x.client.district)))].join(', ') : '', costNote: this.costNote(tc), name: t.name, tariff: t.price.label + (t.over ? ' · ПЕРЕГРУЗ' : (upM3 || upKg) ? ' · с допуском' : '') + (t.noVehicle ? ' · НЕТ МАШИНЫ' : ''), stopsN: new Set(t.stops.map(s => s.bl)).size,
+        return { dists: planKey === 'X' ? 'Районы: ' + [...new Set(t.stops.map(x => dnX(x.client.district)))].join(', ') : '', costNote: this.costNote(tc), name: t.name, tariff: t.price.label + (t.over || t.overload ? ' · ПЕРЕГРУЗ' : (upM3 || upKg) ? ' · с допуском' : '') + (t.noVehicle ? ' · НЕТ МАШИНЫ' : ''),
+          no: ti + 1, col: 'var(' + PLAN_SHADES[ti % PLAN_SHADES.length] + ')', hiCls: hi === ti ? 'trip-hi' : '', focus: () => this.planFocus(hi === ti ? null : ti),
+          canKind: canEdit && kinds.length > 1, kind: t.kind, kindOpts: kinds.map(k => ({ v: k, l: VEH[k] })), onKind: e => this.planKindSet(pd, planKey, plan, ti, e.target.value), stopsN: new Set(t.stops.map(s => s.bl)).size,
           cbm: f1(t.cbm, 2) + ' из ' + f1(nM3, 1) + (v.tolM3 ? ' (+' + f1(v.tolM3, 1) + ')' : ''), kg: f0(t.kg) + ' из ' + f0(nKg) + (v.tolKg ? ' (+' + f0(v.tolKg) + ')' : ''),
           cbmPct: Math.min(100, t.cbm / nM3 * 100).toFixed(0) + '%', kgPct: Math.min(100, t.kg / nKg * 100).toFixed(0) + '%',
           cbmBar: upM3 || t.over ? 'var(--color-accent-900)' : 'var(--color-accent)', kgBar: upKg || t.over ? 'var(--color-accent-900)' : 'var(--color-accent)',
           km: f1(t.real, 1) + ' км (реальн.)', time: hhmm(t.start ?? S.dayStart * 1440) + '–' + hhmm(t.finish + t.back / S.speed * 60 * S.roadK), price: t.price.total != null ? money(t.price.total) : 'нет тарифа', formula: t.price.formula,
           yHref: E.yRoute(depot, t.stops.map(s => [s.lat, s.lon])), open3d: () => this.setState({ tab: 'viz', planKey, vizTrip: ti, vizStep: 0, vizSel: null }),
-          stops: t.stops.map((s, j) => { const c = s.client, leg = E.km(prev, [s.lat, s.lon]); prev = [s.lat, s.lon];
-            return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : '') + (pair && s.date ? ' · ' + dShort(s.date) : ''), brand: c.brand || '—', name: c.name || '', district: s.loc ? '📍 ' + s.loc : distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', free: !!(tc && tc.why[j]), freeTag: this.chargeTag(tc && tc.why[j], tc && tc.charge[j], S), pointHref: E.yPoint(s.lat, s.lon), pt: t.price.placeFlags && t.price.placeFlags[j] ? (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') + ' · то же место' : t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') }; }) };
+          stops: t.stops.map((s, j) => { const c = s.client, leg = E.km(prev, [s.lat, s.lon]); prev = [s.lat, s.lon]; const my = moveOpts.filter(o => o.v !== String(ti));
+            return { n: j + 1, bl: s.bl + (s.parts ? ' · ' + s.part + '/' + s.parts : '') + (pair && s.date ? ' · ' + dShort(s.date) : ''), brand: c.brand || '—', name: c.name || '', district: s.loc ? '📍 ' + s.loc : distName(c.district), receiver: c.receiver || '', tel: c.receiverTel || c.tel1 || '', telHref: telHref(c.receiverTel || c.tel1), cbm: f1(s.cbm, 3), kg: f1(s.kg, 1), places: s.places || '—', leg: f1(leg, 1), eta: hhmm(t.arrivals[j]), zIn: s.zone !== 'out', zOut: s.zone === 'out', free: !!(tc && tc.why[j]), freeTag: this.chargeTag(tc && tc.why[j], tc && tc.charge[j], S), pointHref: E.yPoint(s.lat, s.lon), pt: t.price.placeFlags && t.price.placeFlags[j] ? (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—') + ' · то же место' : t.price.dupFlags && t.price.dupFlags[j] ? '— (та же точка)' : (t.price.perStop[j] != null ? f0(t.price.perStop[j]) : '—'),
+              cbmL: f1(s.cbm, 3) + ' м³', kgPl: f0(s.kg) + ' кг · ' + (s.places || 0) + ' мест', legL: f1(leg, 1) + ' км',
+              moveOpts: my, onMove: e => { const v = e.target.value; e.target.value = ''; if (v) this.planMove(pd, planKey, plan, E.stopKey(s), v); } }; }) };
       });
       out.planNoCoords = P.noCoords.map(s => ({ bl: s.bl, name: (s.client.brand || '') + ' ' + (s.client.name || ''), cbm: f1(s.cbm, 2), kg: f0(s.kg), onEdit: () => { const c = D.cmap[s.bl]; if (c) this.openClient(c); } }));
       out.planHasNoCoords = P.noCoords.length > 0;
@@ -4689,8 +4833,8 @@ class Component extends DCLogic {
       out.planRouteHref = E.yRoute(depot, wc.slice().sort((a, b) => E.bearing(depot, [a.lat, a.lon]) - E.bearing(depot, [b.lat, b.lon])).map(s => [s.lat, s.lon]));
       const unk = P.all.filter(s => s.lat != null && !(s.cbm > 0) && !(s.kg > 0)).length;
       out.planSummary = (pair ? 'Две партии: ' + dLongs(pd) + ' · ' : '') + (unk ? unk + ' без CBM/KG — считаются как пустые, проверьте · ' : '') + P.all.length + ' отгрузок · ' + f1(P.all.reduce((a, s) => a + s.cbm, 0), 1) + ' м³ · ' + f0(P.all.reduce((a, s) => a + s.kg, 0)) + ' кг';
-      Object.assign(out, { planDate: st.planDate, onPlanDate: e => { const v = e.target.value; this.setState(s0 => ({ planDate: v, planDate2: s0.planDate2 === v ? '' : s0.planDate2 })); },
-        planDate2: pair ? st.planDate2 : '', date2Opts: dateOpts.filter(o => o.v !== st.planDate), onPlanDate2: e => this.setState({ planDate2: e.target.value }),
+      Object.assign(out, { planDate: st.planDate, onPlanDate: e => { const v = e.target.value; this.setState(s0 => ({ planDate: v, planDate2: s0.planDate2 === v ? '' : s0.planDate2, planHi: null })); },
+        planDate2: pair ? st.planDate2 : '', date2Opts: dateOpts.filter(o => o.v !== st.planDate), onPlanDate2: e => this.setState({ planDate2: e.target.value, planHi: null }),
         showPlanOnMap: () => this.setState({ tab: 'map', mapDate: pd, mapPlan: planKey }),
         planGroupShow: !this.readOnly && !!this.gsUrl && !!(this.gsTg && this.gsTg.hooked), planToGroup: () => this.batchToGroup(pd, 'planMsg') });
     }
