@@ -2424,4 +2424,8 @@ window.I18N_UZ = {"BURAQ logistics — отгрузки и клиенты":"BURA
 "В плане нет рейсов":"Rejada reys yo‘q",
 "Не удалось загрузить карту — проверьте интернет":"Xaritani yuklab bo‘lmadi — internetni tekshiring",
 "Номер на карте — рейс и точка («{n}» — рейс {n2}, точка {n3}). Нажмите номер рейса в списке — рейс выделится на карте; нажмите точку на карте — её можно перенести в другой рейс.":"Xaritadagi raqam — reys va nuqta («{n}» — {n2}-reys, {n3}-nuqta). Ro‘yxatdagi reys raqamini bosing — reys xaritada ajralib turadi; xaritadagi nuqtani bosing — uni boshqa reysga o‘tkazish mumkin.",
-"Номер на карте — рейс и точка («{n}» — рейс {n2}, точка {n3}). Нажмите номер рейса в списке — рейс выделится на карте.":"Xaritadagi raqam — reys va nuqta («{n}» — {n2}-reys, {n3}-nuqta). Ro‘yxatdagi reys raqamini bosing — reys xaritada ajralib turadi."};
+"Номер на карте — рейс и точка («{n}» — рейс {n2}, точка {n3}). Нажмите номер рейса в списке — рейс выделится на карте.":"Xaritadagi raqam — reys va nuqta («{n}» — {n2}-reys, {n3}-nuqta). Ro‘yxatdagi reys raqamini bosing — reys xaritada ajralib turadi.",
+"Ищу адрес…":"Manzilni qidiryapman…",
+"Адрес: {s}.":"Manzil: {s}.",
+"Адрес не нашёлся — впишите название.":"Manzil topilmadi — nomini yozing.",
+"Название точки — его видят в «Куда везти», в планах и водитель":"Nuqta nomi — uni «Yetkazish joyi»da, rejalarda va haydovchi ko‘radi"};

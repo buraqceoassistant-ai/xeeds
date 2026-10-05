@@ -2487,3 +2487,9 @@ https://yandex.uz/maps/… или 41.311, 69.279	https://yandex.uz/maps/… yoki
 Не удалось загрузить карту — проверьте интернет	Xaritani yuklab bo‘lmadi — internetni tekshiring
 Номер на карте — рейс и точка («{n}» — рейс {n2}, точка {n3}). Нажмите номер рейса в списке — рейс выделится на карте; нажмите точку на карте — её можно перенести в другой рейс.	Xaritadagi raqam — reys va nuqta («{n}» — {n2}-reys, {n3}-nuqta). Ro‘yxatdagi reys raqamini bosing — reys xaritada ajralib turadi; xaritadagi nuqtani bosing — uni boshqa reysga o‘tkazish mumkin.
 Номер на карте — рейс и точка («{n}» — рейс {n2}, точка {n3}). Нажмите номер рейса в списке — рейс выделится на карте.	Xaritadagi raqam — reys va nuqta («{n}» — {n2}-reys, {n3}-nuqta). Ro‘yxatdagi reys raqamini bosing — reys xaritada ajralib turadi.
+
+# ── «Куда везти»: имя точки — адрес с карты ──
+Ищу адрес…	Manzilni qidiryapman…
+Адрес: {s}.	Manzil: {s}.
+Адрес не нашёлся — впишите название.	Manzil topilmadi — nomini yozing.
+Название точки — его видят в «Куда везти», в планах и водитель	Nuqta nomi — uni «Yetkazish joyi»da, rejalarda va haydovchi ko‘radi

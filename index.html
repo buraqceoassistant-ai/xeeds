@@ -1760,7 +1760,7 @@
         <sc-if value="{{ clLocCan }}">
           <div class="cl-locs">
             <div style="font-weight:500">Точки доставки <span style="font-weight:400;color:var(--color-neutral-700)">— склады и адреса, куда клиент просит везти. Новая — сверху: её предложат первой</span></div>
-            <sc-for list="{{ clLocs }}" as="x"><div class="cl-loc"><span class="cl-loc-name">📍 {{ x.name }}</span><a class="cl-loc-ll" href="{{ x.href }}" target="_blank" title="Точка в Яндекс Картах">{{ x.ll }}</a><button class="btn btn-ghost cl-loc-del" sc-camel-on-click="{{ x.onDel }}" title="Убрать точку" aria-label="Убрать точку">✕</button></div></sc-for>
+            <sc-for list="{{ clLocs }}" as="x"><div class="cl-loc"><sc-if value="{{ x.canName }}"><span class="cl-loc-pin">📍</span><input class="input cl-loc-name" value="{{ x.name }}" sc-camel-on-change="{{ x.onName }}" title="Название точки — его видят в «Куда везти», в планах и водитель" aria-label="Название точки"></sc-if><sc-if value="{{ x.noName }}"><span class="cl-loc-name">📍 {{ x.name }}</span></sc-if><a class="cl-loc-ll" href="{{ x.href }}" target="_blank" title="Точка в Яндекс Картах">{{ x.ll }}</a><button class="btn btn-ghost cl-loc-del" sc-camel-on-click="{{ x.onDel }}" title="Убрать точку" aria-label="Убрать точку">✕</button></div></sc-for>
             <sc-if value="{{ clLocsEmpty }}"><div style="font-size:12px;color:var(--color-neutral-700)">Пока только адрес клиента.</div></sc-if>
             <div class="cl-loc-add">
               <input class="input" name="clLocLink" value="{{ clLocLink }}" sc-camel-on-change="{{ onClLocLink }}" placeholder="Ссылка на карту или координаты" aria-label="Ссылка на карту или координаты">
@@ -1841,6 +1841,11 @@ const locParse = t => {
 };
 // точки клиента из анкеты (Mijozlar Z, скрипт 27): по строке «Название · широта, долгота», новые сверху
 const locsOf = c => String((c && c.locs) || '').split('\n').map(locParse).filter(Boolean);
+// имя новой точки: своё название и адрес с карты — «Склад — Chilonzor, Bunyodkor 1»; только адрес; иначе «Точка N».
+// «Точка N» / «Nuqta N» — имя по умолчанию (раньше): сайт сам заменит его адресом (autoNamePoints)
+const ptName = (name, addr, n) => { const nm = String(name || '').trim(), a = String(addr || '').trim();
+  return nm && a && !nm.includes(a) ? nm + ' — ' + a : nm || a || (window.I18N && window.I18N.lang === 'uz' ? 'Nuqta ' : 'Точка ') + n; };
+const DEF_PT = /^(Точка|Nuqta) \d+$/;
 const sameLL = (a, b, eps = 1e-5) => !!a && !!b && Math.abs(a.lat - b.lat) < eps && Math.abs(a.lon - b.lon) < eps;
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 // маркировки клиента: «CBETKO,  svetko ; CBETKO» → «CBETKO, SVETKO» (без повторов, как пишут в манифестах — капсом)
@@ -2015,6 +2020,7 @@ class Component extends DCLogic {
     if (!this.gsUrl) setTimeout(() => { if (this.state.tab === 'journal') this.maybeAskLoc(this.state.jDate); }, 0);
   }
   componentDidUpdate() {
+    if (this.state.ready && !this._autoNameT && this.canLoc && (!this.gsUrl || (this.state.gsAt && this.state.gsStatus !== 'loading'))) { this._autoNameT = true; setTimeout(() => this.autoNamePoints(), 3000); }
     this.syncMap(); this.syncDvMap(); this.syncPlanMap(); this.syncViz(); this.syncSmooth(); this.syncImport();
     // страница «Связь» открыта — черновик есть; ушли с неё — черновик убираем (Esc, кнопки вкладок)
     { const st = this.state, gs = st.dialog && st.dialog.type === 'gs';
@@ -2425,10 +2431,10 @@ class Component extends DCLogic {
     return loc || (bl ? this.locDefault(bl, date) : '');
   }
   // новая точка — в анкету клиента, сверху (та же точка уже есть — берём её). { data, loc }
-  addClientLoc(data, bl, ll, name) {
+  addClientLoc(data, bl, ll, name, addr) {
     const c = data.clients.find(x => x.bl === bl), vs = locsOf(c), same = vs.find(x => sameLL(x, ll));
     if (same) return { data, loc: locStr(same.name, same.lat, same.lon) };
-    const loc = locStr(String(name || '').trim() || (window.I18N && window.I18N.lang === 'uz' ? 'Nuqta ' : 'Точка ') + (vs.length + 1), ll.lat, ll.lon);
+    const loc = locStr(ptName(name, addr, vs.length + 1), ll.lat, ll.lon);
     if (!c) return { data, loc };
     const lines = String(c.locs || '').split('\n').filter(t => t.trim());
     return { data: { ...data, clients: data.clients.map(x => x.bl === bl ? { ...x, locs: [loc].concat(lines).join('\n') } : x) }, loc };
@@ -2478,7 +2484,8 @@ class Component extends DCLogic {
         const nm = String(s.loc).trim().toLowerCase(), byName = x => String(x.name || '').trim().toLowerCase() === nm;
         const w = locsOf(cmap[s.bl]).find(byName) || (whBy[s.bl] || []).find(byName); if (w) L = { name: w.name, lat: w.lat, lon: w.lon };
       }
-      if (L) own[s.id] = { lat: L.lat, lon: L.lon, name: L.name || L.lat + ', ' + L.lon, own: true, z: E.zoneOf({ lat: L.lat, lon: L.lon }, ring, S.ringBuffer) };
+      const an = L && locsOf(cmap[s.bl]).find(x => sameLL(x, L));   // имя из анкеты для тех же координат
+      if (L) own[s.id] = { lat: L.lat, lon: L.lon, name: (an && an.name) || L.name || L.lat + ', ' + L.lon, own: true, z: E.zoneOf({ lat: L.lat, lon: L.lon }, ring, S.ringBuffer) };
     });
     const ptOf = s => own[s.id] || { lat: (cmap[s.bl] || {}).lat ?? null, lon: (cmap[s.bl] || {}).lon ?? null, name: '', own: false, z: zones[s.bl] || {} };
     const share = {}, tripOf = {}, trips = {}, free = {}, charge = {};
@@ -4273,16 +4280,50 @@ class Component extends DCLogic {
     if (j.ll) return { lat: j.ll[0], lon: j.ll[1], how: 'со страницы карты', url: j.url };
     return { error: 'В ссылке нет координат.' + tip };
   }
-  async addressOf(lat, lon) {
+  // точки со старым именем по умолчанию «Точка N» / «Nuqta N»: один раз за вход сайт находит их адрес с карты и
+  // переименовывает — в анкете клиента и в строках, которые ещё везём. Адрес не нашёлся — точка остаётся как была
+  async autoNamePoints() {
+    if (this._autoName || !this.canLoc || !this.state.ready) return;
+    this._autoName = true;
+    const key = (lat, lon) => (+lat).toFixed(6) + ',' + (+lon).toFixed(6), todo = new Map(), d0 = this.state.data;
+    const want = (n, lat, lon) => { if (DEF_PT.test(String(n || '').trim())) todo.set(key(lat, lon), { lat, lon }); };
+    d0.clients.forEach(c => locsOf(c).forEach(x => want(x.name, x.lat, x.lon)));
+    d0.shipments.forEach(s => { const L = !LOC_DONE.includes(s.status) && locParse(s.loc); if (L) want(L.name, L.lat, L.lon); });
+    if (!todo.size) return;
+    const names = new Map(), osm = !this.gsUrl || this.gsVersion < 7;
+    for (const [k, p] of [...todo].slice(0, 40)) {
+      const a = await this.pointAddr(p.lat, p.lon);
+      if (a) names.set(k, a);
+      if (osm) await new Promise(r => setTimeout(r, 1100));   // OpenStreetMap — не чаще раза в секунду
+    }
+    if (!names.size || this.readOnly) return;
+    const to = (n, lat, lon) => DEF_PT.test(String(n || '').trim()) ? names.get(key(lat, lon)) : null, data = this.state.data;
+    const clients = data.clients.map(c => { if (!c.locs) return c; let ch = false;
+      const locs = String(c.locs).split('\n').map(t => { const L = locParse(t), v = L && to(L.name, L.lat, L.lon); if (!v) return t; ch = true; return locStr(v, L.lat, L.lon); }).join('\n');
+      return ch ? { ...c, locs } : c; });
+    const shipments = data.shipments.map(s => { const L = !LOC_DONE.includes(s.status) && locParse(s.loc), v = L && to(L.name, L.lat, L.lon); return v ? { ...s, loc: locStr(v, L.lat, L.lon) } : s; });
+    if (clients.some((c, i) => c !== data.clients[i]) || shipments.some((x, i) => x !== data.shipments[i])) this.commit({ ...data, clients, shipments });
+  }
+  async pointAddr(lat, lon) {
+    const k = (+lat).toFixed(5) + ',' + (+lon).toFixed(5), c = this._ptAddr || (this._ptAddr = new Map());
+    if (c.has(k)) return c.get(k);
+    const a = await this.addressOf(lat, lon, !!this.gsUrl && this.gsVersion >= 7), city = /^(Tashkent|Toshkent|Ташкент|Тошкент)( shahri| city)?$/i;
+    const v = a ? (a.short || a.address.split(',').map(x => x.trim()).filter(x => x && !city.test(x)).slice(0, 2).join(', ')) : '';
+    if (a) c.set(k, v);
+    return v;
+  }
+  async addressOf(lat, lon, gsOnly) {
     const drop = /^(\d{6}|O[ʻ'‘’`]?zbekiston|Uzbekistan|Узбекистан)$/i;
     if (this.gsUrl && this.gsVersion >= 7) {
       try { const j = await this.gsGet({ geo: lat + ',' + lon }); if (j.address) return { address: j.address.split(',').map(x => x.trim()).filter(x => x && !drop.test(x)).join(', '), parts: j.parts || [], src: 'Google' }; } catch (e) {}
+      if (gsOnly) return null;
     }
     try {
       const j = await (await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=uz&lat=' + lat + '&lon=' + lon)).json(), a = j.address || {};
       const street = [a.road, a.house_number].filter(Boolean).join(' ');
       const address = [a.city || a.town || a.village, a.city_district || a.county, a.suburb || a.neighbourhood, street].filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i).join(', ');
-      return address ? { address, parts: Object.values(a), src: 'OpenStreetMap' } : null;
+      const short = [a.suburb || a.neighbourhood || a.city_district || a.county, street].filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i).join(', ');
+      return address ? { address, short, parts: Object.values(a), src: 'OpenStreetMap' } : null;
     } catch (e) { return null; }
   }
   districtFrom(parts) {
@@ -4962,8 +5003,11 @@ class Component extends DCLogic {
               const r = await this.locateLink(t);
               if (!this.state.dialog || this.state.dialog.locLink !== t) return;
               if (!r || r.error) return setDl({ locBad: true, locInfo: (r && r.error) || 'Нужна ссылка из Яндекс или Google Карт, 2ГИС или координаты «41.311, 69.279».' });
-              const lat = +r.lat.toFixed(6), lon = +r.lon.toFixed(6);
-              setDl({ locLL: { lat, lon }, locBad: false, locInfo: '✓ Точка: ' + lat + ', ' + lon + ' (' + (r.how || 'по ссылке') + '). Нажмите «Сохранить».' });
+              const lat = +r.lat.toFixed(6), lon = +r.lon.toFixed(6), ok = '✓ Точка: ' + lat + ', ' + lon + ' (' + (r.how || 'по ссылке') + ').';
+              setDl({ locLL: { lat, lon }, locAddr: '', locBad: false, locInfo: ok + ' Ищу адрес…' });
+              const ad = await this.pointAddr(lat, lon);
+              if (!this.state.dialog || this.state.dialog.locLink !== t) return;
+              setDl({ locAddr: ad, locInfo: ok + (ad ? ' Адрес: ' + ad + '.' : ' Адрес не нашёлся — впишите название.') + ' Нажмите «Сохранить».' });
             } }); }
         out.saveShipment = () => {
           if (!dr.date || !String(dr.bl).trim()) return this.setState({ dialog: { ...dl, error: 'Укажите дату и BL код' } });
@@ -4979,7 +5023,7 @@ class Component extends DCLogic {
             else if (dl.locSel !== undefined && rec.truck === PICK) rec.truck = 'Belgilanmagan';   // выбрали точку — снова везём
             if (sel === '__new') {
               if (!dl.locLL) return this.setState({ dialog: { ...dl, error: 'Вставьте ссылку на карту или координаты новой точки — или выберите точку из списка.' } });
-              const r = this.addClientLoc(data, rec.bl, dl.locLL, dl.locName);   // новая точка — в анкету клиента (сверху)
+              const r = this.addClientLoc(data, rec.bl, dl.locLL, dl.locName, dl.locAddr);   // новая точка — в анкету клиента (сверху)
               base = r.data; rec.loc = r.loc;
             } else rec.loc = this.locFromSel(rec.bl, sel, cur0);
           }
@@ -5017,8 +5061,11 @@ class Component extends DCLogic {
               const r = await this.locateLink(t), d0 = this.state.dialog;
               if (!d0 || d0.type !== 'locask' || (d0.news[bl] || {}).link !== t) return;
               if (!r || r.error) return setLA(bl, null, { bad: true, info: (r && r.error) || 'Нужна ссылка из Яндекс или Google Карт, 2ГИС или координаты «41.311, 69.279».' });
-              const lat = +r.lat.toFixed(6), lon = +r.lon.toFixed(6);
-              setLA(bl, null, { ll: { lat, lon }, bad: false, info: '✓ Точка: ' + lat + ', ' + lon + ' (' + (r.how || 'по ссылке') + ').' });
+              const lat = +r.lat.toFixed(6), lon = +r.lon.toFixed(6), ok = '✓ Точка: ' + lat + ', ' + lon + ' (' + (r.how || 'по ссылке') + ').';
+              setLA(bl, null, { ll: { lat, lon }, addr: '', bad: false, info: ok + ' Ищу адрес…' });
+              const ad = await this.pointAddr(lat, lon), d1 = this.state.dialog;
+              if (!d1 || d1.type !== 'locask' || (d1.news[bl] || {}).link !== t) return;
+              setLA(bl, null, { addr: ad, info: ok + (ad ? ' Адрес: ' + ad + '.' : ' Адрес не нашёлся — впишите название.') });
             } };
         });
         out.laLater = () => this.setState({ dialog: null });
@@ -5027,7 +5074,7 @@ class Component extends DCLogic {
           dl.bls.forEach(bl => {
             const p = dl.picks[bl]; let loc;
             if (p.sel === '__pick') { d1 = this.setShipPick(dl.date, bl, true, d1); return; }   // самовывоз: точка не нужна
-            if (p.sel === '__new') { const nw = dl.news[bl] || {}; if (!nw.ll) return miss.push(bl); const r = this.addClientLoc(d1, bl, nw.ll, nw.name); d1 = r.data; loc = r.loc; }
+            if (p.sel === '__new') { const nw = dl.news[bl] || {}; if (!nw.ll) return miss.push(bl); const r = this.addClientLoc(d1, bl, nw.ll, nw.name, nw.addr); d1 = r.data; loc = r.loc; }
             else loc = this.locFromSel(bl, p.sel, p.cur);
             d1 = this.setShipPick(dl.date, bl, false, this.setShipLoc(dl.date, bl, loc, d1));
           });
@@ -5223,7 +5270,8 @@ class Component extends DCLogic {
           const lines = String(dr.locs || '').split('\n').filter(t => t.trim());
           const setLines = ls => this.setState(s0 => s0.dialog && s0.dialog.type === 'client' ? { dialog: { ...s0.dialog, draft: { ...s0.dialog.draft, locs: ls.join('\n') } } } : null);
           Object.assign(out, { clLocCan: this.canLoc, clLocsEmpty: !lines.length,
-            clLocs: lines.map((t, i) => { const L = locParse(t); return { name: L ? L.name || L.lat + ', ' + L.lon : t, ll: L ? L.lat + ', ' + L.lon : '', href: L ? E.yPoint(L.lat, L.lon) : '', onDel: () => setLines(lines.filter((x, j) => j !== i)) }; }),
+            clLocs: lines.map((t, i) => { const L = locParse(t); return { name: L ? L.name || L.lat + ', ' + L.lon : t, ll: L ? L.lat + ', ' + L.lon : '', href: L ? E.yPoint(L.lat, L.lon) : '', onDel: () => setLines(lines.filter((x, j) => j !== i)),
+              canName: !!L, noName: !L, onName: e => { const v = e.target.value.trim(); if (L && v) setLines(lines.map((x, j) => j === i ? locStr(v, L.lat, L.lon) : x)); } }; }),
             clLocLink: dl.clLink || '', clLocName: dl.clName || '',
             clLocInfo: dl.clInfo || 'Вставьте ссылку из Яндекс, Google Карт или 2ГИС либо координаты «41.311, 69.279» и нажмите «Добавить».',
             clLocInfoColor: dl.clBad ? 'var(--color-danger-ink)' : dl.clLL ? 'var(--color-accent-800)' : 'var(--color-neutral-700)',
@@ -5234,15 +5282,18 @@ class Component extends DCLogic {
               const r = await this.locateLink(t), d0 = this.state.dialog;
               if (!d0 || d0.type !== 'client' || d0.clLink !== t) return;
               if (!r || r.error) return setCl({ clBad: true, clInfo: (r && r.error) || 'Нужна ссылка из Яндекс или Google Карт, 2ГИС или координаты «41.311, 69.279».' });
-              const lat = +r.lat.toFixed(6), lon = +r.lon.toFixed(6);
-              setCl({ clLL: { lat, lon }, clBad: false, clInfo: '✓ Точка: ' + lat + ', ' + lon + ' (' + (r.how || 'по ссылке') + '). Нажмите «Добавить».' });
+              const lat = +r.lat.toFixed(6), lon = +r.lon.toFixed(6), ok = '✓ Точка: ' + lat + ', ' + lon + ' (' + (r.how || 'по ссылке') + ').';
+              setCl({ clLL: { lat, lon }, clAddr: '', clBad: false, clInfo: ok + ' Ищу адрес…' });
+              const ad = await this.pointAddr(lat, lon), d1 = this.state.dialog;
+              if (!d1 || d1.type !== 'client' || d1.clLink !== t) return;
+              setCl({ clAddr: ad, clInfo: ok + (ad ? ' Адрес: ' + ad + '.' : ' Адрес не нашёлся — впишите название.') + ' Нажмите «Добавить».' });
             },
             clLocAdd: () => {
               const d0 = this.state.dialog; if (!d0 || !d0.clLL) return setCl({ clBad: true, clInfo: 'Сначала вставьте ссылку на карту или координаты новой точки.' });
               const ls = String(d0.draft.locs || '').split('\n').filter(t => t.trim());
               if (ls.some(t => sameLL(locParse(t), d0.clLL))) return setCl({ clBad: true, clInfo: 'Такая точка уже есть в списке.' });
-              const nm = String(d0.clName || '').trim() || (window.I18N && window.I18N.lang === 'uz' ? 'Nuqta ' : 'Точка ') + (ls.length + 1);
-              this.setState({ dialog: { ...d0, error: '', clLink: '', clName: '', clLL: null, clBad: false, clInfo: '', draft: { ...d0.draft, locs: [locStr(nm, d0.clLL.lat, d0.clLL.lon)].concat(ls).join('\n') } } });
+              const nm = ptName(d0.clName, d0.clAddr, ls.length + 1);
+              this.setState({ dialog: { ...d0, error: '', clLink: '', clName: '', clLL: null, clAddr: '', clBad: false, clInfo: '', draft: { ...d0.draft, locs: [locStr(nm, d0.clLL.lat, d0.clLL.lon)].concat(ls).join('\n') } } });
             } }); }
         out.saveClient = () => {
           let la = String(dr.lat).trim(), lo = String(dr.lon).trim();
@@ -5256,7 +5307,10 @@ class Component extends DCLogic {
           if (rec.district === '__auto' || (!dr._distTouched && moved && rec.lat != null)) { const g = E.guessDistrict(rec.lat, rec.lon, data.clients, dl.id); rec.district = g ? g.district : 'Aniqlanmagan'; }
           delete rec._distTouched;
           const list = dl.mode === 'new' ? [...data.clients, rec] : data.clients.map(c => c.bl === dl.id ? rec : c);
-          const ships = dl.mode === 'edit' && bl !== dl.id ? data.shipments.map(s => s.bl === dl.id ? { ...s, bl } : s) : data.shipments;
+          const ships0 = dl.mode === 'edit' && bl !== dl.id ? data.shipments.map(s => s.bl === dl.id ? { ...s, bl } : s) : data.shipments, nl = locsOf(rec);
+          // точку переименовали в анкете — новое имя и в строках клиента, которые ещё везём (его видит водитель)
+          const ships = !nl.length ? ships0 : ships0.map(s => { if (s.bl !== bl || LOC_DONE.includes(s.status)) return s;
+            const L = locParse(s.loc), a = L && nl.find(x => sameLL(x, L)); return a && a.name && a.name !== L.name ? { ...s, loc: locStr(a.name, a.lat, a.lon) } : s; });
           this.commit({ ...data, clients: list, shipments: ships }); this.setState({ dialog: null });
         };
         out.deleteItem = () => { if (confirm('Удалить клиента ' + dl.id + '? Отгрузки останутся.')) { this.commit({ ...data, clients: data.clients.filter(c => c.bl !== dl.id) }); this.setState({ dialog: null }); } };

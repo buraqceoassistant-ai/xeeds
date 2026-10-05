@@ -473,3 +473,6 @@ input.set-input[type="text"] { text-align: left !important; }
   .tc td.plan-mv-td { width: auto; }
   .tc td.plan-mv-td select.input { width: 100% !important; }
 }
+/* анкета клиента: название точки можно поправить */
+.cl-loc-pin { flex: none; }
+.cl-loc input.cl-loc-name { height: 34px; padding-top: 4px; padding-bottom: 4px; font-size: 13px; }
