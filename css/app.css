@@ -476,3 +476,8 @@ input.set-input[type="text"] { text-align: left !important; }
 /* анкета клиента: название точки можно поправить */
 .cl-loc-pin { flex: none; }
 .cl-loc input.cl-loc-name { height: 34px; padding-top: 4px; padding-bottom: 4px; font-size: 13px; }
+/* водители: ✎ у имени и машины, телефон; окно «Водитель» */
+.dv-edit, .dv-car-edit { min-height: 0 !important; padding: 2px 8px !important; margin-left: 4px; font-size: 14px; line-height: 1.2; }
+.dv-phone { white-space: nowrap; }
+.drv-car { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 40px; }
+.drv-del { color: var(--buraq-red) !important; }

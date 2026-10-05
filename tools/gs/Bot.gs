@@ -11,7 +11,7 @@
 var TG_API = 'https://api.telegram.org/';
 var TG = { drivers: 'Haydovchilar', log: 'Yetkazish', days: 'Ish kuni', problems: 'Muammolar', subs: 'Obunalar' };
 var TG_HEAD = {
-  drivers: ['Telegram ID', 'Ism', 'Mashina', 'Davlat raqami', 'Til', 'Holat', 'Ro‘yxatdan o‘tgan', 'Tasdiqlagan', 'Telegram', 'Bot holati (tizim uchun)'],
+  drivers: ['Telegram ID', 'Ism', 'Mashina', 'Davlat raqami', 'Til', 'Holat', 'Ro‘yxatdan o‘tgan', 'Tasdiqlagan', 'Telegram', 'Bot holati (tizim uchun)', 'Telefon'],
   log: ['Vaqt', 'Sana', 'Haydovchi', 'Mashina', 'BL', 'Mijoz', 'Natija', 'Sabab', 'Rasmlar', 'Joylashuv', 'Telegram ID', 'Reys', 'Kutdi (daq)', 'Mijozgacha (km)'],
   days: ['Sana', 'Haydovchi', 'Mashina', 'Boshlandi', 'Boshlanish joyi', 'Tugadi', 'Tugash joyi', 'Yetkazildi', 'Yetkazilmadi', 'Telegram ID', 'Partiya'],
   problems: ['Vaqt', 'Haydovchi', 'Mashina', 'Turi', 'Izoh', 'Rasmlar', 'Joylashuv', 'Telegram ID'],
@@ -263,7 +263,8 @@ function tgDrivers_() {
   sh.getRange(2, 1, last - 1, TG_HEAD.drivers.length).getValues().forEach(function (r, i) {
     if (r[0] === '' || r[0] === null) return;
     var st = {}; try { st = JSON.parse(r[9] || '{}'); } catch (err) { st = {}; }
-    out.push({ row: 2 + i, id: String(r[0]), name: String(r[1]), truck: String(r[2]), plate: String(r[3]), lang: String(r[4] || 'uz'), status: String(r[5] || ''), at: r[6], by: String(r[7] || ''), user: String(r[8] || ''), st: st });
+    out.push({ row: 2 + i, id: String(r[0]), name: String(r[1]), truck: String(r[2]), plate: String(r[3]), lang: String(r[4] || 'uz'), status: String(r[5] || ''), at: r[6], by: String(r[7] || ''), user: String(r[8] || ''), st: st,
+      phone: String(r[10] == null ? '' : r[10]) });   // K «Telefon» — версия 30, вписывают на сайте
   });
   return out;
 }
@@ -271,8 +272,9 @@ function tgDriver_(id) { var d = tgDrivers_().filter(function (x) { return x.id 
 function tgSave_(d) {
   var sh = tgSheet_('drivers'), row = d.row;
   if (!row) { row = Math.max(2, sh.getLastRow() + 1); d.row = row; }
-  sh.getRange(row, 1, 1, TG_HEAD.drivers.length).setValues([[d.id, d.name || '', d.truck || '', d.plate || '', d.lang || 'uz', d.status || '', d.at || '', d.by || '', d.user || '', JSON.stringify(d.st || {})]]);
+  sh.getRange(row, 1, 1, TG_HEAD.drivers.length).setValues([[d.id, d.name || '', d.truck || '', d.plate || '', d.lang || 'uz', d.status || '', d.at || '', d.by || '', d.user || '', JSON.stringify(d.st || {}), d.phone || '']]);
   sh.getRange(row, 1).setNumberFormat('@');
+  if (d.phone) sh.getRange(row, 11).setNumberFormat('@');   // «+998…» — текстом, не числом
 }
 function tgTrucks_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SH.set);
@@ -1434,6 +1436,26 @@ function tgSite_(body) {
     if (give) fr = tgSetTruck_(d, a.truck).freed;
     return { ok: true, v: VERSION, freed: fr, tg: tgInfo_(body.tgdays) };
   }
+  // версия 30: карточка водителя — имя и телефон (машина — action 'truck'); удалить водителя — строка листа убирается
+  if (a.action === 'drvedit') {
+    var de = tgDriver_(a.id);
+    if (!de) return { error: 'Нет такого водителя', v: VERSION };
+    var nm = String(a.name == null ? de.name : a.name).replace(/\s+/g, ' ').trim().slice(0, 60);
+    if (!nm) return { error: 'Укажите имя водителя', v: VERSION };
+    var ph = String(a.phone == null ? de.phone : a.phone).replace(/[^\d+]/g, '').slice(0, 20);
+    if (ph && !/^\+?\d{7,15}$/.test(ph)) return { error: 'Телефон: 7–15 цифр, например +998901234567', v: VERSION };
+    tgHead_('drivers');
+    de.name = nm; de.phone = ph;
+    tgSave_(de);
+    return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
+  }
+  if (a.action === 'drvdel') {
+    var dd = tgDriver_(a.id);
+    if (!dd) return { error: 'Нет такого водителя', v: VERSION };
+    if (dd.status === 'ruxsat' || dd.status === 'kutilmoqda') tgSend_(dd.id, tx_(dd.lang, 'off'), { remove_keyboard: true });
+    tgSheet_('drivers').deleteRow(dd.row);
+    return { ok: true, v: VERSION, tg: tgInfo_(body.tgdays) };
+  }
   if (a.action === 'truck') {
     var dt = tgDriver_(a.id);
     if (!dt || dt.status === 'yangi') return { error: 'Нет такого водителя', v: VERSION };
@@ -1455,7 +1477,7 @@ function tgInfo_(days) {
       remind: tgRemind_(), morning: tgMorning_(), morningDay: prop_('TG_MORNING_DAY') || '' },
     drivers: tgDrivers_().filter(function (d) { return d.status !== 'yangi'; }).map(function (d) {
       var w = d.st && d.st.work, today = tgNow_('yyyy-MM-dd'), a = tgAssigned_(d), day = w && (w.day || w.date);
-      return { id: d.id, name: d.name, truck: d.truck, plate: d.plate, lang: d.lang, status: d.status, at: d.at instanceof Date ? Utilities.formatDate(d.at, tz, 'yyyy-MM-dd HH:mm') : String(d.at || ''), user: d.user,
+      return { id: d.id, name: d.name, phone: d.phone, truck: d.truck, plate: d.plate, lang: d.lang, status: d.status, at: d.at instanceof Date ? Utilities.formatDate(d.at, tz, 'yyyy-MM-dd HH:mm') : String(d.at || ''), user: d.user,
         today: w && day === today && w.started ? { started: w.started, ended: w.ended || '', ok: w.ok || 0, fail: w.fail || 0, pos: w.pos || null, posAt: w.posAt || '', date: w.date, cur: w.cur ? { bl: w.cur.bl, round: w.cur.round } : null } : null,
         assign: a ? { date: a.date, at: a.at } : null };
     }), log: rec.log, days: rec.days, problems: rec.problems,

@@ -65,7 +65,7 @@ const connect = t => t.s.post({ token: '', tg: { action: 'setup', url: 'https://
 test('подключение с сайта: токен из свойств, вебхук с секретом, команды на двух языках; без токена и со старой ссылкой — ошибки', () => {
   const t = setup();
   const r = connect(t);
-  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 29); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
+  assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.v, 30); assert.deepEqual(t.s.triggers.map(x => x.fn), ['tgDailySummary', 'tgTick']); assert.equal(t.s.triggers[1].minutes, 5); assert.equal(t.s.triggers[0].fn, 'tgDailySummary'); assert.equal(t.s.triggers[0].hour, 20); assert.equal(r.tg.bot, 'buraq_test_bot'); assert.match(r.tg.code, /^\d{6}$/);
   const hook = t.last('setWebhook');
   assert.equal(hook.url, 'https://script.google.com/macros/s/AKfy-test_1/exec?tg=' + t.s.props.TG_SECRET);
   assert.deepEqual(hook.allowed_updates, ['message', 'callback_query']);
@@ -469,7 +469,7 @@ test('фото только с камеры: кнопка открывает dri
   assert.equal(up({}, initData({ id: 501 }, { token: 'чужой' })).code, 'auth', 'подпись другим токеном');
   assert.equal(up({}, initData({ id: 501 }, { at: Date.UTC(2026, 8, 24) / 1000 })).code, 'auth', 'подпись старше суток');
   assert.equal(up({ key: 'BL-902|1' }).code, 'stage', 'снимок не той точки');
-  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 29 }, 'проверка связи со страницы камеры');
+  assert.deepEqual(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ping: 1 } }), { ok: true, ping: true, n: 0, v: 30 }, 'проверка связи со страницы камеры');
   assert.equal(t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-902|1', ping: 1 } }).code, 'stage');
   const r = up({ ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -880,7 +880,7 @@ test('версия 17: кнопки карточки версии 15, остав
   assert.match(t.texts(501).slice(-2).join('\n'), /BL-901/);
   // камера с карточки версии 15: проверка связи не меняет шаг, снимок — как «Доставлено»
   const cam = extra => t.s.post({ tgphoto: { init: initData({ id: 501 }), key: 'BL-901|1', ...extra } });
-  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 29 });
+  assert.deepEqual(cam({ ping: 1 }), { ok: true, ping: true, n: 0, v: 30 });
   assert.equal(cam({ key: 'BL-902|1', img: JPEG }).code, 'stage', 'не та точка');
   const r = cam({ img: JPEG, ll: [41.3105, 69.2102] });
   assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.n, 1);
@@ -1182,4 +1182,42 @@ test('версия 29: «📤 В группу» — сводка, потом к�
   assert.ok(t.s.book.slept.every(x => x >= 3000));
   // пустая партия — ошибка
   assert.match(t.s.post({ token: '', tg: { action: 'batchinfo', batch: { items: [] } } }).error, /нет отгрузок/);
+});
+
+// версия 30: карточка водителя с сайта — имя и телефон (Haydovchilar K), удалить водителя
+test('версия 30: имя и телефон водителя с сайта, телефон — текстом в K; удалить — строка убрана, водителю «нет доступа»', () => {
+  const t = approved();
+  register(t, 502, 'uz', 2, 'Bobur Aliev'); t.cb(900, 'allow:502', t.group);
+  const drv = id => t.s.get({}).data.tg.drivers.find(d => d.id === id);
+  const sh = t.s.book.sheets.Haydovchilar;
+  assert.equal(drv('501').phone, '', 'до правки телефона нет');
+  let r = t.s.post({ tg: { action: 'drvedit', id: '501', name: '  Akmal   Karimov aka ', phone: '+998 90 123-45-67' } });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.deepEqual([drv('501').name, drv('501').phone], ['Akmal Karimov aka', '+998901234567']);
+  assert.equal(sh.rows[0][10], 'Telefon', 'заголовок K дописан');
+  const row = sh.rows.find(x => String(x[0]) === '501');
+  assert.deepEqual([row[1], row[10]], ['Akmal Karimov aka', '+998901234567']);
+  assert.equal(r.tg.drivers.find(d => d.id === '501').phone, '+998901234567', 'ответ — свежий список водителей');
+  // только телефон — имя прежнее; пустое имя и кривой телефон — отказ
+  t.s.post({ tg: { action: 'drvedit', id: '501', phone: '' } });
+  assert.deepEqual([drv('501').name, drv('501').phone], ['Akmal Karimov aka', '']);
+  assert.equal(t.s.post({ tg: { action: 'drvedit', id: '501', name: '   ' } }).error, 'Укажите имя водителя');
+  assert.match(t.s.post({ tg: { action: 'drvedit', id: '501', phone: '12' } }).error, /^Телефон: 7–15 цифр/);
+  assert.equal(t.s.post({ tg: { action: 'drvedit', id: '999', name: 'X' } }).error, 'Нет такого водителя');
+  // правка не трогает машину, язык и состояние бота
+  assert.deepEqual([drv('501').truck, drv('501').status, drv('501').lang], ['Gazel-2', 'ruxsat', 'ru']);
+  // удалить: строка убрана, водителю — «нет доступа», клавиатура снята; второй водитель на месте
+  const n0 = sh.rows.length;
+  r = t.s.post({ tg: { action: 'drvdel', id: '502' } });
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(sh.rows.length, n0 - 1);
+  assert.equal(drv('502'), undefined);
+  assert.ok(drv('501'), 'другой водитель на месте');
+  const m = t.last('sendMessage', 502);
+  assert.equal(m.text, 'Sizga botdan foydalanish ruxsati yo‘q. Rahbarga murojaat qiling.');
+  assert.deepEqual(m.reply_markup, { remove_keyboard: true });
+  assert.equal(t.s.post({ tg: { action: 'drvdel', id: '502' } }).error, 'Нет такого водителя');
+  // написал боту снова — как новый: регистрация заново
+  t.msg(502, '/start');
+  assert.match(t.last('sendMessage', 502).text, /til|язык|Tilni/i);
 });

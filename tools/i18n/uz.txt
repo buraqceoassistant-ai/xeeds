@@ -2237,11 +2237,11 @@ X — по районам	X — tumanlar bo‘yicha
 например, GAZelle Next	masalan, GAZelle Next
 
 # ── версия 22: откуда и куда (бот) ──
-Для бота нужен код скрипта таблицы версии 29 (не ниже 9).	Bot uchun jadval skripti kodining 29-versiyasi kerak (9 dan past emas).
+Для бота нужен код скрипта таблицы версии 30 (не ниже 9).	Bot uchun jadval skripti kodining 30-versiyasi kerak (9 dan past emas).
 Обновите код скрипта до 29 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Skript kodini 29 gacha yangilang — unda skript mintaqasi muhim emas, jurnaldagi siljigan sanalar esa o‘zi tuzaladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
-Скрипт таблицы версии {n}: для бота нужна версия 29. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 29-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
-Скрипт таблицы версии ?: для бота нужна версия 29. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 29-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
-Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (29): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Haydovchilarga partiya yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (29) yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Скрипт таблицы версии {n}: для бота нужна версия 30. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi {n}: bot uchun 30-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
+Скрипт таблицы версии ?: для бота нужна версия 30. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.	Jadval skripti versiyasi ?: bot uchun 30-versiya kerak. «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → yangi joylashtirish versiyasi.
+Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (30): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Jadval skripti versiyasi 9. Haydovchilarga partiya yuborish, ularga yozish va mashinalar davlat raqamlarini saqlash uchun kodni oxirgi versiyagacha (30) yangilang: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
 Обновите код до 29.	Kodni 29-versiyaga yangilang.
 Водитель увидит, откуда забирать груз и куда везти: склад отправки с адресом и адрес клиента — в задании и в карточке точки.	Haydovchi yukni qayerdan olish va qayerga olib borishni ko‘radi: jo‘natish ombori manzili bilan va mijoz manzili — topshiriqda va manzil kartasida.
 
@@ -2493,3 +2493,30 @@ https://yandex.uz/maps/… или 41.311, 69.279	https://yandex.uz/maps/… yoki
 Адрес: {s}.	Manzil: {s}.
 Адрес не нашёлся — впишите название.	Manzil topilmadi — nomini yozing.
 Название точки — его видят в «Куда везти», в планах и водитель	Nuqta nomi — uni «Yetkazish joyi»da, rejalarda va haydovchi ko‘radi
+
+# ── водители (скрипт 30): имя и телефон, удалить ──
+Водитель {s}	Haydovchi {s}
+Имя водителя	Haydovchi ismi
+Карточка машины ✎	Mashina kartochkasi ✎
+Карточка машины	Mashina kartochkasi
+Карточка машины: название, госномер, ремонт	Mashina kartochkasi: nomi, davlat raqami, ta’mir
+Имя, телефон, удалить водителя	Ism, telefon, haydovchini o‘chirish
+Изменить водителя	Haydovchini tahrirlash
+Машину водителя выбирают в списке водителей (столбец «Машина»), название и госномер машины — в карточке машины. «Удалить водителя» — он пропадёт из списка, бот закроет ему доступ; напишет боту снова — придёт новая заявка.	Haydovchi mashinasi haydovchilar ro‘yxatida tanlanadi («Mashina» ustuni), mashina nomi va davlat raqami — mashina kartochkasida. «Haydovchini o‘chirish» — u ro‘yxatdan yo‘qoladi, bot unga ruxsatni yopadi; botga qayta yozsa — yangi ariza keladi.
+Удалить водителя	Haydovchini o‘chirish
+Позвонить	Qo‘ng‘iroq qilish
+⚠ Одна машина — у нескольких водителей: {s}.	⚠ Bitta mashina — bir nechta haydovchida: {s}.
+Бот даёт точки машины каждому из них.	Bot mashina nuqtalarini har biriga beradi.
+Назначьте лишним другую машину в столбце «Машина».	Ortiqchalariga «Mashina» ustunida boshqa mashina tayinlang.
+{s}: сохранено.	{s}: saqlandi.
+{s}: удалён из списка водителей.	{s}: haydovchilar ro‘yxatidan o‘chirildi.
+Удаляю водителя…	Haydovchini o‘chiryapman…
+Укажите имя водителя	Haydovchi ismini kiriting
+Телефон: 7–15 цифр, например +998901234567	Telefon: 7–15 raqam, masalan +998901234567
+Имя и телефон водителя меняются — со скриптом таблицы версии 30: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Haydovchi ismi va telefoni jadval skriptining 30-versiyasi bilan o‘zgartiriladi: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Удалить водителя можно — со скриптом таблицы версии 30: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.	Haydovchini jadval skriptining 30-versiyasi bilan o‘chirish mumkin: «Sozlamalar» → «Ulanish» → «Kodni nusxalash» → Apps Script’ga qo‘yish → Deploy → yangi versiya.
+Удалить водителя {s}?	{s} haydovchi o‘chirilsinmi?
+Он сейчас на линии — бот перестанет вести его по точкам.	U hozir yo‘lda — bot uni nuqtalar bo‘yicha boshqarishni to‘xtatadi.
+Водитель пропадёт из списка, бот закроет ему доступ. Напишет боту снова — придёт новая заявка.	Haydovchi ro‘yxatdan yo‘qoladi, bot unga ruxsatni yopadi. Botga qayta yozsa — yangi ariza keladi.
+Обновите код до 30.	Kodni 30-versiyaga yangilang.
+Имя и телефон водителя можно будет поправить на сайте (✎ в списке водителей), а водителя — удалить.	Haydovchi ismi va telefonini saytda tuzatish (haydovchilar ro‘yxatidagi ✎), haydovchini esa o‘chirish mumkin bo‘ladi.
