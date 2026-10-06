@@ -105,11 +105,11 @@ test('цена адреса — как у перевозчика; доля кл�
   assert.equal(Math.round(co.share[0]), po.total);
 });
 
-test('два мелких клиента в одном месте делят доплату за адрес по объёму, а не платят по 100 000 каждый', () => {
+test('два мелких клиента в одном месте — с каждого полная доплата (решение владельца)', () => {
   const stops = [st('BIG', 41.30, 69.24, 8), st('S1', 41.32, 69.25, 0.3), st('S2', 41.3203, 69.25, 0.45)];
   const p = E.priceTrip(stops, 'gazel', S), c = E.costSplit(stops, p, S);
-  assert.equal(p.total, 450000 + 100000);
-  assert.deepEqual(c.charge.map(Math.round), [0, 40000, 60000], 'адрес 100 000 — 0,3 : 0,45');
-  assert.equal(Math.round(c.notPaid), 100000);
-  assert.equal(Math.round(c.ours), 450000);
+  assert.equal(p.total, 450000 + 100000, 'у перевозчика адрес один');
+  assert.deepEqual(c.charge.map(Math.round), [0, 100000, 100000], 'с каждого — 100 000');
+  assert.equal(Math.round(c.ours), 350000);
+  assert.deepEqual(c.share.map(Math.round), [350000, 100000, 100000], 'доля мелких — их доплата');
 });

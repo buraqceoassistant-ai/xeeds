@@ -122,18 +122,11 @@
     const lim = +S.freeOutM3 || 0, vol = {};
     stops.forEach(s => { vol[s.bl] = (vol[s.bl] || 0) + (+(s.whole != null ? s.whole : s.cbm) || 0); });
     const why = stops.map(s => s.zone === 'out' ? 'out' : lim > 0 && vol[s.bl] > 0 && vol[s.bl] < lim - 1e-9 ? 'small' : null);
-    // с клиента — фиксированная доплата: заезд по тарифу точки этой машины (за кольцом — свой) — за адрес: несколько
-    // клиентов с доплатой в одном месте делят её по объёму. Машина только к ним (все клиенты рейса с доплатой, один
-    // адрес) — вся цена рейса. Больше цены рейса со всех вместе не берём. Доплата клиента делится между его строками по объёму
-    const bls = [...new Set(stops.map(s => s.bl))], pt = pointTariff(price.kind, S), fee = {};
-    const first = bl => stops.findIndex(s => s.bl === bl), addr = price.addr || stops.map((s, i) => i);
-    const paying = bls.filter(bl => why[first(bl)]), byAddr = {};
-    paying.forEach(bl => (byAddr[addr[first(bl)]] = byAddr[addr[first(bl)]] || []).push(bl));
-    const only = paying.length === bls.length && Object.keys(byAddr).length === 1;
-    Object.values(byAddr).forEach(list => {
-      const f = only ? price.total : +(list.some(bl => why[first(bl)] === 'out') ? pt.ptOut : pt.ptIn) || 0, v = list.reduce((a, bl) => a + (vol[bl] || 0), 0);
-      list.forEach(bl => { fee[bl] = f * (v ? (vol[bl] || 0) / v : 1 / list.length); });
-    });
+    // с клиента — фиксированная доплата: заезд по тарифу точки этой машины (за кольцом — свой) — с каждого такого
+    // клиента, даже если рядом другие (решение владельца); машина только к нему — вся цена рейса. Больше цены рейса со
+    // всех вместе не берём. Доплата клиента делится между его строками по объёму
+    const bls = [...new Set(stops.map(s => s.bl))], pt = pointTariff(price.kind, S), fee = {}, addr = price.addr || stops.map((s, i) => i);
+    bls.forEach(bl => { const i = stops.findIndex(s => s.bl === bl); if (why[i]) fee[bl] = bls.length === 1 ? price.total : +(why[i] === 'out' ? pt.ptOut : pt.ptIn) || 0; });
     const sum = Object.values(fee).reduce((a, b) => a + b, 0), k = sum > price.total ? price.total / sum : 1;
     const charge = stops.map(() => 0);
     Object.keys(fee).forEach(bl => {
