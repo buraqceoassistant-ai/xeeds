@@ -84,3 +84,18 @@ test('второй рейс — только когда заняты все ма
     assert.ok(ts.some(t => t.round === 2), k + ': второй круг, раз машин не хватает — ' + ts.map(t => t.name).join());
   });
 });
+
+// скрипт 31: кузов машины (Sozlamalar K:M) — рейсу на этой машине, по нему 3D рисует кузов
+test('кузов из карточки машины — у рейса на ней (vehicle.dims); 3D берёт его вместо типичного', () => {
+  const P = E.buildPlans(stops(), { ...S, vehicles: [veh('Gazel-1', { l: 4.2, w: 2.1, h: 2.2 }), veh('Gazel-2'), veh('Gazel-3'), veh('Kamaz-1')] });
+  const on = P.A.trips.filter(t => t.carName === 'Gazel-1'), other = P.A.trips.filter(t => t.carName && t.carName !== 'Gazel-1');
+  assert.ok(on.length && other.length, P.A.trips.map(t => t.name).join());
+  on.forEach(t => assert.deepEqual(t.vehicle.dims, { l: 4.2, w: 2.1, h: 2.2 }));
+  other.forEach(t => assert.equal(t.vehicle.dims, null));
+  const vw = {};
+  new Function('window', fs.readFileSync(new URL('../js/logi-viz.js', import.meta.url), 'utf8'))(vw);
+  const V = vw.LogiViz, b = V.layout(on[0]).body, g = V.layout(other[0]).body;
+  assert.deepEqual([b.l, b.w, b.h, +b.v.toFixed(3), b.own], [4.2, 2.1, 2.2, 19.404, true]);
+  assert.ok(!g.own && g.w === 2.1 && g.h === 1.9, 'без кузова — типичные ширина и высота Gazel');
+  assert.equal(V.bodyOf('gazel', 19, { l: 0, w: 2, h: 2 }).own, undefined, 'неполный кузов — не берём');
+});

@@ -5,6 +5,7 @@
  * Порядок — как при разгрузке: последнюю точку грузят первой (к кабине), точка 1 оказывается у дверей.
  * Кузов: Labo — бортовой, размеры производителя, высота груза — из объёма во «Тарифах»;
  * Changan, Gazel и Kamaz — фургоны с типичными шириной и высотой, длина — из объёма во «Тарифах».
+ * Если в карточке машины есть кузов (длина × ширина × высота, скрипт 31) — он и рисуется.
  * Груз больше кузова (допуск плана B) показан за дверями полупрозрачным.
  *
  * layout() — чистый расчёт, работает и без 3D. Сцену рисует three.js
@@ -26,8 +27,12 @@
   const colorOf = n => PALETTE[(Math.max(1, n) - 1) % PALETTE.length];
   const light = hex => { const v = parseInt(hex.slice(1), 16), r = v >> 16, g = (v >> 8) & 255, b = v & 255; return 0.299 * r + 0.587 * g + 0.114 * b > 160; };
 
-  function bodyOf(kind, m3) {
-    const b = BODY[kind] || BODY.gazel, v = Math.max(+m3 || 0, 0.5);
+  // dims — кузов из карточки машины (скрипт 31, Sozlamalar K:M): длина, ширина, высота (у бортового — высота груза);
+  // объём тогда — их произведение
+  function bodyOf(kind, m3, dims) {
+    const b = BODY[kind] || BODY.gazel;
+    if (dims && dims.l > 0 && dims.w > 0 && dims.h > 0) return { ...b, l: +dims.l, w: +dims.w, h: +dims.h, v: dims.l * dims.w * dims.h, own: true };
+    const v = Math.max(+m3 || 0, 0.5);
     return b.flat ? { ...b, v, h: v / (b.l * b.w) } : { ...b, v, l: v / (b.w * b.h) };
   }
 
@@ -45,7 +50,7 @@
 
   function layout(trip) {
     const veh = trip.vehicle || {}, kind = trip.kind || veh.kind || 'gazel';
-    const B = bodyOf(kind, veh.nomM3 != null ? veh.nomM3 : veh.m3);
+    const B = bodyOf(kind, veh.nomM3 != null ? veh.nomM3 : veh.m3, veh.dims);
     const c = Math.cbrt(B.v / (kind === 'labo' ? 250 : kind === 'changan' ? 450 : 700));   // ~700 ячеек в кузове: видно груз и быстро рисуется
     const n = { x: Math.max(1, Math.round(B.l / c)), y: Math.max(1, Math.round(B.h / c)), z: Math.max(1, Math.round(B.w / c)) };
     const cell = { x: B.l / n.x, y: B.h / n.y, z: B.w / n.z }, cellV = cell.x * cell.y * cell.z, wall = n.y * n.z, cap = n.x * wall;

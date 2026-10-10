@@ -72,13 +72,16 @@
  * Версия 29: «📤 В группу» — партия с точками в группу отчётов: по клиенту точка (ссылкой на карту), груз и получатель.
  * Версия 30: карточка водителя с сайта — имя и телефон (Haydovchilar K «Telefon»), «Удалить водителя» (строка листа
  *   убирается, водителю — «нет доступа»; написать боту снова — новая заявка).
+ * Версия 31: регистрация водителя — своя машина: телефон, вид, госномер, марка и модель, кузов (длина × ширина × высота)
+ *   и грузоподъёмность (Haydovchilar L:P). После «Разрешить» (сайт или группа) машина — в автопарк: строка Sozlamalar
+ *   C24:C39 (та же по госномеру, свободная того же вида или новая «Вид-N»), госномер, марка, объём, вес и кузов (K:M).
  */
 var TOKEN = '';
-var VERSION = 30; // сайт сверяет версию и просит обновить код, если он старый
+var VERSION = 31; // сайт сверяет версию и просит обновить код, если он старый
 
 var SH = { ship: 'Yuborishlar', cli: 'Mijozlar', wh: 'Qoshimcha omborlar', set: 'Sozlamalar', ring: 'Halqa zonasi', notes: 'O‘zgarishlar' };
 var LOC_COL = 22;   // Yuborishlar V — куда везти (версия 25)
-var COLS = { ship: 16, cli: 25, wh: 8, set: 10, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера, E:J — карточка машины
+var COLS = { ship: 16, cli: 25, wh: 8, set: 13, ring: 3, notes: 3 };   // Mijozlar Y (25) — маркировки клиента для импорта; Sozlamalar D — госномера, E:J — карточка машины
 var SET_ROWS = { isuzuM3: 5, isuzuKg: 6, depotName: 7, depotLat: 8, depotLon: 9, unloadMin: 10, dayStart: 11, speed: 12, aMaxStops: 13, maxPlaces: 14, bSmallM3: 15, bcMaxStops: 16, cM3: 17, cKg: 18, cTrucks: 19, roadK: 20, gazelBase: 43, gazelHeavy: 44, gazelHeavyKg: 45, gazelPtIn: 46, gazelPtOut: 47, laboBase: 48, laboPt: 49, laboM3: 50, laboKg: 51, baseIncludesPts: 52, kamazBase: 53, kamazPt: 54, laboBaseIncludesPts: 55, kamazBaseIncludesPts: 56, gazelM3: 57, gazelKg: 58, bTolM3: 59, bTolKg: 60,
   changanM3: 61, changanKg: 62, changanBase: 63, changanPt: 64, changanBaseIncludesPts: 65, gazelCount: 66, laboCount: 67, changanCount: 68, tripsPerVehicle: 69, freeOutM3: 70, densityMin: 71, densityMax: 72 };
 // подписи новых строк «Sozlamalar»: пишутся, только если в столбце A пусто
@@ -107,6 +110,8 @@ var SET_LABELS = {
 var TRUCKS_ROW = 24, TRUCKS_N = 16;
 // карточка машины (версия 21): Sozlamalar E:J напротив названия в C; заголовки — в строке 23
 var FLEET_HEAD = ['Holati', 'Marka', 'Yili', 'Hajm, m³', 'Yuk, kg', 'Izoh'], FLEET_REPAIR = 'ta’mirda';
+// кузов машины (версия 31): Sozlamalar K:M — длина, ширина, высота, м (3D и вместимость по кузову)
+var BODY_HEAD = ['Uzunlik, m', 'Kenglik, m', 'Balandlik, m'];
 
 function props_() { return PropertiesService.getScriptProperties(); }
 // свойство скрипта: точное имя, иначе то же имя в другом регистре или с пробелами («anthropic_api_key », «ANTHROPIC API KEY»)
@@ -522,8 +527,8 @@ function apply_(op) {
     sh = ss.getSheetByName(SH.set);
     var list = (op.v || []).slice(0, TRUCKS_N).map(function (x) { return [String(x)]; });
     if (!sh || !list.length) return { error: 'no trucks' };
-    // госномер (D) и карточка машины (E:J) держатся за название: список поменялся — они переезжают вместе с названиями
-    var wide = Math.min(8, sh.getMaxColumns() - 2), old = wide >= 2 ? sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, wide).getValues() : [], pm = {};
+    // госномер (D), карточка машины (E:J) и кузов (K:M) держатся за название: список поменялся — они переезжают вместе с названиями
+    var wide = Math.min(11, sh.getMaxColumns() - 2), old = wide >= 2 ? sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, wide).getValues() : [], pm = {};
     old.forEach(function (r) { var t = String(r[0]).trim(); if (t && r.slice(1).some(function (x) { return String(x).trim() !== ''; })) pm[t] = r.slice(1); });
     sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 1).clearContent();
     sh.getRange(TRUCKS_ROW, 3, list.length, 1).setValues(list);
@@ -545,7 +550,7 @@ function apply_(op) {
     sh.getRange(TRUCKS_ROW, 4, TRUCKS_N, 1).setNumberFormat('@').setValues(names.map(function (r) { var t = String(r[0]).trim(); return [t && pv[t] ? String(pv[t]) : '']; }));
     return { ok: true };
   }
-  if (op.t === 'fleet') return fleet_(ss, op.v || {});
+  if (op.t === 'fleet') return fleet_(ss, op.v || {}, !!op.body);
   if (op.t === 'rename') return renameTruck_(ss, String(op.from || '').trim(), String(op.to || '').trim());
   if (op.t === 'set') {
     sh = ss.getSheetByName(SH.set);
@@ -659,7 +664,7 @@ function aiLog_(body, a, model, r, ms) {
 }
 
 // карточка машины: E:J напротив названия в C (Holati, Marka, Yili, Hajm m³, Yuk kg, Izoh); пустое — стирается
-function fleet_(ss, info) {
+function fleet_(ss, info, body) {
   var sh = ss.getSheetByName(SH.set);
   if (!sh) return { error: 'no settings' };
   if (sh.getMaxColumns() < 10) sh.insertColumnsAfter(sh.getMaxColumns(), 10 - sh.getMaxColumns());
@@ -672,7 +677,22 @@ function fleet_(ss, info) {
     var x = info[String(r[0]).trim()] || {}, num = function (v) { return v === '' || v == null || isNaN(Number(v)) ? '' : Number(v); };
     return [x.repair ? FLEET_REPAIR : '', String(x.model || '').slice(0, 40), num(x.year), num(x.m3), num(x.kg), String(x.note || '').slice(0, 200)];
   }));
+  // кузов (K:M, версия 31) — только от сайта, который его знает (body), иначе не трогаем; K23:M23 заняты чужим — не пишем
+  if (body && bodyHead_(sh)) {
+    sh.getRange(TRUCKS_ROW, 11, TRUCKS_N, 3).setValues(names.map(function (r) {
+      var x = info[String(r[0]).trim()] || {}, num = function (v) { return v === '' || v == null || isNaN(Number(v)) || !(Number(v) > 0) ? '' : Number(v); };
+      return [num(x.l), num(x.w), num(x.h)];
+    }));
+  }
   return { ok: true };
+}
+// заголовок кузова K23:M23; занято чужим — false (кузов не пишем)
+function bodyHead_(sh) {
+  if (sh.getMaxColumns() < 13) sh.insertColumnsAfter(sh.getMaxColumns(), 13 - sh.getMaxColumns());
+  var h = sh.getRange(TRUCKS_ROW - 1, 11, 1, 3).getValues()[0];
+  if (h.some(function (x, i) { x = String(x).trim(); return x !== '' && x !== BODY_HEAD[i]; })) return false;
+  sh.getRange(TRUCKS_ROW - 1, 11, 1, 3).setValues([BODY_HEAD]).setFontWeight('bold');
+  return true;
 }
 // переименовать машину: список (C24:C39 — госномер и карточка остаются в той же строке), журнал (Yuborishlar M), водители бота
 function renameTruck_(ss, from, to) {

@@ -146,12 +146,14 @@
     const col = (c, a, b) => { const o = []; for (let r = a; r <= b; r++) if (Ss[r] && str(Ss[r][c])) o.push(str(Ss[r][c])); return o; };
     // госномера машин — D24:D39 напротив названия машины в C
     const plates = {}; for (let r = 24; r <= 39; r++) if (Ss[r] && str(Ss[r].C) && str(Ss[r].D)) plates[str(Ss[r].C)] = str(Ss[r].D);
-    // карточка машины — E:J (скрипт версии 21): в ремонте, марка, год, объём м³, грузоподъёмность кг, примечание
-    const fleet = {};
+    // карточка машины — E:J (скрипт версии 21): в ремонте, марка, год, объём м³, грузоподъёмность кг, примечание;
+    // K:M (версия 31) — кузов: длина, ширина, высота, м
+    const bodyOn = str((Ss[23] || {}).K) === 'Uzunlik, m';   // K:M — кузов, только под своим заголовком (иначе там что-то своё)
+    const fleet = {}, dim = v => { const x = bodyOn ? num(v) : null; return x > 0 ? x : null; };
     for (let r = 24; r <= 39; r++) {
       const c = Ss[r], t = c && str(c.C); if (!t) continue;
-      const x = { repair: /ta.?mirda|ремонт/i.test(str(c.E)), model: str(c.F), year: num(c.G), m3: num(c.H), kg: num(c.I), note: str(c.J) };
-      if (x.repair || x.model || x.year != null || x.m3 != null || x.kg != null || x.note) fleet[t] = x;
+      const x = { repair: /ta.?mirda|ремонт/i.test(str(c.E)), model: str(c.F), year: num(c.G), m3: num(c.H), kg: num(c.I), note: str(c.J), l: dim(c.K), w: dim(c.L), h: dim(c.M) };
+      if (x.repair || x.model || x.year != null || x.m3 != null || x.kg != null || x.note || x.l != null || x.w != null || x.h != null) fleet[t] = x;
     }
     const lists = { districts: col('A', 24, 39), statuses: col('B', 24, 29), trucks: col('C', 24, 39), plates, fleet };
     const notes = []; let sec = null;
@@ -279,6 +281,11 @@
         ['Holati', 'Marka', 'Yili', 'Hajm, m³', 'Yuk, kg', 'Izoh'].forEach((h, j) => { cells['EFGHIJ'[j] + 23] = h; });
         for (let i = 0; i < 16; i++) { const x = (tr[i] && fl[tr[i]]) || {};
           [x.repair ? 'ta’mirda' : null, x.model || null, x.year ?? null, x.m3 ?? null, x.kg ?? null, x.note || null].forEach((v, j) => { cells['EFGHIJ'[j] + (24 + i)] = v; }); }
+        // кузов — K:M (версия 31), если он есть хоть у одной машины
+        if (tr.some(t => fl[t] && (fl[t].l || fl[t].w || fl[t].h))) {
+          ['Uzunlik, m', 'Kenglik, m', 'Balandlik, m'].forEach((h, j) => { cells['KLM'[j] + 23] = h; });
+          for (let i = 0; i < 16; i++) { const x = (tr[i] && fl[tr[i]]) || {}; [x.l, x.w, x.h].forEach((v, j) => { cells['KLM'[j] + (24 + i)] = v || null; }); }
+        }
       }
       put(z, P[SH.set], setCells(txt(z, P[SH.set]), cells));
     }

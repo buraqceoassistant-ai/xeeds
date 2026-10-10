@@ -284,6 +284,7 @@ button.imp-check:hover { background: var(--color-surface); }
 .tg-code { font-size: 13px; padding: 4px 10px; background: var(--color-surface); border: 1px solid var(--color-divider); }
 .tg-drivers { display: flex; flex-direction: column; border-top: 1px solid var(--color-divider); }
 .tg-driver { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--color-divider); font-size: 13px; }
+.dv-pend-car .dv-pc + .dv-pc::before { content: " · "; color: var(--color-neutral-700); }
 
 /* «Водители»: партия по машинам, автопарк, лента доставок, отчёты */
 .dv-toolbar { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
