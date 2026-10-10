@@ -74,6 +74,9 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  // learn/ — учебная платформа, отдельное приложение: идёт мимо этого кэша (иначе на её адрес открывалась бы
+  // страница сайта отгрузок — навигация по «…/» и «index.html» отдаёт index.html сайта)
+  if (url.pathname.startsWith(new URL('learn/', self.registration.scope).pathname)) return;
 
   // Страница — из кэша той же сборки, что и остальные файлы (иначе новая страница может
   // встретиться со старыми скриптами и данными). Новая сборка ставится в фоне и
