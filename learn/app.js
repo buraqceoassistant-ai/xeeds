@@ -5,6 +5,9 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
   var useState = R.useState, useEffect = R.useEffect, useRef = R.useRef;
   var Btn = LOR.Button, Badge = LOR.StatusBadge, Arrow = LOR.Arrow, Icon = LOR.Icon, Progress = LOR.ProgressBar;
   var KEY = 'lor-lms-demo-v8', PASS_MARK = 80;
+  /* the server (learn/lms-client.js): its address is in learn/config.js; without it, or with ?demo=1, the demo keeps data in this browser */
+  var SV = window.LmsClient && !window.LmsClient.demo ? window.LmsClient : null;
+  var SAY = function () {};   /* a toast by string key — App puts its own in */
 
   /* ---------------- storage & helpers ---------------- */
   /* saved demo data is kept across versions: only what actually changed is patched in */
@@ -138,15 +141,27 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
   function currentLesson(db, user) { var ls = trackFlat(db, user); for (var i = 0; i < ls.length; i++) { var s = lessonStatus(db, user, ls[i].id); if (s !== 'passed' && s !== 'locked') return Object.assign({ status: s }, ls[i]); } return null; }
 
   /* mutations inside update(d => …) */
-  function nextId(d) { d.seq = (d.seq || 100) + 1; return d.seq; }
+  /* id of a new record. With the server d.seq+1 would collide between two devices — time plus a random part */
+  var lastId = 0;
+  function nextId(d) {
+    if (SV) { lastId = Math.max(Date.now() * 100 + Math.floor(Math.random() * 100), lastId + 1); return lastId; }
+    d.seq = (d.seq || 100) + 1; return d.seq;
+  }
   function notify(d, userId, text, lessonId) { d.notifications.unshift({ id: nextId(d), userId: userId, text: text, lessonId: lessonId || null, at: Date.now(), read: false }); }
   function setProg(d, uid, lid, patch) { d.progress[uid] = d.progress[uid] || {}; d.progress[uid][lid] = Object.assign({}, d.progress[uid][lid] || {}, patch, { at: Date.now() }); }
   function userOf(db, id) { return db.users.filter(function (u) { return u.id === id; })[0] || { name: '—' }; }
 
   function useDB() {
-    var s = useState(function () { return load() || seed(); }), db = s[0], set = s[1];
-    useEffect(function () { persist(db); }, [db]);
-    function update(fn) { set(function (prev) { var d = clone(prev); fn(d); return d; }); }
+    var s = useState(function () { return SV ? SV.initial() : (load() || seed()); }), db = s[0], set = s[1];
+    var cur = useRef(db);
+    useEffect(function () { if (!SV) persist(db); }, [db]);
+    useEffect(function () { if (SV) return SV.subscribe(function (d) { cur.current = d; set(d); }); }, []);
+    function update(fn) {
+      if (!SV) { set(function (prev) { var d = clone(prev); fn(d); return d; }); return; }
+      /* with the server the “before → after” difference goes to the queue (computed here, once — not inside set) */
+      var prev = cur.current, d = clone(prev); fn(d);
+      cur.current = d; SV.change(prev, d); set(d);
+    }
     return [db, update, set];
   }
 
@@ -272,7 +287,7 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
         h('label', { className: 'check big' }, h('input', { type: 'checkbox', id: 'agree1', checked: a1[0], onChange: function (e) { a1[1](e.target.checked); } }), t('agree1')),
         h('label', { className: 'check big' }, h('input', { type: 'checkbox', id: 'agree2', checked: a2[0], onChange: function (e) { a2[1](e.target.checked); } }), t('agree2'))) }];
     var cur = slides[step], last = step === slides.length - 1;
-    function accept() { p.update(function (d) { d.users.forEach(function (x) { if (x.id === u.id) { x.termsAcceptedAt = Date.now(); x.termsVersion = '1.0'; } }); d.audit.unshift({ userId: u.id, key: 'terms-accepted', at: Date.now() }); }); }
+    function accept() { p.update(function (d) { d.users.forEach(function (x) { if (x.id === u.id) { x.termsAcceptedAt = Date.now(); x.termsVersion = '1.0'; } }); d.audit.unshift({ id: nextId(d), userId: u.id, key: 'terms-accepted', at: Date.now() }); }); }
     return h('div', { className: 'welcome' },
       h('div', { className: 'welcome-card' },
         h('div', { className: 'welcome-side' },
@@ -841,8 +856,9 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
   function levelGrow(lv, lang) { var o = (lv && lv.grow) || lvlLib(lv, 'grow'); return (o[lang] || o.uz || []).slice(); }
   function levelPerks(lv, lang) { var o = (lv && lv.perks) || lvlLib(lv, 'perks'); return (o[lang] || o.uz || []).slice(); }
   function levelDesc(lv, lang) { if (!lv) return ''; var d = lv.desc || lvlLib(lv, 'desc'); return d[lang] || d.uz || ''; }
-  function markPromotion(d, uid, li, fromLi) {
-    d.users.forEach(function (x) { if (x.id === uid) { x.celebrate = { kind: 'level', li: li, fromLi: fromLi, at: Date.now() }; x.lastRank = String(li); if (!x.levelAt || Date.now() - x.levelAt > 6e4) x.levelAt = Date.now(); } });
+  /* keepAt: the employee’s own device congratulates but does not move the level date — with the server that is the methodist’s */
+  function markPromotion(d, uid, li, fromLi, keepAt) {
+    d.users.forEach(function (x) { if (x.id === uid) { x.celebrate = { kind: 'level', li: li, fromLi: fromLi, at: Date.now() }; x.lastRank = String(li); if (!keepAt && (!x.levelAt || Date.now() - x.levelAt > 6e4)) x.levelAt = Date.now(); } });
     d.notifications.unshift({ id: nextId(d), userId: uid, promo: { li: li }, text: '', path: true, at: Date.now(), read: false });
   }
   function notifText(n, db, lang, t) {
@@ -1933,6 +1949,8 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
     useEffect(function () { function k(e) { if (e.key === 'Escape') p.onClose(); } window.addEventListener('keydown', k); return function () { window.removeEventListener('keydown', k); }; }, []);
     function submit() {
       if (Object.keys(ans).length < qs.length) { er[1](true); return; }
+      /* with the server the employee has no right answers: the server grades and closes the error */
+      if (SV) { SV.retest(x.id, qs.map(function (q, i) { return ans[i]; })).then(function (r) { done[1](r.score); }, function (e) { p.say(t(e.code === 'net' ? 'srv_net' : 'srv_quiz_err')); }); return; }
       var ok = qs.filter(function (q, i) { return ans[i] === q.answer; }).length, sc = Math.round(ok * 100 / (qs.length || 1));
       done[1](sc);
       if (sc >= PASS_MARK) p.update(function (d) {
@@ -4743,8 +4761,20 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
     a.href = url; a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 400);
   }
   /* onClick for <a href="data:…" download>: hands the file to the viewer's save prompt when the link alone cannot */
+  function b64Blob(b64, type) { var s = atob(b64), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return new Blob([a], { type: type || 'application/octet-stream' }); }
   function saveLink(name) {
     return function (e) {
+      var ref = e.currentTarget.getAttribute('href') || '';
+      /* a file on the server’s Drive: the data holds lmsfile:<id>, the file itself comes on request if you may see it */
+      if (SV && ref.indexOf('lmsfile:') === 0) {
+        e.preventDefault();
+        SV.file(ref.slice(8)).then(function (f) {
+          var url = URL.createObjectURL(b64Blob(f.data, f.type)), a = document.createElement('a');
+          a.href = url; a.download = name || f.name; document.body.appendChild(a); a.click();
+          setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        }, function (x) { SAY(x.code === 'net' ? 'srv_net' : 'srv_file_err'); });
+        return;
+      }
       if (!DL) return;
       e.preventDefault();
       var href = e.currentTarget.getAttribute('href');
@@ -5223,9 +5253,11 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
 
   function Foot(p) {
     var t = p.t, s = useState(false), ask = s[0];
+    useEffect(function () { if (SV && p.admin) loadServerCode(); }, []);
     return h('footer', { className: 'app-foot' },
-      h('span', null, t('demo_note'), p.onTerms ? ' · ' : null, p.onTerms ? h('button', { type: 'button', className: 'app-link', onClick: p.onTerms }, t('terms_link')) : null),
-      ask ? h('span', { className: 'app-foot-confirm' }, t('reset_confirm'), ' ',
+      h('span', null, t(SV ? 'srv_note' : 'demo_note'), p.onTerms ? ' · ' : null, p.onTerms ? h('button', { type: 'button', className: 'app-link', onClick: p.onTerms }, t('terms_link')) : null),
+      SV ? (p.admin ? h('button', { type: 'button', className: 'app-link', onClick: function () { copyServerCode(p.say, t); } }, t('srv_code')) : null)
+      : ask ? h('span', { className: 'app-foot-confirm' }, t('reset_confirm'), ' ',
         h(Btn, { variant: 'ghost', size: 'sm', onClick: function () { s[1](false); } }, t('cancel')),
         h(Btn, { variant: 'outline', size: 'sm', onClick: function () { s[1](false); p.onReset(); } }, t('reset_demo')))
         : h('button', { type: 'button', className: 'app-link', onClick: function () { s[1](true); } }, t('reset_demo')));
@@ -5262,14 +5294,22 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
   }
 
   /* ---------------- login ---------------- */
+  /* server error codes → strings */
+  var SRV_ERR = { login: 'bad_login', locked: 'srv_locked', busy: 'srv_busy', net: 'srv_net', html: 'srv_html', setup: 'srv_setup' };
   function Login(p) {
-    var t = p.t, a = useState(''), b = useState(''), e = useState(false), th = useThemePref();
+    var t = p.t, a = useState(''), b = useState(''), e = useState(''), th = useThemePref(), busy = useState(false);
     var demo = [['metodist', 'admin123', t('role_admin')], ['d.karimova', '1234', t('role_new')], ['a.yusupova', '1234', t('role_exam')], ['s.rahimov', '1234', t('role_off')]];
     function submit(ev) {
       ev.preventDefault();
+      if (SV) {
+        if (!a[0].trim() || !b[0]) { e[1]('bad_login'); return; }
+        e[1](''); busy[1](true);
+        SV.login(a[0].trim(), b[0]).then(function () { busy[1](false); }, function (x) { busy[1](false); e[1](SRV_ERR[x.code] || 'srv_script'); });
+        return;
+      }
       var u = p.db.users.filter(function (x) { return x.login === a[0].trim().toLowerCase() && x.password === b[0]; })[0];
-      if (!u) { e[1](true); return; }
-      e[1](false); p.onLogin(u);
+      if (!u) { e[1]('bad_login'); return; }
+      e[1](''); p.onLogin(u);
     }
     return h('div', { className: 'login-page' },
       h('div', { className: 'lor-login' },
@@ -5284,12 +5324,12 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
               h('div', { className: 'lor-login-top' }, h('span', { className: 'lor-eyebrow' }, t('app_full')), h('span', { className: 'login-prefs' }, h(ThemeSwitch, { t: t, value: th.v, onChange: th.set, compact: true }), h(LOR.LangSwitch, { value: p.lang, onChange: p.setLang }))),
               h('h1', { className: 'lor-title' }, t('login_title')),
               h(Field, { name: 'login', label: t('login'), value: a[0], onChange: a[1], placeholder: 'd.karimova', required: true, autoComplete: 'username' }),
-              h(Field, { name: 'password', label: t('password'), type: 'password', value: b[0], onChange: b[1], placeholder: '••••••••', required: true, autoComplete: 'current-password', error: e[0] ? t('bad_login') : null }),
-              h(Btn, { variant: 'primary', block: true, arrow: true, type: 'submit' }, t('sign_in')),
+              h(Field, { name: 'password', label: t('password'), type: 'password', value: b[0], onChange: b[1], placeholder: '••••••••', required: true, autoComplete: 'current-password', error: e[0] ? t(e[0]) : null }),
+              h(Btn, { variant: 'primary', block: true, arrow: true, type: 'submit', disabled: busy[0] }, t(busy[0] ? 'srv_signing' : 'sign_in')),
               h('p', { className: 'lor-sm lor-muted', style: { margin: 0 } }, t('login_hint'))),
-            h('section', { className: 'demo-box', 'aria-label': t('demo_title') },
+            SV ? null : h('section', { className: 'demo-box', 'aria-label': t('demo_title') },
               h('div', { className: 'demo-box-h' }, h('span', { className: 'lor-eyebrow' }, t('demo_title')), h('span', { className: 'lor-sm lor-muted' }, t('demo_hint'))),
-              h('ul', null, demo.map(function (d) { return h('li', { key: d[0] }, h('button', { type: 'button', onClick: function () { a[1](d[0]); b[1](d[1]); e[1](false); } }, h('code', null, d[0] + ' / ' + d[1]), h('span', null, d[2]))); })))))),
+              h('ul', null, demo.map(function (d) { return h('li', { key: d[0] }, h('button', { type: 'button', onClick: function () { a[1](d[0]); b[1](d[1]); e[1](''); } }, h('code', null, d[0] + ' / ' + d[1]), h('span', null, d[2]))); })))))),
       h(Foot, { t: t, onReset: p.onReset, onTerms: p.showTerms }));
   }
 
@@ -5375,7 +5415,18 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
   /* ---------------- video (mock player; real one = HLS + DRM) ---------------- */
   function parseDur(s) { var m = String(s || '0:0').split(':'); return (+m[0] || 0) * 60 + (+m[1] || 0); }
   function mmss(n) { return pad(Math.floor(n / 60)) + ':' + pad(Math.floor(n % 60)); }
-  function Player(p) {
+  /* the lesson video: a YouTube link («unlisted» on the company channel) is embedded, otherwise the placeholder player */
+  function ytId(src) { var m = /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([\w-]{11})/.exec(String(src || '')); return m ? m[1] : null; }
+  function Player(p) { return ytId(p.video && p.video.src) ? h(YtPlayer, p) : h(MockPlayer, p); }
+  function YtPlayer(p) {
+    var t = p.t, id = ytId(p.video.src);
+    return h('div', { className: 'lor-video' },
+      h('div', { className: 'lor-video-frame is-embed' },
+        h('iframe', { src: 'https://www.youtube-nocookie.com/embed/' + id + '?rel=0&modestbranding=1&playsinline=1', title: p.video.title || 'Video', loading: 'lazy',
+          allow: 'accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen', allowFullScreen: true, referrerPolicy: 'strict-origin-when-cross-origin' })),
+      h('div', { className: 'lor-video-meta' }, h('span', { className: 'lor-sm' }, p.video.title), h('span', { className: 'lor-video-lock' }, h(Icon, { name: 'shield', size: 14 }), t('video_yt'))));
+  }
+  function MockPlayer(p) {
     var t = p.t, total = parseDur(p.video.duration) || 1, s = useState(0), pos = s[0], pl = useState(false), playing = pl[0];
     useEffect(function () { if (!playing) return; var id = setInterval(function () { s[1](function (x) { if (x + 2 >= total) { pl[1](false); return total; } return x + 2; }); }, 250); return function () { clearInterval(id); }; }, [playing, total]);
     useEffect(function () { s[1](0); pl[1](false); }, [p.video.title]);
@@ -5473,7 +5524,7 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
     var canFinish = st !== 'passed' && st !== 'exam-ready';
 
     return h(F, null,
-      h(LOR.Protected, { watermark: wmText(u), hideOnBlur: true, lang: p.lang, onViolation: function (k) { p.update(function (d) { d.audit.unshift({ userId: u.id, key: k, lessonId: l.id, at: Date.now() }); d.audit = d.audit.slice(0, 200); }); } },
+      h(LOR.Protected, { watermark: wmText(u), hideOnBlur: true, lang: p.lang, onViolation: function (k) { p.update(function (d) { d.audit.unshift({ id: nextId(d), userId: u.id, key: k, lessonId: l.id, at: Date.now() }); if (!SV) d.audit = d.audit.slice(0, 200); }); } },
         h('div', { className: 'lor-lesson app-lesson' },
           h('article', { className: 'lor-pane' },
             h('div', { className: 'lor-crumb' }, h('span', null, l.sectionTitle), h(Arrow, { length: 16 }), h(Badge, { status: st, lang: p.lang })),
@@ -5500,11 +5551,20 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
   /* ---------------- quiz ---------------- */
   function QuizView(p) {
     var t = p.t, u = p.user, l = findLesson(p.db.course, p.id), pr = prog(p.db, u.id)[p.id] || {};
-    var a = useState({}), ans = a[0], done = useState(pr.score != null), er = useState(false);
+    var a = useState({}), ans = a[0], done = useState(pr.score != null), er = useState(false), res = useState(null), busy = useState(false);
     if (!l) return null;
-    var qs = l.quiz || [], score = pr.score;
+    var qs = l.quiz || [], score = res[0] ? res[0].score : pr.score;
+    /* the right answer: with the server — only after submitting, from the server’s reply */
+    function right(q, i) { return SV ? (res[0] ? res[0].answers[i] : -1) : q.answer; }
     function submit() {
       if (Object.keys(ans).length < qs.length) { er[1](true); return; }
+      if (SV) {
+        if (busy[0]) return;
+        busy[1](true);
+        SV.quiz(l.id, qs.map(function (q, i) { return ans[i]; })).then(function (r) { busy[1](false); res[1](r); done[1](true); window.scrollTo(0, 0); },
+          function (x) { busy[1](false); p.say(t(x.code === 'net' ? 'srv_net' : 'srv_quiz_err')); });
+        return;
+      }
       var ok = qs.filter(function (q, i) { return ans[i] === q.answer; }).length, sc = Math.round(ok * 100 / (qs.length || 1));
       p.update(function (d) { setProg(d, u.id, l.id, { score: sc }); d.requests.forEach(function (r) { if (r.type === 'exam' && r.userId === u.id && r.lessonId === l.id && r.state === 'open') { r.score = sc; r.unread = true; r.at = Date.now(); } }); });
       done[1](true); window.scrollTo(0, 0);
@@ -5519,14 +5579,14 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
         return h('fieldset', { key: i, className: 'quiz-q' },
           h('legend', { className: 'lor-h' }, h('span', { className: 'lor-eyebrow' }, t('quiz_q') + ' ' + (i + 1) + ' / ' + qs.length), q.q),
           h('div', { className: 'lor-quiz-opts', role: 'radiogroup' }, q.options.map(function (o, k) {
-            var sel = ans[i] === k, right = checked && Object.keys(ans).length && k === q.answer, wrong = checked && sel && k !== q.answer;
-            return h('button', { key: k, type: 'button', role: 'radio', 'aria-checked': sel, disabled: checked, className: cx('lor-opt', sel && 'is-sel', right && 'is-right', wrong && 'is-wrong'), onClick: function () { var n = Object.assign({}, ans); n[i] = k; a[1](n); er[1](false); } },
-              h('span', { className: 'lor-opt-k' }, 'ABCDEF'[k]), h('span', null, o), right ? h('span', { className: 'lor-opt-res' }, '✓ ' + t('correct')) : wrong ? h('span', { className: 'lor-opt-res' }, '✕ ' + t('wrong')) : null);
+            var ok = right(q, i), sel = ans[i] === k, right_ = checked && Object.keys(ans).length && k === ok, wrong = checked && sel && k !== ok;
+            return h('button', { key: k, type: 'button', role: 'radio', 'aria-checked': sel, disabled: checked, className: cx('lor-opt', sel && 'is-sel', right_ && 'is-right', wrong && 'is-wrong'), onClick: function () { var n = Object.assign({}, ans); n[i] = k; a[1](n); er[1](false); } },
+              h('span', { className: 'lor-opt-k' }, 'ABCDEF'[k]), h('span', null, o), right_ ? h('span', { className: 'lor-opt-res' }, '✓ ' + t('correct')) : wrong ? h('span', { className: 'lor-opt-res' }, '✕ ' + t('wrong')) : null);
           })));
       }),
       h('div', { className: 'quiz-foot' },
         er[0] ? h('span', { className: 'lor-field-error' }, t('answer_all')) : h('span'),
-        checked ? h(Btn, { variant: 'outline', onClick: function () { p.go({ name: 'lesson', id: l.id }); } }, t('back_lesson')) : h(Btn, { variant: 'primary', arrow: true, onClick: submit }, t('submit_test'))));
+        checked ? h(Btn, { variant: 'outline', onClick: function () { p.go({ name: 'lesson', id: l.id }); } }, t('back_lesson')) : h(Btn, { variant: 'primary', arrow: true, onClick: submit, disabled: busy[0] }, t('submit_test'))));
   }
 
   /* ---------------- employee home ---------------- */
@@ -5667,7 +5727,7 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
       if (u.lastRank !== rkKey) {
         var prevLi = +String(u.lastRank).split('-')[0] || 0;
         if (prevLi >= rk.li) p.update(function (d) { d.users.forEach(function (x) { if (x.id === u.id) x.lastRank = rkKey; }); });
-        else p.update(function (d) { markPromotion(d, u.id, rk.li, prevLi); });
+        else p.update(function (d) { markPromotion(d, u.id, rk.li, prevLi, !!SV); });
       }
     }, [rkKey, ready]);
     useEffect(function () {
@@ -5861,6 +5921,8 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
       baseRef.current = l ? lessonText(l) : ''; cf[1](false); notif[1](null);
     }, [id]);
     useEffect(function () { if (p.lessonId) sel[1](p.lessonId); }, [p.lessonId]);
+    /* the course appeared (import, another device): open its first lesson */
+    useEffect(function () { if (!lesson && first) sel[1](first.id); }, [first && first.id]);
     function setD(fn) { var d = clone(draft); fn(d); dr[1](d); }
     function secUpdate(sid, fn) { p.update(function (d) { d.course.sections.forEach(function (s) { if (s.id === sid) fn(s); }); }); }
     function addLesson(sid) { var nid = 'l' + Date.now().toString(36); p.update(function (d) { d.course.sections.forEach(function (s) { if (s.id === sid) s.lessons.push({ id: nid, title: 'Yangi dars', intro: '', html: '<p></p>', steps: [], limit: '', video: { title: '', duration: '05:00' }, quiz: [] }); }); }); sel[1](nid); }
@@ -5884,7 +5946,7 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
     var openQ = db.requests.filter(function (r) { return r.type === 'question' && r.lessonId === id && r.state === 'open'; });
 
     return h('div', { className: 'app-wrap' },
-      h('div', { className: 'page-head' }, h('div', null, h('span', { className: 'lor-eyebrow' }, t('cms_hint')), h('h1', { className: 'lor-title' }, t('nav_cms'), h(PageTip, { t: t, id: 'cms' })))),
+      h('div', { className: 'page-head' }, h('div', null, h('span', { className: 'lor-eyebrow' }, t(SV ? 'srv_cms_hint' : 'cms_hint')), h('h1', { className: 'lor-title' }, t('nav_cms'), h(PageTip, { t: t, id: 'cms' })))),
       h('div', { className: 'lor-tabs fb-tabs', role: 'tablist' }, [['lessons', t('cms_tab_lessons'), flat(db.course).length], ['cases', t('nav_cases'), (db.cases || []).length], ['journals', t('db_tab_j'), (db.journals || []).length], ['terms', t('db_tab_t'), (db.terms || []).length], ['tracks', t('trk_tab'), (db.tracks || []).length], ['plan', t('pl_tab'), (db.planTpl || []).length]].map(function (x) {
         return h('button', { key: x[0], type: 'button', role: 'tab', 'aria-selected': tab[0] === x[0], className: cx('lor-tab', tab[0] === x[0] && 'is-on'), onClick: function () { tab[1](x[0]); } }, x[1], h('span', { className: 'lor-count' }, x[2]));
       })),
@@ -5902,7 +5964,8 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
               h('ul', null, s.lessons.map(function (l) { return h('li', { key: l.id }, h('button', { type: 'button', className: cx('cms-l', l.id === id && 'is-on'), onClick: function () { sel[1](l.id); } }, l.title || '—')); })),
               h('button', { type: 'button', className: 'app-link', onClick: function () { addLesson(s.id); } }, '+ ' + t('add_lesson')));
           }),
-          h(Btn, { variant: 'outline', size: 'sm', onClick: addSection }, '+ ' + t('add_section'))),
+          h(Btn, { variant: 'outline', size: 'sm', onClick: addSection }, '+ ' + t('add_section')),
+          SV ? h(CourseImport, { t: t, update: p.update, say: p.say }) : null),
         draft && lesson ? h('section', { className: 'box cms-edit' },
           openQ.length ? h('div', { className: 'status-box is-fail' }, h('div', null, h('b', null, '? ' + openQ.length + ' · ' + t('tab_q')), openQ.map(function (r) { return h('p', { key: r.id }, userOf(db, r.userId).name + ': ' + r.text); }))) : null,
           notif[0] ? h(SopNotifyPanel, Object.assign({}, p, { key: notif[0].lessonId + notif[0].title, x: notif[0], onDone: function () { notif[1](null); } })) : null,
@@ -5931,7 +5994,7 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
           h('div', { className: 'lor-form-grid' },
             h(Field, { name: 'vt', label: t('v_title'), value: draft.video.title, onChange: function (v) { setD(function (d) { d.video.title = v; }); } }),
             h(Field, { name: 'vd', label: t('v_dur'), value: draft.video.duration, placeholder: '08:40', onChange: function (v) { setD(function (d) { d.video.duration = v; }); } }),
-            h(Field, { name: 'vs', span: true, label: t('v_src'), value: draft.video.src, placeholder: 'https://media.buraq…/l4/master.m3u8', onChange: function (v) { setD(function (d) { d.video.src = v; }); } })),
+            h(Field, { name: 'vs', span: true, label: t('v_src'), value: draft.video.src, placeholder: 'https://youtu.be/…', onChange: function (v) { setD(function (d) { d.video.src = v; }); } })),
           h('h2', { className: 'cms-h' }, t('quiz')),
           draft.quiz.map(function (q, i) {
             return h('fieldset', { key: i, className: 'cms-q' },
@@ -6079,11 +6142,84 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
         notifs: db.notifications.filter(function (n) { return n.userId === p.user.id; }), fmtNotif: function (n) { return notifText(n, db, p.lang, t); },
         onReadAll: function () { p.update(function (d) { d.notifications.forEach(function (n) { if (n.userId === p.user.id) n.read = true; }); }); },
         onNotif: function (n) { p.update(function (d) { d.notifications.forEach(function (x) { if (x.id === n.id) x.read = true; }); }); go({ name: n.route === 'mentor' ? 'quality' : (n.route || 'inbox'), tab: n.kind === 'errfix' ? 'err' : (n.tab || null), ym: n.ym || null }); } }),
-      h('div', { className: 'app-body no-side' }, h('main', { className: 'app-main', id: 'main' }, h('div', { className: 'page-anim', key: route.name + (route.id || route.uid || route.lessonId || '') + (route.tab || '') + (route.ym || '') }, main), h(Foot, { t: t, onReset: p.onReset, onTerms: p.showTerms }))),
+      h('div', { className: 'app-body no-side' }, h('main', { className: 'app-main', id: 'main' }, h('div', { className: 'page-anim', key: route.name + (route.id || route.uid || route.lessonId || '') + (route.tab || '') + (route.ym || '') }, main), h(Foot, { t: t, onReset: p.onReset, onTerms: p.showTerms, admin: true, say: p.say }))),
       h(AIMentor, Object.assign({}, p, { open: ai[0], setOpen: ai[1], lessonId: route.name === 'cms' ? route.lessonId : null, openLesson: function (id) { go({ name: 'cms', lessonId: id }); } })),
       hintOn && !tour[0] && p.user.tourDone ? h(HintLayer, { t: t }) : null,
       pal[0] ? h(Palette, Object.assign({}, q, { user: p.user, onClose: function () { pal[1](false); }, go: function (x) { go(x); } })) : null,
       tour[0] || !p.user.tourDone ? h(Tour, { t: t, user: p.user, go: go, onClose: function () { tour[1](false); p.update(function (d) { d.users.forEach(function (x) { if (x.id === p.user.id) x.tourDone = true; }); }); } }) : null);
+  }
+
+  /* ---------------- server: templates, course import, sync status, server code ---------------- */
+  /* a new platform on the server starts empty: levels, programmes, the 30/60/90 plan and the schedule come from the templates */
+  function fillTemplates(d) {
+    if (!(d.levels || []).length) d.levels = seedLevels();
+    if (!(d.tracks || []).length) d.tracks = seedTracks();
+    if (!(d.planTpl || []).length) d.planTpl = seedPlan();
+    d.settings = d.settings || {};
+    if (!d.settings.schedule) d.settings.schedule = seedSchedule();
+    if (!d.settings.survey) d.settings.survey = { on: true, every: 3, round: 0 };
+  }
+  /* chapter 4 from the prototype file (the .html exported from Claude): the line «var CH4 = […];».
+     The site’s own demo file has only titles — that one is refused */
+  function parseCh4(text) {
+    var m = /^var CH4 = (\[.*\]);\s*$/m.exec(text), list;
+    if (!m) return null;
+    try { list = JSON.parse(m[1]); } catch (e) { return null; }
+    if (!Array.isArray(list) || !list.length || list.some(function (x) { return !x || !x.id || !x.title || typeof x.html !== 'string'; })) return null;
+    return list.some(function (x) { return x.html.indexOf('Namuna (demo)') >= 0; }) ? 'demo' : list;
+  }
+  function CourseImport(p) {
+    var t = p.t;
+    function pick(e) {
+      var f = e.target.files && e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        var list = parseCh4(String(rd.result || ''));
+        if (list === 'demo') { p.say(t('imp_demo')); return; }
+        if (!list) { p.say(t('imp_bad')); return; }
+        var secs = ch4Sections(list);
+        p.update(function (d) {
+          secs.forEach(function (s) { var i = d.course.sections.findIndex(function (x) { return x.id === s.id; }); if (i >= 0) d.course.sections[i] = s; else d.course.sections.push(s); });
+        });
+        p.say(tpl(t('imp_ok'), { n: list.length }));
+      };
+      rd.readAsText(f);
+    }
+    return h('div', { className: 'cms-import' },
+      h('input', { id: 'cms-import', type: 'file', accept: '.html,text/html', className: 'sr-only', onChange: pick }),
+      h('label', { className: 'lor-btn lor-btn-outline lor-btn-sm', htmlFor: 'cms-import' }, t('imp_btn')),
+      h('p', { className: 'lor-sm lor-muted', style: { margin: 0 } }, t('imp_hint')));
+  }
+  /* bottom-left: no connection, changes the server did not take, outdated server code (methodist) */
+  function SyncChip(p) {
+    var t = p.t, s = useState(null), st = s[0];
+    useEffect(function () { return SV.onStatus(function (x) { s[1](x); }); }, []);
+    if (!st) return null;
+    var old = p.admin && st.v && st.v < SV.SERVER_V;
+    var msg = st.rejected ? t('srv_rejected') + ': ' + st.rejected.slice(0, 2).join('; ')
+      : st.error ? t('srv_error') + ': ' + st.error
+      : st.net === 'off' ? t('srv_offline') + (st.pending ? ' (' + st.pending + ')' : '')
+      : st.net === 'busy' ? t('srv_busy') : null;
+    if (!msg && !old) return null;
+    return h('div', { className: 'sync-chip', role: 'status' },
+      old ? h('span', null, tpl(t('srv_old'), { v: st.v, need: SV.SERVER_V }), ' ', h('button', { type: 'button', className: 'app-link', onClick: function () { copyServerCode(p.say, t); } }, t('srv_code'))) : null,
+      msg ? h('span', null, msg) : null,
+      st.rejected || st.error ? h('button', { type: 'button', className: 'app-link', onClick: SV.clearNotice }, t('srv_ok')) : null);
+  }
+  /* the server code (tools/lms-gs/Code.gs) for Apps Script — learn/lms-gs-script.js, loaded for the methodist only */
+  function loadServerCode(cb) {
+    if (window.LMS_GS_SCRIPT) { if (cb) cb(); return; }
+    var el = document.getElementById('lms-gs-script');
+    if (!el) { el = document.createElement('script'); el.id = 'lms-gs-script'; el.src = 'lms-gs-script.js'; document.head.appendChild(el); }
+    if (cb) el.addEventListener('load', cb);
+  }
+  function copyServerCode(say, t) {
+    loadServerCode(function () {
+      var txt = window.LMS_GS_SCRIPT || '', done = function () { say(tpl(t('srv_copied'), { v: window.LMS_GS_VERSION })); };
+      var file = function () { downloadText('Code.gs', txt, 'text/plain;charset=utf-8'); done(); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, file); else file();
+    });
   }
 
   /* ---------------- root ---------------- */
@@ -6094,21 +6230,27 @@ var TOUCH_ICON = '../icons/apple-touch-icon.png';
     useEffect(function () { if (!toast) return; var id = setTimeout(function () { ts[1](null); }, 3600); return function () { clearTimeout(id); }; }, [toast]);
     useEffect(function () { document.documentElement.lang = lang; }, [lang]);
     var user = db.users.filter(function (u) { return u.id === db.session; })[0];
-    /* the 1st of a month (or the first open after it): the closed month's report goes out */
-    var due = monthlyDue(db, Date.now());
-    useEffect(function () { if (due) update(function (d) { if (monthlyDue(d, Date.now()) === due) issueMonthly(d, due); }); }, [due]);
+    SAY = function (k) { ts[1]({ msg: t(k), k: Date.now() }); };
+    /* the 1st of a month (or the first open after it): the closed month's report goes out — with the server only from the methodist */
+    var due = monthlyDue(db, Date.now()), canIssue = !SV || !!(user && user.role === 'admin');
+    useEffect(function () { if (due && canIssue) update(function (d) { if (monthlyDue(d, Date.now()) === due) issueMonthly(d, due); }); }, [due, canIssue]);
+    /* new platform on the server: levels, programmes, adaptation plan and schedule come from the templates */
+    var needTpl = !!(SV && user && user.role === 'admin' && !(db.levels || []).length);
+    useEffect(function () { if (needTpl) update(fillTemplates); }, [needTpl]);
     var p = {
       db: db, update: update, t: t, lang: lang, user: user,
       setLang: function (l) { update(function (d) { d.lang = l; }); },
       say: function (msg) { ts[1]({ msg: msg, k: Date.now() }); },
-      logout: function () { ts[1](null); update(function (d) { d.session = null; }); },
+      logout: SV ? function () { ts[1](null); SV.logout(); } : function () { ts[1](null); update(function (d) { d.session = null; }); },
       sampler: sampler, showTerms: function () { tm[1](true); },
       onReset: function () { var f = seed(); f.lang = lang; setDb(f); ts[1]({ msg: t('saved') }); }
     };
     var view = !user ? h(Login, Object.assign({}, p, { onLogin: function (u) { update(function (d) { d.session = u.id; }); } }))
+      : needTpl ? h('div', { className: 'app-wrap' }, h('p', { className: 'lor-muted' }, t('srv_preparing')))
       : user.role === 'admin' ? h(AdminApp, Object.assign({ key: 'a' + user.id }, p))
       : h(EmployeeApp, Object.assign({ key: 'e' + user.id }, p));
-    return h(F, null, view, tm[0] ? h(TermsModal, { t: t, lang: lang, acceptedAt: user && user.termsAcceptedAt, onClose: function () { tm[1](false); } }) : null, h(Toast, { toast: toast }));
+    return h(F, null, view, tm[0] ? h(TermsModal, { t: t, lang: lang, acceptedAt: user && user.termsAcceptedAt, onClose: function () { tm[1](false); } }) : null,
+      SV && user ? h(SyncChip, { t: t, admin: user.role === 'admin', say: p.say }) : null, h(Toast, { toast: toast }));
   }
 
   /* phone chrome: the browser bar takes the brand navy, and the page can be

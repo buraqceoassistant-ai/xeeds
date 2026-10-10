@@ -40,11 +40,15 @@ function seedIntroSection() {
           { q: 'Rahbarni chetlab o‘tish qachon mumkin?', options: ['Har doim', 'Hech qachon', 'Xavfsizlik yoki qonunbuzarlik holatida', 'Ish haqi masalasida'], answer: 2 }] }] }];
 }
 
-function seedCourse() {
-  var ch = CH4.map(function (x) { return { id: x.id, title: x.title, html: x.html, quiz: x.quiz, video: x.video, source: '4-bob' }; });
-  return { sections: seedIntroSection().concat([
+/* 4-bob → два раздела курса (ombor; transport, chegara, bojxona). Тот же разбор — у «Загрузить курс из файла прототипа» */
+function ch4Sections(list) {
+  var ch = list.map(function (x) { return { id: x.id, title: x.title, html: x.html, quiz: x.quiz, video: x.video, source: '4-bob' }; });
+  return [
     { id: 's2', title: '4-bob. Logistika standartlari · 1-qism: ombor', officialOnly: false, lessons: ch.slice(0, 8) },
-    { id: 's3', title: '4-bob. Logistika standartlari · 2-qism: transport, chegara, bojxona', officialOnly: true, lessons: ch.slice(8) }]) };
+    { id: 's3', title: '4-bob. Logistika standartlari · 2-qism: transport, chegara, bojxona', officialOnly: true, lessons: ch.slice(8) }];
+}
+function seedCourse() {
+  return { sections: seedIntroSection().concat(ch4Sections(CH4)) };
 }
 
 var DAY = 864e5;

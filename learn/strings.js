@@ -17,7 +17,7 @@ var APP_T = {
     reply_ph: 'Xodimga javob yozing…', send_reply: 'Javob yuborish', edit_sop: 'Yo‘riqnomani tahrirlash', no_test: 'Test hali topshirilmagan', oral: 'Og‘zaki suhbat natijasi', pass: 'O‘tdi', fail: 'O‘tmadi', save_result: 'Natijani saqlash', approve: 'Tasdiqlash', decline: 'Rad etish', auto_test: 'Avtomatik test',
     m_total: 'Xodimlar', m_prob: 'Sinov muddatida', m_exam: 'Imtihon kutmoqda', m_avg: 'O‘rtacha o‘zlashtirish', all: 'Barchasi', th_emp: 'Xodim', th_status: 'Status', th_lesson: 'Joriy dars', th_exams: 'Imtihonlar', th_prog: 'O‘zlashtirish', lessons_of: 'Darslar bo‘yicha holat', close: 'Yopish',
     cms_hint: 'Namuna kontent — metodist o‘z SOP matnlari bilan almashtiradi.', add_section: 'Bo‘lim qo‘shish', add_lesson: 'Dars qo‘shish', official_only: 'Faqat rasmiy xodimlar uchun', sec_title: 'Bo‘lim nomi',
-    l_title: 'Dars nomi', l_intro: 'Qisqa kirish', steps: 'Qadamlar (SOP)', step_text: 'Harakat matni', step_who: 'Kim → kimga (vergul bilan)', add_step: 'Qadam qo‘shish', l_limit: 'Mas’uliyat chegarasi', video: 'Video', v_title: 'Video nomi', v_dur: 'Davomiyligi', v_src: 'HLS manifest havolasi (serverda DRM bilan)', quiz: 'Test savollari', add_q: 'Savol qo‘shish', q_text: 'Savol', correct_opt: 'to‘g‘ri javob',
+    l_title: 'Dars nomi', l_intro: 'Qisqa kirish', steps: 'Qadamlar (SOP)', step_text: 'Harakat matni', step_who: 'Kim → kimga (vergul bilan)', add_step: 'Qadam qo‘shish', l_limit: 'Mas’uliyat chegarasi', video: 'Video', v_title: 'Video nomi', v_dur: 'Davomiyligi', v_src: 'YouTube havolasi (kanalda “Havola orqali” kirish)', quiz: 'Test savollari', add_q: 'Savol qo‘shish', q_text: 'Savol', correct_opt: 'to‘g‘ri javob',
     save: 'Saqlash', saved: 'Saqlandi', saved_notified: 'Saqlandi. Savol bergan xodimlarga bildirishnoma yuborildi', del_lesson: 'Darsni o‘chirish', confirm_del: 'Rostdan o‘chirilsinmi?', yes_del: 'Ha, o‘chirish', cancel: 'Bekor qilish', remove: 'Olib tashlash', up: 'Yuqoriga', down: 'Pastga',
     new_emp: 'Yangi xodim', fio: 'F.I.Sh.', position: 'Lavozim', department: 'Bo‘lim', login: 'Login', password: 'Parol', create: 'Yaratish', created: 'Xodim yaratildi. Login va parolni unga bering', reset_pw: 'Parolni tiklash', new_pw: 'Yangi parol', profile: 'Anketa', filled: 'to‘ldirilgan', not_filled: 'to‘ldirilmagan', login_taken: 'Bu login band.',
     reset_demo: 'Demo ma’lumotlarni tiklash', reset_confirm: 'Barcha o‘zgarishlar o‘chiriladi. Davom etasizmi?', demo_note: 'Prototip: ma’lumotlar faqat shu brauzerda saqlanadi.',
@@ -41,7 +41,7 @@ var APP_T = {
     reply_ph: 'Напишите ответ сотруднику…', send_reply: 'Отправить ответ', edit_sop: 'Править инструкцию', no_test: 'Тест ещё не сдан', oral: 'Итог устной беседы', pass: 'Сдал', fail: 'Не сдал', save_result: 'Сохранить результат', approve: 'Одобрить', decline: 'Отклонить', auto_test: 'Автотест',
     m_total: 'Сотрудники', m_prob: 'На испытательном', m_exam: 'Ждут экзамена', m_avg: 'Среднее освоение', all: 'Все', th_emp: 'Сотрудник', th_status: 'Статус', th_lesson: 'Текущий урок', th_exams: 'Экзамены', th_prog: 'Освоение', lessons_of: 'Статус по урокам', close: 'Закрыть',
     cms_hint: 'Пример контента — методист заменит на свои SOP.', add_section: 'Добавить раздел', add_lesson: 'Добавить урок', official_only: 'Только для штатных сотрудников', sec_title: 'Название раздела',
-    l_title: 'Название урока', l_intro: 'Краткое введение', steps: 'Шаги (SOP)', step_text: 'Текст действия', step_who: 'Кто → кому (через запятую)', add_step: 'Добавить шаг', l_limit: 'Границы ответственности', video: 'Видео', v_title: 'Название видео', v_dur: 'Длительность', v_src: 'Ссылка на HLS-манифест (с DRM на сервере)', quiz: 'Вопросы теста', add_q: 'Добавить вопрос', q_text: 'Вопрос', correct_opt: 'верный ответ',
+    l_title: 'Название урока', l_intro: 'Краткое введение', steps: 'Шаги (SOP)', step_text: 'Текст действия', step_who: 'Кто → кому (через запятую)', add_step: 'Добавить шаг', l_limit: 'Границы ответственности', video: 'Видео', v_title: 'Название видео', v_dur: 'Длительность', v_src: 'Ссылка на YouTube (на канале — доступ «По ссылке»)', quiz: 'Вопросы теста', add_q: 'Добавить вопрос', q_text: 'Вопрос', correct_opt: 'верный ответ',
     save: 'Сохранить', saved: 'Сохранено', saved_notified: 'Сохранено. Сотрудникам с вопросами отправлено уведомление', del_lesson: 'Удалить урок', confirm_del: 'Точно удалить?', yes_del: 'Да, удалить', cancel: 'Отмена', remove: 'Убрать', up: 'Вверх', down: 'Вниз',
     new_emp: 'Новый сотрудник', fio: 'Ф.И.О.', position: 'Должность', department: 'Отдел', login: 'Логин', password: 'Пароль', create: 'Создать', created: 'Сотрудник создан. Передайте ему логин и пароль', reset_pw: 'Сбросить пароль', new_pw: 'Новый пароль', profile: 'Анкета', filled: 'заполнена', not_filled: 'не заполнена', login_taken: 'Этот логин занят.',
     reset_demo: 'Сбросить демо-данные', reset_confirm: 'Все изменения будут удалены. Продолжить?', demo_note: 'Прототип: данные хранятся только в этом браузере.',
@@ -65,7 +65,7 @@ var APP_T = {
     reply_ph: 'Write a reply to the employee…', send_reply: 'Send reply', edit_sop: 'Edit SOP', no_test: 'Test not taken yet', oral: 'Oral check result', pass: 'Passed', fail: 'Failed', save_result: 'Save result', approve: 'Approve', decline: 'Decline', auto_test: 'Auto test',
     m_total: 'Employees', m_prob: 'On probation', m_exam: 'Awaiting exam', m_avg: 'Average progress', all: 'All', th_emp: 'Employee', th_status: 'Status', th_lesson: 'Current lesson', th_exams: 'Exams', th_prog: 'Progress', lessons_of: 'Status by lesson', close: 'Close',
     cms_hint: 'Sample content — the methodologist replaces it with real SOPs.', add_section: 'Add section', add_lesson: 'Add lesson', official_only: 'Official staff only', sec_title: 'Section name',
-    l_title: 'Lesson title', l_intro: 'Short intro', steps: 'Steps (SOP)', step_text: 'Action text', step_who: 'Who → whom (comma separated)', add_step: 'Add step', l_limit: 'Responsibility boundary', video: 'Video', v_title: 'Video title', v_dur: 'Duration', v_src: 'HLS manifest URL (DRM on the server)', quiz: 'Test questions', add_q: 'Add question', q_text: 'Question', correct_opt: 'correct answer',
+    l_title: 'Lesson title', l_intro: 'Short intro', steps: 'Steps (SOP)', step_text: 'Action text', step_who: 'Who → whom (comma separated)', add_step: 'Add step', l_limit: 'Responsibility boundary', video: 'Video', v_title: 'Video title', v_dur: 'Duration', v_src: 'YouTube link (unlisted on the channel)', quiz: 'Test questions', add_q: 'Add question', q_text: 'Question', correct_opt: 'correct answer',
     save: 'Save', saved: 'Saved', saved_notified: 'Saved. Employees who asked were notified', del_lesson: 'Delete lesson', confirm_del: 'Delete this lesson?', yes_del: 'Yes, delete', cancel: 'Cancel', remove: 'Remove', up: 'Up', down: 'Down',
     new_emp: 'New employee', fio: 'Full name', position: 'Position', department: 'Department', login: 'Login', password: 'Password', create: 'Create', created: 'Employee created. Give them the login and password', reset_pw: 'Reset password', new_pw: 'New password', profile: 'Profile', filled: 'complete', not_filled: 'incomplete', login_taken: 'This login is taken.',
     reset_demo: 'Reset demo data', reset_confirm: 'All changes will be erased. Continue?', demo_note: 'Prototype: data is stored in this browser only.',
@@ -89,7 +89,7 @@ var APP_T = {
     reply_ph: '给员工写回复…', send_reply: '发送回复', edit_sop: '编辑标准', no_test: '测验尚未提交', oral: '口头面谈结果', pass: '通过', fail: '未通过', save_result: '保存结果', approve: '批准', decline: '驳回', auto_test: '自动测验',
     m_total: '员工', m_prob: '试用期中', m_exam: '等待考试', m_avg: '平均掌握度', all: '全部', th_emp: '员工', th_status: '状态', th_lesson: '当前课程', th_exams: '考试', th_prog: '掌握度', lessons_of: '各课程完成情况', close: '关闭',
     cms_hint: '示例内容，培训主管可替换为本公司的 SOP 文本。', add_section: '添加章节', add_lesson: '添加课程', official_only: '仅面向正式员工', sec_title: '章节名称',
-    l_title: '课程名称', l_intro: '简短介绍', steps: '步骤（SOP）', step_text: '操作说明', step_who: '谁 → 给谁（用逗号分隔）', add_step: '添加步骤', l_limit: '职责范围', video: '视频', v_title: '视频名称', v_dur: '时长', v_src: 'HLS 清单链接（服务器端启用 DRM）', quiz: '测验问题', add_q: '添加问题', q_text: '问题', correct_opt: '正确答案',
+    l_title: '课程名称', l_intro: '简短介绍', steps: '步骤（SOP）', step_text: '操作说明', step_who: '谁 → 给谁（用逗号分隔）', add_step: '添加步骤', l_limit: '职责范围', video: '视频', v_title: '视频名称', v_dur: '时长', v_src: 'YouTube 链接（频道中设为“不公开”）', quiz: '测验问题', add_q: '添加问题', q_text: '问题', correct_opt: '正确答案',
     save: '保存', saved: '已保存', saved_notified: '已保存。已向提出问题的员工发送通知', del_lesson: '删除课程', confirm_del: '确定删除？', yes_del: '是，删除', cancel: '取消', remove: '移除', up: '上移', down: '下移',
     new_emp: '新员工', fio: '姓名', position: '职位', department: '部门', login: '登录名', password: '密码', create: '创建', created: '员工已创建。请将登录名和密码交给该员工', reset_pw: '重置密码', new_pw: '新密码', profile: '个人信息表', filled: '已填写', not_filled: '未填写', login_taken: '该登录名已被占用。',
     reset_demo: '重置演示数据', reset_confirm: '所有更改都将删除。是否继续？', demo_note: '原型：数据仅保存在本浏览器中。',
@@ -2508,4 +2508,70 @@ Object.assign(APP_T.zh, {
   xt_my_t: '额外任务', xt_my_s: '培训主管单独布置的课程计划外任务：可获得 XP，部分任务还计入晋级条件。', xt_done_t: '已通过',
   xt_staff_n: '额外任务：{n}', xt_staff_add: '额外任务', xt_cell: '额外任务',
   hint_xt_t: '额外任务', hint_xt: '为员工布置课程计划外的个人任务：截止日期、XP 奖励，并可计入其等级刻度。'
+});
+
+/* ---------- strings: server mode (sign-in, sync, course import, server code) ---------- */
+Object.assign(APP_T.uz, {
+  video_yt: 'YouTube · faqat havola orqali',
+  srv_cms_hint: 'Kurs matnlari serverda — faqat tizimga kirgan xodimlarga ko‘rinadi',
+  srv_note: 'Ma’lumotlar BURAQ serverida saqlanadi.', srv_signing: 'Kirilmoqda…',
+  srv_locked: 'Parol ko‘p marta noto‘g‘ri kiritildi. 15 daqiqadan keyin qayta urinib ko‘ring.', srv_busy: 'Server band — yarim daqiqadan keyin qayta urinib ko‘ring.',
+  srv_net: 'Internet yo‘q — ulanishni tekshiring.', srv_html: 'Server javob bermayapti — metodistga xabar bering.', srv_setup: 'Server hali sozlanmagan — metodistga xabar bering.',
+  srv_script: 'Serverda xato — keyinroq urinib ko‘ring.', srv_offline: 'Internet yo‘q — o‘zgarishlar shu qurilmada, ulanish tiklanganda yuboriladi',
+  srv_rejected: 'Ba’zi o‘zgarishlar saqlanmadi', srv_error: 'Saqlashda xato', srv_ok: 'Tushunarli',
+  srv_old: 'Server kodi eski (v{v}, kerak v{need}) — yangisini Apps Script’ga qo‘ying.', srv_code: 'Server kodini nusxalash',
+  srv_copied: 'Server kodi (v{v}) nusxalandi — Apps Script’da almashtiring va yangi versiyani joylang.',
+  srv_preparing: 'Platforma tayyorlanmoqda: darajalar, dasturlar va moslashuv rejasi shablondan qo‘shilmoqda…',
+  srv_quiz_err: 'Testni yuborib bo‘lmadi — sahifani yangilab, qayta urinib ko‘ring.', srv_file_err: 'Faylni ochib bo‘lmadi.',
+  imp_btn: 'Prototip faylidan 4-bobni yuklash', imp_hint: 'Claude’dagi prototip fayli (.html): 4-bob standartlari matni va testlari serverga yuklanadi, mavjud 4-bob bo‘limlari almashtiriladi.',
+  imp_ok: '4-bob yuklandi: {n} ta dars', imp_bad: 'Faylda 4-bob topilmadi — prototipning asl .html faylini tanlang.',
+  imp_demo: 'Bu sayt demo fayli — unda standart matnlari yo‘q. Claude’dagi asl prototip faylini tanlang.'
+});
+Object.assign(APP_T.ru, {
+  video_yt: 'YouTube · доступ по ссылке',
+  srv_cms_hint: 'Тексты курса — на сервере, их видят только вошедшие сотрудники',
+  srv_note: 'Данные хранятся на сервере BURAQ.', srv_signing: 'Вход…',
+  srv_locked: 'Слишком много неверных паролей. Попробуйте через 15 минут.', srv_busy: 'Сервер занят — повторите через полминуты.',
+  srv_net: 'Нет интернета — проверьте связь.', srv_html: 'Сервер не отвечает — сообщите методисту.', srv_setup: 'Сервер ещё не настроен — сообщите методисту.',
+  srv_script: 'Ошибка сервера — попробуйте позже.', srv_offline: 'Нет интернета — изменения на устройстве, уйдут, когда появится связь',
+  srv_rejected: 'Часть изменений не сохранена', srv_error: 'Ошибка сохранения', srv_ok: 'Понятно',
+  srv_old: 'Код сервера устарел (v{v}, нужна v{need}) — вставьте новый в Apps Script.', srv_code: 'Скопировать код сервера',
+  srv_copied: 'Код сервера (v{v}) скопирован — замените его в Apps Script и разверните новую версию.',
+  srv_preparing: 'Готовим платформу: уровни, программы и план адаптации из шаблона…',
+  srv_quiz_err: 'Не удалось отправить тест — обновите страницу и попробуйте снова.', srv_file_err: 'Не удалось открыть файл.',
+  imp_btn: 'Загрузить 4-bob из файла прототипа', imp_hint: 'Файл прототипа из Claude (.html): тексты и тесты стандартов 4-bob загрузятся на сервер, разделы 4-bob заменятся.',
+  imp_ok: '4-bob загружен: уроков — {n}', imp_bad: 'В файле нет 4-bob — выберите исходный .html прототипа.',
+  imp_demo: 'Это файл демо с сайта — в нём нет текстов стандартов. Выберите исходный файл прототипа из Claude.'
+});
+Object.assign(APP_T.en, {
+  video_yt: 'YouTube · unlisted',
+  srv_cms_hint: 'Course texts live on the server — only signed-in employees see them',
+  srv_note: 'Data is stored on the BURAQ server.', srv_signing: 'Signing in…',
+  srv_locked: 'Too many wrong passwords. Try again in 15 minutes.', srv_busy: 'The server is busy — try again in half a minute.',
+  srv_net: 'No internet — check your connection.', srv_html: 'The server is not responding — tell the methodist.', srv_setup: 'The server is not set up yet — tell the methodist.',
+  srv_script: 'Server error — try again later.', srv_offline: 'Offline — changes are kept on this device and will be sent when you are back online',
+  srv_rejected: 'Some changes were not saved', srv_error: 'Save error', srv_ok: 'OK',
+  srv_old: 'The server code is outdated (v{v}, needs v{need}) — paste the new one into Apps Script.', srv_code: 'Copy server code',
+  srv_copied: 'Server code (v{v}) copied — replace it in Apps Script and deploy a new version.',
+  srv_preparing: 'Preparing the platform: levels, programmes and the adaptation plan from templates…',
+  srv_quiz_err: 'Could not submit the test — reload the page and try again.', srv_file_err: 'Could not open the file.',
+  imp_btn: 'Load chapter 4 from the prototype file', imp_hint: 'The prototype file from Claude (.html): the chapter 4 standards and tests go to the server, replacing the chapter 4 sections.',
+  imp_ok: 'Chapter 4 loaded: {n} lessons', imp_bad: 'No chapter 4 in this file — choose the original prototype .html.',
+  imp_demo: 'This is the site’s demo file — it has no standard texts. Choose the original prototype file from Claude.'
+});
+Object.assign(APP_T.zh, {
+  video_yt: 'YouTube · 仅限链接访问',
+  srv_cms_hint: '课程文本保存在服务器上——仅登录的员工可见',
+  srv_note: '数据保存在 BURAQ 服务器上。', srv_signing: '正在登录…',
+  srv_locked: '密码错误次数过多，请15分钟后再试。', srv_busy: '服务器繁忙——请半分钟后再试。',
+  srv_net: '没有网络——请检查连接。', srv_html: '服务器无响应——请告知培训主管。', srv_setup: '服务器尚未设置——请告知培训主管。',
+  srv_script: '服务器出错——请稍后再试。', srv_offline: '离线——更改保存在本设备上，联网后自动发送',
+  srv_rejected: '部分更改未保存', srv_error: '保存出错', srv_ok: '知道了',
+  srv_old: '服务器代码已过时（v{v}，需要 v{need}）——请将新代码粘贴到 Apps Script。', srv_code: '复制服务器代码',
+  srv_copied: '服务器代码（v{v}）已复制——请在 Apps Script 中替换并部署新版本。',
+  srv_preparing: '正在准备平台：从模板添加等级、课程和适应计划…',
+  srv_quiz_err: '无法提交测验——请刷新页面后重试。', srv_file_err: '无法打开文件。',
+  imp_btn: '从原型文件导入第4章', imp_hint: '来自 Claude 的原型文件（.html）：第4章标准的文本和测验将上传到服务器，并替换现有第4章部分。',
+  imp_ok: '第4章已导入：{n} 节课', imp_bad: '文件中没有第4章——请选择原型的原始 .html 文件。',
+  imp_demo: '这是网站的演示文件——不含标准文本。请选择来自 Claude 的原始原型文件。'
 });

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { pbkdf2Sync } from 'node:crypto';
 import { loadLms } from './lms-gs-mock.mjs';
-import { buildLmsGs } from '../tools/build-lms-gs.mjs';
+import { buildLmsGs, pageScript } from '../tools/build-lms-gs.mjs';
 
 const DAY = 864e5;
 const quiz = [{ q: 'Q1', options: ['a', 'b'], answer: 1 }, { q: 'Q2', options: ['a', 'b'], answer: 0 }];
@@ -252,13 +252,80 @@ test('наставник записывает ошибку сотруднику 
   assert.deepEqual(fix.rejected.map(x => x.i), [0]);
 });
 
+test('повторная проверка после ошибки: балл считает сервер, сдал — ошибка закрыта, наставнику уведомление', () => {
+  const { g, M, D, Z } = platform();
+  M({ action: 'patch', ops: [{ op: 'set', path: ['errors', { id: 'e1' }], value: { id: 'e1', uid: 10427, by: 10288, lessonId: 'b4-1', text: 'PL yo‘q', status: 'assigned' } }] });
+  assert.equal(Z({ action: 'retest', errorId: 'e1', answers: [1, 0] }).code, 'forbidden');
+  assert.equal(D({ action: 'retest', errorId: 'e1', answers: [1] }).code, 'bad');
+  const bad = D({ action: 'retest', errorId: 'e1', answers: [0, 1] });
+  assert.equal(bad.score, 0); assert.equal(g.state().errors[0].status, 'assigned');
+  const ok = D({ action: 'retest', errorId: 'e1', answers: [1, 0] });
+  assert.equal(ok.score, 100);
+  const st = g.state();
+  assert.equal(st.errors[0].status, 'done'); assert.equal(st.errors[0].retest.score, 100);
+  assert.deepEqual(pickN(st.notifications[0]), { userId: 10288, kind: 'errfix', route: 'quality', err: { name: 'Dilnoza Karimova', ttl: '4.1', score: 100 } });
+  assert.equal(D({ action: 'retest', errorId: 'e1', answers: [1, 0] }).code, 'quiz');
+  // сам сотрудник ошибку не закрывает и отметки шкалы уровня не ставит
+  const r = D({ action: 'patch', ops: [{ op: 'set', path: ['users', { id: 10427 }, 'levelTasks'], value: { t1: { at: 1 } } }] });
+  assert.match(rejected(r)[0], /levelTasks/);
+});
+test('мол-мулк: сотрудник сообщает о проблеме со своим имуществом, подтверждает его методист', () => {
+  const { g, D, A } = platform();
+  A({ action: 'patch', ops: [{ op: 'set', path: ['assets', { id: 'as1' }], value: { id: 'as1', uid: 10427, type: 'laptop', name: 'Noutbuk', status: 'active' } }] });
+  const r = D({ action: 'patch', ops: [
+    { op: 'set', path: ['assets', { id: 'as1' }, 'status'], value: 'issue' },
+    { op: 'set', path: ['assets', { id: 'as1' }, 'issue'], value: { kind: 'broken', text: 'Ekran singan', at: 1 } },
+    { op: 'set', path: ['assets', { id: 'as1' }, 'confirmedAt'], value: 5 }] });
+  assert.deepEqual(r.rejected.map(x => x.i), [2]);
+  assert.equal(g.state().assets[0].issue.text, 'Ekran singan');
+});
+const pickN = n => ({ userId: n.userId, kind: n.kind, route: n.route, err: n.err });
+
 test('since: та же версия — без данных; после правки — новое состояние', () => {
   const { D, A } = platform();
   const v = D({ action: 'load' });
-  assert.deepEqual(D({ action: 'since', rev: v.rev }), { ok: true, rev: v.rev, same: true });
+  assert.deepEqual(D({ action: 'since', rev: v.rev }), { ok: true, v: 2, rev: v.rev, same: true });
   A({ action: 'patch', ops: [{ op: 'set', path: ['notifications', { id: 9 }], value: { id: 9, userId: 10427, text: 'yangi' }, after: null }] });
   const n = D({ action: 'since', rev: v.rev });
   assert.equal(n.rev, v.rev + 1); assert.equal(n.state.notifications[0].text, 'yangi');
+});
+
+test('файлы: скан паспорта и вложения — на Диск, в данных ссылка; файл получает только тот, кому он виден', () => {
+  const { g, D, Z, A } = platform();
+  const pdf = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 ' + 'x'.repeat(3000)).toString('base64');
+  const r = D({ action: 'patch', ops: [
+    { op: 'set', path: ['users', { id: 10427 }, 'profile'], value: { lastName: 'Karimova', passportFile: { name: 'pasport.pdf', size: 3009, type: 'application/pdf', data: pdf } } },
+    { op: 'set', path: ['users', { id: 10427 }, 'avatar'], value: 'data:image/png;base64,iVBORw0KGgo=' }] });
+  assert.deepEqual(r.rejected, []);
+  const st = g.state(), me = st.users.find(u => u.id === 10427);
+  const ref = me.profile.passportFile.data;
+  assert.match(ref, /^lmsfile:[\w-]{8,}$/);
+  assert.equal(me.avatar, 'data:image/png;base64,iVBORw0KGgo=');   // короткое — остаётся в данных
+  assert.ok(!g.files[g.props.LMS_STATE].content.includes('%PDF'));
+  const id = ref.slice(8), f = g.files[id];
+  assert.equal(f.name, 'pasport.pdf'); assert.equal(f.type, 'application/pdf'); assert.match(f.description, /10427/);
+  assert.equal(g.folders[f.folder].name, 'files');
+  // своё — можно, методисту — можно, коллеге — нельзя
+  const mine = D({ action: 'file', id });
+  assert.equal(mine.name, 'pasport.pdf'); assert.equal(Buffer.from(mine.data, 'base64').toString().slice(0, 8), '%PDF-1.4');
+  assert.equal(A({ action: 'file', id }).ok, true);
+  assert.equal(Z({ action: 'file', id }).code, 'forbidden');
+  assert.equal(Z({ action: 'file', id: '../../etc' }).code, 'bad');
+  // чужую ссылку себе в анкету не вписать; свою — можно (анкета сохраняется целиком)
+  const steal = Z({ action: 'patch', ops: [{ op: 'set', path: ['users', { id: 10391 }, 'profile'], value: { passportFile: { name: 'x.pdf', data: ref } } }] });
+  assert.deepEqual(rejected(steal), ['чужой файл']);
+  assert.equal(Z({ action: 'file', id }).code, 'forbidden');
+  const again = D({ action: 'patch', ops: [{ op: 'set', path: ['users', { id: 10427 }, 'profile'], value: { lastName: 'Karimova', passportFile: me.profile.passportFile } }] });
+  assert.deepEqual(again.rejected, []);
+});
+
+test('журнал нарушений: сотрудник добавляет только свою запись, сервер хранит последние 500', () => {
+  const { g, D, A } = platform();
+  A({ action: 'patch', ops: [{ op: 'set', path: ['audit'], value: Array.from({ length: 500 }, (_, i) => ({ id: 'old' + i, userId: 10391, key: 'copy' })) }] });
+  const r = D({ action: 'patch', ops: [{ op: 'set', path: ['audit', { id: 'a1' }], value: { id: 'a1', userId: 10427, key: 'blur', lessonId: 'b4-1' }, after: null }] });
+  assert.deepEqual(r.rejected, []);
+  const au = g.state().audit;
+  assert.equal(au.length, 500); assert.equal(au[0].id, 'a1'); assert.equal(au[499].id, 'old498');
 });
 
 test('пароли: смена своим паролем закрывает другие входы; сброс методистом выдаёт новый один раз', () => {
@@ -308,6 +375,8 @@ test('неизвестное действие и не-JSON — понятная 
   assert.match(g.post({ action: 'drop', token: t }).error, /Неизвестное действие/);
 });
 
-test('tools/lms-gs/Code.gs собран из Server.gs и learn/lms-sync.js (node tools/build-lms-gs.mjs)', () => {
-  assert.equal(readFileSync(new URL('../tools/lms-gs/Code.gs', import.meta.url), 'utf8'), buildLmsGs());
+test('tools/lms-gs/Code.gs и learn/lms-gs-script.js собраны из Server.gs и learn/lms-sync.js (node tools/build-lms-gs.mjs)', () => {
+  const src = buildLmsGs();
+  assert.equal(readFileSync(new URL('../tools/lms-gs/Code.gs', import.meta.url), 'utf8'), src);
+  assert.equal(readFileSync(new URL('../learn/lms-gs-script.js', import.meta.url), 'utf8'), pageScript(src));
 });

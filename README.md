@@ -42,7 +42,7 @@
 | `css/glass.css` | Стекло (glassmorphism): светлый фон, матовые панели, тёмно-синяя стеклянная шапка |
 | `sw.js`, `manifest.webmanifest`, `icons/` | PWA: офлайн-режим и установка |
 | `learn/` | Учебная платформа для сотрудников — отдельное приложение, см. [`learn/README.md`](learn/README.md) |
-| `tools/lms-gs/` | Сервер учебной платформы (Google Apps Script): `Server.gs`, одним файлом — `Code.gs` (`node tools/build-lms-gs.mjs`) |
+| `tools/lms-gs/` | Сервер учебной платформы (Google Apps Script): `Server.gs`, одним файлом — `Code.gs` и `learn/lms-gs-script.js` (`node tools/build-lms-gs.mjs`) |
 
 Без сборки: все файлы отдаются как есть. React, Leaflet, three.js и PDF.js лежат в `js/vendor/`,
 внешние CDN не нужны (кроме плиток карты).
@@ -1004,8 +1004,10 @@ node tools/vault.mjs init Mijozlar_omborlari_ro_yxati.xlsx buraq
 ## Учебная платформа
 
 `learn/` — обучение сотрудников: курс по стандартам, тесты и устный экзамен у методиста, план адаптации, уровни и
-рейтинг. Отдельное приложение со своим сервером на Google Apps Script (не скрипт таблицы отгрузок). Service worker
-сайта отгрузок адреса `learn/` не перехватывает. Устройство, настройка сервера и план — [`learn/README.md`](learn/README.md).
+рейтинг. Отдельное приложение со своим сервером на Google Apps Script (не скрипт таблицы отгрузок): вход по логину
+и паролю, общие данные, файлы на Google Диске. Адрес сервера — `learn/config.js`; пока он пустой, платформа работает
+как демо (данные в браузере). Service worker сайта отгрузок адреса `learn/` не перехватывает.
+Устройство, настройка сервера по шагам и локальный запуск — [`learn/README.md`](learn/README.md).
 
 ## Установка на телефон
 

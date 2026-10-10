@@ -279,7 +279,8 @@
         if (devtools || save) { e.preventDefault(); e.stopPropagation(); if (p.onViolation) p.onViolation(k); }
         if (k === 'printscreen') { setHidden(true); try { navigator.clipboard && navigator.clipboard.writeText(''); } catch (_) {} if (p.onViolation) p.onViolation(k); }
       }
-      function blur() { if (p.hideOnBlur) setHidden(true); }
+      /* focus moving into an embedded video on this page (iframe) also blurs the window — that is not leaving the page */
+      function blur() { if (!p.hideOnBlur) return; setTimeout(function () { var a = document.activeElement; if (!(a && a.tagName === 'IFRAME')) setHidden(true); }, 0); }
       function focus() { setHidden(false); }
       function vis() { if (document.hidden && p.hideOnBlur) setHidden(true); }
       window.addEventListener('keydown', key, true); window.addEventListener('keyup', key, true);

@@ -11,18 +11,23 @@ export function loadLms({ now, iter } = {}) {
   const props = {}, files = {}, folders = {}, triggers = [], logs = [], cache = new Map();
   let seq = 0, writes = 0, uuid = 0;
   const clock = () => (now && now.value != null ? now.value : Date.now());
+  // id как у Google Диска — длинные; файл — текст (content) или байты (bytes, type) для загруженных файлов
+  const newId = p => p + '-' + String(++seq).padStart(10, '0');
   const file = (id) => ({
     getId: () => id,
-    getBlob: () => ({ getDataAsString: () => files[id].content }),
+    getBlob: () => ({ getDataAsString: () => files[id].content, getBytes: () => files[id].bytes, getName: () => files[id].name, getContentType: () => files[id].type }),
+    setDescription: d => { files[id].description = d; },
     setContent: c => { files[id].content = c; writes++; },
-    makeCopy: (name, folder) => { const nid = 'file' + (++seq); files[nid] = { name, folder: folder.getId(), content: files[id].content, created: clock() }; return file(nid); },
+    makeCopy: (name, folder) => { const nid = newId('file'); files[nid] = { name, folder: folder.getId(), content: files[id].content, created: clock() }; return file(nid); },
     getDateCreated: () => new Date(files[id].created),
     setTrashed: v => { if (v) delete files[id]; }
   });
   const folder = (id) => ({
     getId: () => id,
-    createFile: (name, content) => { const fid = 'file' + (++seq); files[fid] = { name, folder: id, content, created: clock() }; return file(fid); },
-    createFolder: n => { const fid = 'folder' + (++seq); folders[fid] = { name: n, parent: id }; return folder(fid); },
+    createFile: (name, content) => { const fid = newId('file');
+      files[fid] = typeof name === 'object' ? { name: name.name, type: name.type, bytes: name.bytes, folder: id, created: clock() } : { name, folder: id, content, created: clock() };
+      return file(fid); },
+    createFolder: n => { const fid = newId('folder'); folders[fid] = { name: n, parent: id }; return folder(fid); },
     getFoldersByName: n => { const l = Object.keys(folders).filter(k => folders[k].parent === id && folders[k].name === n); return { hasNext: () => l.length > 0, next: () => folder(l.shift()) }; },
     getFiles: () => { const l = Object.keys(files).filter(k => files[k].folder === id); return { hasNext: () => l.length > 0, next: () => file(l.shift()) }; }
   });
@@ -35,7 +40,7 @@ export function loadLms({ now, iter } = {}) {
       deleteProperty: k => { delete props[k]; }
     }) },
     DriveApp: {
-      createFolder: n => { const id = 'folder' + (++seq); folders[id] = { name: n, parent: null }; return folder(id); },
+      createFolder: n => { const id = newId('folder'); folders[id] = { name: n, parent: null }; return folder(id); },
       getFolderById: id => { if (!folders[id]) throw new Error('нет папки ' + id); return folder(id); },
       getFileById: id => { if (!files[id]) throw new Error('нет файла ' + id); return file(id); }
     },
@@ -51,7 +56,9 @@ export function loadLms({ now, iter } = {}) {
       DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
       computeDigest: (alg, s) => sbytes(createHash('sha256').update(ubuf(s)).digest()),
       computeHmacSha256Signature: (value, key) => sbytes(createHmac('sha256', ubuf(key)).update(ubuf(value)).digest()),
-      newBlob: s => ({ getBytes: () => sbytes(Buffer.from(String(s), 'utf8')) }),
+      newBlob: (s, type, name) => ({ bytes: Array.isArray(s) ? s : sbytes(Buffer.from(String(s), 'utf8')), type, name, getBytes() { return this.bytes; } }),
+      base64Decode: s => sbytes(Buffer.from(s, 'base64')),
+      base64Encode: b => ubuf(b).toString('base64'),
       getUuid: () => createHash('sha256').update('uuid' + (++uuid) + Math.random()).digest('hex').replace(/^(.{8})(.{4})(.{4})(.{4})(.{12}).*$/, '$1-$2-$3-$4-$5'),
       formatDate: (d) => d.toISOString().slice(0, 10)
     },
