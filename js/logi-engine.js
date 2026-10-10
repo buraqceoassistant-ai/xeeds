@@ -642,7 +642,7 @@
       const named = (S.vehicles || []).filter(v => v.kind === k), active = named.filter(v => !v.repair);
       if (!(COUNT[k] > 0) && !named.length) return;   // число машин не задано — без ограничения
       const n = Math.max(0, (COUNT[k] | 0 || named.length) - (named.length - active.length)), used = new Set(named.map(v => v.name));
-      const cars = active.slice(0, n).map(v => ({ name: v.name, m3: +v.m3 || DEF[k][0], kg: +v.kg || DEF[k][1] }));
+      const cars = active.slice(0, n).map(v => ({ name: v.name, m3: +v.m3 || DEF[k][0], kg: +v.kg || DEF[k][1], dims: v.l > 0 && v.w > 0 && v.h > 0 ? { l: +v.l, w: +v.w, h: +v.h } : null }));
       for (let i = 1; cars.length < n; i++) if (!used.has(LABEL[k] + '-' + i)) cars.push({ name: LABEL[k] + '-' + i, m3: DEF[k][0], kg: DEF[k][1], unnamed: true });
       CARS[k] = cars.map((c, i) => ({ ...c, no: i + 1 }));
     });
@@ -655,9 +655,9 @@
       const trips = raw.map(t => ({ name: t.name, car: t.car, round: t.round, manual: !!t.manual, stops: t.stops, cbm: t.l.cbm, kg: t.l.kg, places: t.l.places, ...tripMetrics(depot, t.stops, S), start: S.dayStart * 1440,
         price: t.price, kind: t.v.kind, vehicle: t.v, over: !!t.over, outside: t.stops.filter(s => s.zone === 'out') }));
       const leave = (t, at) => Object.assign(t, tripMetrics(depot, t.stops, S, at), { start: at });   // the trip starts later: arrivals move
-      // рейс на конкретной машине: её имя и вместимость (у плана B — плюс допуск Gazel)
+      // рейс на конкретной машине: её имя и вместимость (у плана B — плюс допуск Gazel), кузов из карточки (скрипт 31)
       const onCar = (t, c, round, name) => Object.assign(t, { name, car: c.no, round, carName: c.name,
-        vehicle: { ...t.vehicle, m3: c.m3 + (t.vehicle.tolM3 || 0), kg: c.kg + (t.vehicle.tolKg || 0), nomM3: c.m3, nomKg: c.kg } });
+        vehicle: { ...t.vehicle, m3: c.m3 + (t.vehicle.tolM3 || 0), kg: c.kg + (t.vehicle.tolKg || 0), nomM3: c.m3, nomKg: c.kg, dims: c.dims || null } });
       const fits = (t, c) => t.over || (t.cbm <= c.m3 + (t.vehicle.tolM3 || 0) + EPS && t.kg <= c.kg + (t.vehicle.tolKg || 0) + EPS);
       const blocked = [];
       // runs given by the plan: each next run of a truck leaves when the previous one is back

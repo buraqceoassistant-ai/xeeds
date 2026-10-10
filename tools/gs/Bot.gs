@@ -11,7 +11,8 @@
 var TG_API = 'https://api.telegram.org/';
 var TG = { drivers: 'Haydovchilar', log: 'Yetkazish', days: 'Ish kuni', problems: 'Muammolar', subs: 'Obunalar' };
 var TG_HEAD = {
-  drivers: ['Telegram ID', 'Ism', 'Mashina', 'Davlat raqami', 'Til', 'Holat', 'Ro‘yxatdan o‘tgan', 'Tasdiqlagan', 'Telegram', 'Bot holati (tizim uchun)', 'Telefon'],
+  drivers: ['Telegram ID', 'Ism', 'Mashina', 'Davlat raqami', 'Til', 'Holat', 'Ro‘yxatdan o‘tgan', 'Tasdiqlagan', 'Telegram', 'Bot holati (tizim uchun)', 'Telefon',
+    'Mashina turi', 'Marka va model', 'Kuzov (U×K×B), m', 'Hajm, m³', 'Yuk, kg'],
   log: ['Vaqt', 'Sana', 'Haydovchi', 'Mashina', 'BL', 'Mijoz', 'Natija', 'Sabab', 'Rasmlar', 'Joylashuv', 'Telegram ID', 'Reys', 'Kutdi (daq)', 'Mijozgacha (km)'],
   days: ['Sana', 'Haydovchi', 'Mashina', 'Boshlandi', 'Boshlanish joyi', 'Tugadi', 'Tugash joyi', 'Yetkazildi', 'Yetkazilmadi', 'Telegram ID', 'Partiya'],
   problems: ['Vaqt', 'Haydovchi', 'Mashina', 'Turi', 'Izoh', 'Rasmlar', 'Joylashuv', 'Telegram ID'],
@@ -53,10 +54,17 @@ var TX = {
     hello: 'Assalomu alaykum! Bu BURAQ logistics haydovchilari uchun bot.\nTilni tanlang:',
     askName: 'Ismingiz va familiyangizni yozing (masalan: Akmal Karimov).',
     badName: 'Ismni harflar bilan yozing (2–40 belgi).',
-    askTruck: 'Qaysi mashinada ishlaysiz? Tanlang:',
     askPlate: 'Mashinaning davlat raqamini yozing (masalan: 01 A 123 BC).',
     badPlate: 'Raqamni harf va raqamlar bilan yozing (masalan: 01 A 123 BC).',
     check: 'Tekshiring:\n👤 {name}\n🚚 {truck}\n🔢 {plate}', send: '✅ Yuborish', redo: '✏️ Qaytadan',
+    askPhone: 'Telefon raqamingizni yuboring: pastdagi «📞 Raqamni yuborish» tugmasini bosing yoki raqamni yozing (masalan: +998 90 123 45 67).',
+    bPhone: '📞 Raqamni yuborish', badPhone: 'Raqamni to‘liq yozing: 9–15 raqam (masalan: +998 90 123 45 67).', notOwnPhone: 'O‘zingizning raqamingizni yuboring — tugma orqali.',
+    askKind: 'Mashinangiz qanday? Turini tanlang:',
+    askModel: 'Mashina markasi va modelini yozing (masalan: GAZelle Next).', badModel: 'Marka va modelni yozing (2–40 belgi).',
+    askBody: 'Kuzov o‘lchamlari, metrda: uzunlik × kenglik × balandlik (masalan: 4.2 2.1 2.2).',
+    badBody: 'Uchta sonni metrda yozing: uzunlik, kenglik, balandlik (masalan: 4.2 2.1 2.2).',
+    askKg: 'Yuk ko‘tarish quvvati, kg (masalan: 1500).', badKg: 'Yuk ko‘tarish quvvatini kg da yozing: 100 dan 40 000 gacha (masalan: 1500).',
+    checkCar: 'Tekshiring:\n👤 {name}\n📞 {phone}\n🚚 {kind} · {plate}\n🏷 {model}\n📐 Kuzov {body} m — {m3} m³\n⚖️ {kg} kg',
     sent: 'Arizangiz rahbarga yuborildi. Tasdiqlanganda xabar beramiz.',
     pending: 'Arizangiz ko‘rib chiqilmoqda. Tasdiqlanganda xabar beramiz.',
     approved: 'Ruxsat berildi ✅ Ish kuningizni «🚚 Ishni boshlash» tugmasi bilan boshlang.',
@@ -103,10 +111,17 @@ var TX = {
     hello: 'Здравствуйте! Это бот для водителей BURAQ logistics.\nВыберите язык:',
     askName: 'Напишите имя и фамилию (например: Акмал Каримов).',
     badName: 'Напишите имя буквами (2–40 символов).',
-    askTruck: 'На какой машине вы работаете? Выберите:',
     askPlate: 'Напишите госномер машины (например: 01 A 123 BC).',
     badPlate: 'Напишите номер буквами и цифрами (например: 01 A 123 BC).',
     check: 'Проверьте:\n👤 {name}\n🚚 {truck}\n🔢 {plate}', send: '✅ Отправить', redo: '✏️ Заново',
+    askPhone: 'Отправьте номер телефона: нажмите «📞 Отправить номер» внизу или напишите номер (например: +998 90 123 45 67).',
+    bPhone: '📞 Отправить номер', badPhone: 'Напишите номер полностью: 9–15 цифр (например: +998 90 123 45 67).', notOwnPhone: 'Отправьте свой номер — кнопкой.',
+    askKind: 'Какая у вас машина? Выберите вид:',
+    askModel: 'Напишите марку и модель машины (например: GAZelle Next).', badModel: 'Напишите марку и модель (2–40 символов).',
+    askBody: 'Размеры кузова в метрах: длина × ширина × высота (например: 4.2 2.1 2.2).',
+    badBody: 'Напишите три числа в метрах: длина, ширина, высота (например: 4.2 2.1 2.2).',
+    askKg: 'Грузоподъёмность, кг (например: 1500).', badKg: 'Напишите грузоподъёмность в кг: от 100 до 40 000 (например: 1500).',
+    checkCar: 'Проверьте:\n👤 {name}\n📞 {phone}\n🚚 {kind} · {plate}\n🏷 {model}\n📐 Кузов {body} м — {m3} м³\n⚖️ {kg} кг',
     sent: 'Заявка отправлена руководителю. Сообщим, когда её подтвердят.',
     pending: 'Заявка на рассмотрении. Сообщим, когда её подтвердят.',
     approved: 'Доступ открыт ✅ Начинайте рабочий день кнопкой «🚚 Начать работу».',
@@ -264,7 +279,8 @@ function tgDrivers_() {
     if (r[0] === '' || r[0] === null) return;
     var st = {}; try { st = JSON.parse(r[9] || '{}'); } catch (err) { st = {}; }
     out.push({ row: 2 + i, id: String(r[0]), name: String(r[1]), truck: String(r[2]), plate: String(r[3]), lang: String(r[4] || 'uz'), status: String(r[5] || ''), at: r[6], by: String(r[7] || ''), user: String(r[8] || ''), st: st,
-      phone: String(r[10] == null ? '' : r[10]) });   // K «Telefon» — версия 30, вписывают на сайте
+      phone: String(r[10] == null ? '' : r[10]),   // K «Telefon» — версия 30 (сайт), версия 31 — при регистрации
+      kind: String(r[11] || ''), model: String(r[12] || ''), body: String(r[13] || ''), m3: r[14] === '' || r[14] == null ? '' : Number(r[14]), kg: r[15] === '' || r[15] == null ? '' : Number(r[15]) });   // L:P — своя машина (версия 31)
   });
   return out;
 }
@@ -272,7 +288,7 @@ function tgDriver_(id) { var d = tgDrivers_().filter(function (x) { return x.id 
 function tgSave_(d) {
   var sh = tgSheet_('drivers'), row = d.row;
   if (!row) { row = Math.max(2, sh.getLastRow() + 1); d.row = row; }
-  sh.getRange(row, 1, 1, TG_HEAD.drivers.length).setValues([[d.id, d.name || '', d.truck || '', d.plate || '', d.lang || 'uz', d.status || '', d.at || '', d.by || '', d.user || '', JSON.stringify(d.st || {}), d.phone || '']]);
+  sh.getRange(row, 1, 1, TG_HEAD.drivers.length).setValues([[d.id, d.name || '', d.truck || '', d.plate || '', d.lang || 'uz', d.status || '', d.at || '', d.by || '', d.user || '', JSON.stringify(d.st || {}), d.phone || '', d.kind || '', d.model || '', d.body || '', d.m3 === '' || d.m3 == null ? '' : d.m3, d.kg === '' || d.kg == null ? '' : d.kg]]);
   sh.getRange(row, 1).setNumberFormat('@');
   if (d.phone) sh.getRange(row, 11).setNumberFormat('@');   // «+998…» — текстом, не числом
 }
@@ -350,19 +366,45 @@ function tgHandle_(u) {
     var st = d.st || {};
     if (d.status === 'kutilmoqda') return tgSend_(id, tx_(L, 'pending'));
     if (d.status === 'rad' || d.status === 'o‘chirilgan') return tgSend_(id, tx_(L, d.status === 'rad' ? 'rejected' : 'off'));
+    // версия 31: своя машина — имя → телефон → вид → госномер → марка → кузов → грузоподъёмность → проверка
     if (st.step === 'name') {
       if (!/^[^\d\/@#]{2,40}$/.test(text)) return tgSend_(id, tx_(L, 'badName'));
-      d.name = text.replace(/\s+/g, ' '); d.st = { step: 'truck' }; tgSave_(d);
-      return tgAskTruck_(d);
+      d.name = text.replace(/\s+/g, ' '); d.st = { step: 'phone' }; tgSave_(d);
+      return tgSend_(id, tx_(L, 'askPhone'), tgPhoneKb_(L));
+    }
+    if (st.step === 'phone') {
+      if (m.contact && String(m.contact.user_id || '') !== String(m.from.id)) return tgSend_(id, tx_(L, 'notOwnPhone'), tgPhoneKb_(L));   // чужой контакт
+      var dg = String(m.contact ? m.contact.phone_number : text).replace(/[^\d]/g, '');
+      if (dg.length < 9 || dg.length > 15) return tgSend_(id, tx_(L, 'badPhone'), tgPhoneKb_(L));
+      d.phone = '+' + (dg.length === 9 ? '998' + dg : dg); d.st = { step: 'kind' }; tgSave_(d);
+      tgSend_(id, '✅ ' + d.phone, { remove_keyboard: true });
+      return tgAskKind_(d);
     }
     if (st.step === 'plate') {
       var plate = text.toUpperCase().replace(/[^0-9A-ZА-ЯЁ]+/g, ' ').trim();
       if (!/^[0-9A-ZА-ЯЁ ]{5,12}$/.test(plate) || !/\d/.test(plate)) return tgSend_(id, tx_(L, 'badPlate'));
-      d.plate = plate; d.st = { step: 'confirm' }; tgSave_(d);
-      return tgSend_(id, tx_(L, 'check', { name: d.name, truck: d.truck, plate: d.plate }), tgInline_([[{ text: tx_(L, 'send'), callback_data: 'reg:send' }, { text: tx_(L, 'redo'), callback_data: 'reg:redo' }]]));
+      d.plate = plate; d.st = { step: 'model' }; tgSave_(d);
+      return tgSend_(id, tx_(L, 'askModel'));
     }
-    if (st.step === 'truck') return tgAskTruck_(d);
-    if (st.step === 'confirm') return tgSend_(id, tx_(L, 'check', { name: d.name, truck: d.truck, plate: d.plate }), tgInline_([[{ text: tx_(L, 'send'), callback_data: 'reg:send' }, { text: tx_(L, 'redo'), callback_data: 'reg:redo' }]]));
+    if (st.step === 'model') {
+      if (!/^.{2,40}$/.test(text) || /^\//.test(text)) return tgSend_(id, tx_(L, 'badModel'));
+      d.model = text.replace(/\s+/g, ' '); d.st = { step: 'body' }; tgSave_(d);
+      return tgSend_(id, tx_(L, 'askBody'));
+    }
+    if (st.step === 'body') {
+      var b = tgBodyParse_(text);
+      if (!b) return tgSend_(id, tx_(L, 'badBody'));
+      d.body = b.text; d.m3 = b.m3; d.st = { step: 'kg' }; tgSave_(d);
+      return tgSend_(id, tx_(L, 'askKg'));
+    }
+    if (st.step === 'kg') {
+      var kg = tgKgParse_(text);
+      if (!kg) return tgSend_(id, tx_(L, 'badKg'));
+      d.kg = kg; d.st = { step: 'confirm' }; tgSave_(d);
+      return tgCheckCar_(d);
+    }
+    if (st.step === 'kind' || st.step === 'truck') return tgAskKind_(d);   // «truck» — заявка, начатая кодом до 31
+    if (st.step === 'confirm') return d.kind ? tgCheckCar_(d) : tgSend_(id, tx_(L, 'check', { name: d.name, truck: d.truck, plate: d.plate }), tgInline_([[{ text: tx_(L, 'send'), callback_data: 'reg:send' }, { text: tx_(L, 'redo'), callback_data: 'reg:redo' }]]));
     if (st.step === 'name') return tgSend_(id, tx_(L, 'askName'));
     return tgSend_(id, TX.uz.hello + '\n' + TX.ru.hello.split('\n')[1], tgInline_([[{ text: 'O‘zbekcha', callback_data: 'lang:uz' }, { text: 'Русский', callback_data: 'lang:ru' }]]));
   }
@@ -500,11 +542,84 @@ function tgCancel_(d, w) {
   if (w) { w.stage = w.started ? null : 'none'; w.wait = null; w.photoLL = null; if (!w.started) delete d.st.work; tgSave_(d); }
   return tgSend_(d.id, tx_(d.lang, 'menu'), tgMenu_(d.lang));
 }
-function tgAskTruck_(d) {
-  var list = tgTrucks_(), rows = [];
-  var plates = tgPlates_();
-  for (var i = 0; i < list.length; i += 2) rows.push(list.slice(i, i + 2).map(function (t, j) { return { text: t + (plates[t] ? ' · ' + plates[t] : ''), callback_data: 'trk:' + (i + j) }; }));
-  return tgSend_(d.id, tx_(d.lang, 'askTruck'), tgInline_(rows));
+// ── своя машина водителя (версия 31) ──
+var CAR_KINDS = { gazel: 'Gazel', labo: 'Labo', changan: 'Changan', kamaz: 'Kamaz' };
+var CAR_COUNT = { gazel: 'gazelCount', labo: 'laboCount', changan: 'changanCount', kamaz: 'cTrucks' };
+function tgNum_(x) { return x === '' || x == null ? '—' : String(Math.round(Number(x) * 10) / 10).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+function tgPhoneKb_(L) { return { keyboard: [[{ text: tx_(L, 'bPhone'), request_contact: true }]], resize_keyboard: true, one_time_keyboard: true }; }
+function tgAskKind_(d) {
+  return tgSend_(d.id, tx_(d.lang, 'askKind'), tgInline_([[{ text: 'Gazel', callback_data: 'kind:gazel' }, { text: 'Labo', callback_data: 'kind:labo' }], [{ text: 'Changan', callback_data: 'kind:changan' }, { text: 'Kamaz', callback_data: 'kind:kamaz' }]]));
+}
+function tgCheckCar_(d) {
+  var L = d.lang;
+  return tgSend_(d.id, tx_(L, 'checkCar', { name: d.name, phone: d.phone, kind: CAR_KINDS[d.kind] || d.kind, plate: d.plate, model: d.model, body: d.body, m3: tgNum_(d.m3), kg: tgNum_(d.kg) }),
+    tgInline_([[{ text: tx_(L, 'send'), callback_data: 'reg:send' }, { text: tx_(L, 'redo'), callback_data: 'reg:redo' }]]));
+}
+// кузов «4.2 2.1 2.2», «4,2x2,1x2,2», «420 210 220» (см) → { text: '4,2×2,1×2,2', m3 }; длина 0,5–16, ширина 0,5–3, высота 0,3–4,5 м
+function tgBodyParse_(text) {
+  var s = String(text || '').replace(/[x×*хХ;\/]/gi, ' ').replace(/(\d),(\d)/g, '$1.$2').replace(/,/g, ' ');
+  var n = (s.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+  if (n.length !== 3) return null;
+  if (n.every(function (x) { return x > 20; })) n = n.map(function (x) { return x / 100; });   // сантиметры
+  if (!(n[0] >= 0.5 && n[0] <= 16 && n[1] >= 0.5 && n[1] <= 3 && n[2] >= 0.3 && n[2] <= 4.5)) return null;
+  return { text: n.map(function (x) { return String(Math.round(x * 100) / 100).replace('.', ','); }).join('×'), l: n[0], w: n[1], h: n[2], m3: Math.round(n[0] * n[1] * n[2] * 10) / 10 };
+}
+// грузоподъёмность: «1500», «1 500 кг», «1,5 т» → кг; 100–40 000
+function tgKgParse_(text) {
+  var t = String(text || ''), m = t.replace(/\s+(?=\d{3}\b)/g, '').replace(',', '.').match(/\d+(?:\.\d+)?/);
+  if (!m) return 0;
+  var x = Number(m[0]);
+  if (/т|t|tonna|тонн/i.test(t) || x <= 40) x *= 1000;
+  x = Math.round(x);
+  return x >= 100 && x <= 40000 ? x : 0;
+}
+function tgKind_(t) { t = String(t || ''); return /^gazel/i.test(t) ? 'gazel' : /^labo/i.test(t) ? 'labo' : /^kamaz/i.test(t) ? 'kamaz' : /^changan/i.test(t) ? 'changan' : ''; }
+function tgPlateKey_(p) { return String(p || '').toUpperCase().replace(/[^0-9A-ZА-ЯЁ]/g, ''); }
+// «Разрешить»: машина водителя — в автопарк (Sozlamalar C24:C39). car — с сайта: { to: машина автопарка, toNew: новая,
+// kind, plate, model, l, w, h, m3, kg } (поправленные руководителем); null — из заявки. Машина: to; иначе тот же госномер
+// того же вида; иначе свободная машина вида без госномера и водителя (не в ремонте); иначе новая «Вид-N» в пустой строке.
+// Пишутся госномер (D), марка (F), объём (H), вес (I), кузов (K:M); год, ремонт и примечание не трогаются.
+function tgCarApply_(d, car) {
+  var c = car || {}, ss = SpreadsheetApp.getActiveSpreadsheet(), sh = ss.getSheetByName(SH.set);
+  var kind = c.kind || d.kind, label = CAR_KINDS[kind];
+  if (!sh) return { error: 'Нет листа Sozlamalar' };
+  if (!label) return { error: 'Неизвестный вид машины' };
+  var num = function (v, lo, hi) { var x = Number(String(v == null ? '' : v).replace(',', '.')); return v !== '' && v != null && isFinite(x) && x >= lo && x <= hi ? x : ''; };
+  var bd = tgBodyParse_(d.body) || {}, l = c.l != null ? num(c.l, 0.3, 16) : bd.l || '', w = c.w != null ? num(c.w, 0.3, 3) : bd.w || '', h = c.h != null ? num(c.h, 0.2, 4.5) : bd.h || '';
+  var m3 = num(c.m3 != null ? c.m3 : d.m3, 0.1, 200), kg = num(c.kg != null ? c.kg : d.kg, 10, 60000);
+  var plate = String(c.plate != null ? c.plate : d.plate || '').toUpperCase().replace(/\s+/g, ' ').trim().slice(0, 16), model = String(c.model != null ? c.model : d.model || '').trim().slice(0, 40);
+  if (sh.getMaxColumns() < 13) sh.insertColumnsAfter(sh.getMaxColumns(), 13 - sh.getMaxColumns());
+  var head = sh.getRange(TRUCKS_ROW - 1, 5, 1, 6).getValues()[0];
+  if (head.some(function (x, i) { x = String(x).trim(); return x !== '' && x !== FLEET_HEAD[i]; }))
+    return { error: 'На листе Sozlamalar ячейки E23:J23 заняты — карточка машины пишется в E:J строк 23–39. Освободите их', code: 'busy' };
+  var rows = sh.getRange(TRUCKS_ROW, 3, TRUCKS_N, 3).getValues(), names = rows.map(function (r) { return String(r[0]).trim(); }), busy = {};
+  tgDrivers_().forEach(function (x) { if (x.id !== d.id && x.truck && (x.status === 'ruxsat' || x.status === 'kutilmoqda')) busy[x.truck] = 1; });
+  var i = -1, isNew = false, pk = tgPlateKey_(plate);
+  if (c.to) { i = names.indexOf(String(c.to).trim()); if (i < 0) return { error: 'Нет машины «' + c.to + '» в автопарке' }; }
+  else if (!c.toNew) {
+    rows.forEach(function (r, j) { if (i < 0 && pk && tgKind_(names[j]) === kind && tgPlateKey_(r[1]) === pk) i = j; });
+    rows.forEach(function (r, j) { if (i < 0 && tgKind_(names[j]) === kind && !String(r[1]).trim() && !busy[names[j]] && String(r[2]).trim() !== FLEET_REPAIR) i = j; });
+  }
+  if (i < 0) {
+    i = names.indexOf('');
+    if (i < 0) return { error: 'В автопарке нет места для новой машины (Sozlamalar C24:C39) — удалите лишнюю или выберите машину автопарка на сайте' };
+  }
+  sh.getRange(TRUCKS_ROW - 1, 5, 1, 6).setValues([FLEET_HEAD]).setFontWeight('bold');   // проверено — теперь пишем
+  var body = bodyHead_(sh), hd = sh.getRange(TRUCKS_ROW - 1, 4); if (String(hd.getValue()).trim() === '') hd.setValue('Davlat raqami');
+  if (names[i] === '') {
+    var n = 1; while (names.indexOf(label + '-' + n) >= 0 || (n === 1 && names.indexOf(label) >= 0)) n++;   // как на сайте: есть «Labo» — новая «Labo-2»
+    names[i] = label + '-' + n; isNew = true;
+    sh.getRange(TRUCKS_ROW + i, 3).setValue(names[i]);
+    var row = SET_ROWS[CAR_COUNT[kind]], have = names.filter(function (t) { return tgKind_(t) === kind; }).length;   // машин вида в автопарке — с новой
+    if (row && (Number(sh.getRange(row, 2).getValue()) || 0) < have) sh.getRange(row, 2).setValue(have);
+  }
+  var r0 = TRUCKS_ROW + i;
+  if (plate) sh.getRange(r0, 4).setNumberFormat('@').setValue(plate);
+  if (model) sh.getRange(r0, 6).setValue(model);
+  if (m3 !== '') sh.getRange(r0, 8).setValue(m3);
+  if (kg !== '') sh.getRange(r0, 9).setValue(kg);
+  if (body && l !== '' && w !== '' && h !== '') sh.getRange(r0, 11, 1, 3).setValues([[l, w, h]]);
+  return { name: names[i], isNew: isNew };
 }
 
 function tgCallback_(q) {
@@ -525,15 +640,11 @@ function tgCallback_(q) {
     d.lang = data.slice(5); d.st = { step: 'name' }; tgSave_(d);
     return tgSend_(d.id, tx_(d.lang, 'askName'), { remove_keyboard: true });
   }
-  if (/^trk:\d+$/.test(data) && d.st.step === 'truck') {
-    var t = tgTrucks_()[Number(data.slice(4))];
-    if (!t) return tgAskTruck_(d);
-    d.truck = t;
-    var fp = tgPlates_()[t];   // госномер машины из автопарка — водитель его не пишет
-    if (fp) { d.plate = fp; d.st = { step: 'confirm' }; tgSave_(d); return tgSend_(d.id, tx_(L, 'check', { name: d.name, truck: d.truck, plate: d.plate }), tgInline_([[{ text: tx_(L, 'send'), callback_data: 'reg:send' }, { text: tx_(L, 'redo'), callback_data: 'reg:redo' }]])); }
-    d.st = { step: 'plate' }; tgSave_(d);
+  if (/^kind:(gazel|labo|changan|kamaz)$/.test(data) && d.status !== 'ruxsat' && (d.st.step === 'kind' || d.st.step === 'truck')) {
+    d.kind = data.slice(5); d.truck = ''; d.st = { step: 'plate' }; tgSave_(d);
     return tgSend_(d.id, tx_(L, 'askPlate'));
   }
+  if (/^trk:\d+$/.test(data) && d.st.step === 'truck' && d.status !== 'ruxsat') return tgAskKind_(d);   // кнопка из списка машин (код до 31)
   if (data === 'reg:redo' && d.status !== 'ruxsat') { d.st = { step: 'name' }; tgSave_(d); return tgSend_(d.id, tx_(L, 'askName')); }
   if (data === 'reg:send' && d.st.step === 'confirm') {
     d.status = 'kutilmoqda'; d.at = tgNow_(); d.st = {}; tgSave_(d);
@@ -648,7 +759,10 @@ function tgAskApproval_(d) {
   var g = tgGroup_();
   if (!g) return;
   var same = tgDrivers_().filter(function (x) { return x.status === 'ruxsat' && x.truck === d.truck && x.id !== d.id; }).map(function (x) { return x.name; });
-  tgSend_(g, '🆕 Новый водитель: ' + d.name + '\n🚚 ' + d.truck + ' · ' + d.plate + '\nTelegram: ' + (d.user || d.id) + (same.length ? '\nНа этой машине уже: ' + same.join(', ') : ''),
+  var car = d.kind ? '\n📞 ' + d.phone + '\n🚚 ' + CAR_KINDS[d.kind] + ' · ' + d.plate + ' · ' + d.model + '\n📐 ' + d.body + ' м — ' + tgNum_(d.m3) + ' м³ · ⚖️ ' + tgNum_(d.kg) + ' кг'
+    : '\n🚚 ' + d.truck + ' · ' + d.plate;
+  tgSend_(g, '🆕 Новый водитель: ' + d.name + car + '\nTelegram: ' + (d.user || d.id) + (same.length ? '\nНа этой машине уже: ' + same.join(', ') : '') +
+    (d.kind ? '\n«Разрешить» — машина в автопарк (тот же госномер — та же машина, иначе свободная или новая). Проверить и поправить — на сайте, вкладка «Водители».' : ''),
     tgInline_([[{ text: '✅ Разрешить', callback_data: 'allow:' + d.id }, { text: '❌ Отклонить', callback_data: 'deny:' + d.id }]]));
 }
 function tgGroupCallback_(q, data) {
@@ -667,8 +781,14 @@ function tgGroupCallback_(q, data) {
   }
   var d = tgDriver_(m[2]);
   if (!d) return;
+  var note = '';
+  if (m[1] === 'allow' && d.kind && d.status === 'kutilmoqda') {   // своя машина (31) — в автопарк
+    var ca = tgCarApply_(d, null);
+    if (ca.error) note = '\n⚠️ Машина не записана: ' + ca.error;
+    else { tgSetTruck_(d, ca.name); note = '\n🚚 В автопарке: ' + ca.name + (ca.isNew ? ' (новая)' : ''); }
+  }
   tgSetStatus_(d, m[1] === 'allow' ? 'ruxsat' : 'rad', who);
-  tg_('editMessageText', { chat_id: chat.id, message_id: q.message.message_id, text: q.message.text + '\n\n' + (m[1] === 'allow' ? '✅ Разрешено' : '❌ Отклонено') + ' — ' + who + ', ' + tgNow_('dd.MM HH:mm') });
+  tg_('editMessageText', { chat_id: chat.id, message_id: q.message.message_id, text: q.message.text + '\n\n' + (m[1] === 'allow' ? '✅ Разрешено' : '❌ Отклонено') + ' — ' + who + ', ' + tgNow_('dd.MM HH:mm') + note });
 }
 function tgSetStatus_(d, status, who) {
   d.status = status; d.by = who + ' · ' + tgNow_(); if (status !== 'ruxsat') d.st = {};
@@ -1430,7 +1550,14 @@ function tgSite_(body) {
     var d = tgDriver_(a.id), fr = [];
     if (!d) return { error: 'Нет такого водителя', v: VERSION };
     if (['ruxsat', 'rad', 'o‘chirilgan'].indexOf(a.status) < 0) return { error: 'Неизвестный статус', v: VERSION };
-    var give = a.status === 'ruxsat' && a.truck != null, te = give ? tgTruckErr_(a.truck) : '';   // заявка с машиной, выбранной на сайте
+    var give = a.status === 'ruxsat' && a.truck != null, te = give ? tgTruckErr_(a.truck) : '', car = null;   // заявка с машиной, выбранной на сайте
+    if (a.status === 'ruxsat' && a.car && d.status !== 'ruxsat') {   // версия 31: своя машина водителя — в автопарк, потом доступ
+      car = tgCarApply_(d, a.car);
+      if (car.error) return { error: car.error, v: VERSION };
+      fr = tgSetTruck_(d, car.name).freed;
+      tgSetStatus_(d, a.status, 'сайт');
+      return { ok: true, v: VERSION, freed: fr, truck: car.name, isNew: car.isNew, tg: tgInfo_(body.tgdays) };
+    }
     if (te) return { error: te, v: VERSION };
     tgSetStatus_(d, a.status, 'сайт');
     if (give) fr = tgSetTruck_(d, a.truck).freed;
@@ -1477,7 +1604,8 @@ function tgInfo_(days) {
       remind: tgRemind_(), morning: tgMorning_(), morningDay: prop_('TG_MORNING_DAY') || '' },
     drivers: tgDrivers_().filter(function (d) { return d.status !== 'yangi'; }).map(function (d) {
       var w = d.st && d.st.work, today = tgNow_('yyyy-MM-dd'), a = tgAssigned_(d), day = w && (w.day || w.date);
-      return { id: d.id, name: d.name, phone: d.phone, truck: d.truck, plate: d.plate, lang: d.lang, status: d.status, at: d.at instanceof Date ? Utilities.formatDate(d.at, tz, 'yyyy-MM-dd HH:mm') : String(d.at || ''), user: d.user,
+      return { id: d.id, name: d.name, phone: d.phone, truck: d.truck, plate: d.plate, lang: d.lang, status: d.status,
+        car: d.kind ? { kind: d.kind, plate: d.plate, model: d.model, body: d.body, m3: d.m3, kg: d.kg } : null, at: d.at instanceof Date ? Utilities.formatDate(d.at, tz, 'yyyy-MM-dd HH:mm') : String(d.at || ''), user: d.user,
         today: w && day === today && w.started ? { started: w.started, ended: w.ended || '', ok: w.ok || 0, fail: w.fail || 0, pos: w.pos || null, posAt: w.posAt || '', date: w.date, cur: w.cur ? { bl: w.cur.bl, round: w.cur.round } : null } : null,
         assign: a ? { date: a.date, at: a.at } : null };
     }), log: rec.log, days: rec.days, problems: rec.problems,

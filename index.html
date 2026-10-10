@@ -1055,9 +1055,9 @@
       <sc-if value="{{ dvHasPending }}">
         <section class="dv-card" style="border-color:var(--color-accent-2)">
           <h3 style="margin:0 0 8px">Новые водители — ждут подтверждения</h3>
-          <sc-for list="{{ dvPending }}" as="d"><div class="tg-driver"><div style="flex:1;min-width:0"><b style="font-weight:500">{{ d.name }}</b><sc-if value="{{ d.noTruckSel }}"> · {{ d.truck }} · {{ d.plate }}</sc-if><div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></div>
+          <sc-for list="{{ dvPending }}" as="d"><div class="tg-driver"><div style="flex:1;min-width:0"><b style="font-weight:500">{{ d.name }}</b><sc-if value="{{ d.noTruckSel }}"> · {{ d.truck }} · {{ d.plate }}</sc-if><sc-if value="{{ d.hasCar }}"><div class="dv-pend-car" style="font-size:13px"><sc-for list="{{ d.carParts }}" as="p"><span class="dv-pc">{{ p.t }}</span></sc-for></div></sc-if><div style="font-size:12px;color:var(--color-neutral-700)">{{ d.sub }}</div></div>
             <sc-if value="{{ d.canTruck }}"><select class="input dv-truck-sel" value="{{ d.truckVal }}" sc-camel-on-change="{{ d.onTruck }}" disabled="{{ dvBusy }}" aria-label="Машина"><sc-for list="{{ d.truckOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></sc-if>
-            <sc-if value="{{ dvCanDrv }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.allow }}" disabled="{{ dvBusy }}">Разрешить</button><button class="btn btn-ghost" sc-camel-on-click="{{ d.deny }}" disabled="{{ dvBusy }}">Отклонить</button></sc-if></div></sc-for>
+            <sc-if value="{{ dvCanDrv }}"><button class="btn btn-secondary" sc-camel-on-click="{{ d.allow }}" disabled="{{ dvBusy }}">{{ d.allowLabel }}</button><button class="btn btn-ghost" sc-camel-on-click="{{ d.deny }}" disabled="{{ dvBusy }}">Отклонить</button></sc-if></div></sc-for>
         </section>
       </sc-if>
 
@@ -1665,6 +1665,13 @@
           <div class="field"><label>Год</label><input class="input" type="number" name="year" min="1950" max="2100" value="{{ draft.year }}" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehInfoOff }}"></div>
           <div class="field"><label>Объём, м³</label><input class="input" type="number" step="0.1" min="0" name="m3" value="{{ draft.m3 }}" placeholder="{{ vehM3Ph }}" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehInfoOff }}"></div>
           <div class="field"><label>Грузоподъёмность, кг</label><input class="input" type="number" step="10" min="0" name="kg" value="{{ draft.kg }}" placeholder="{{ vehKgPh }}" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehInfoOff }}"></div>
+          <div class="field veh-body" style="grid-column:1/-1"><label>Кузов внутри: длина × ширина × высота, м</label>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+              <input class="input" type="number" step="0.01" min="0" name="l" value="{{ draft.l }}" placeholder="длина" aria-label="Длина кузова, м" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehBodyOff }}">
+              <input class="input" type="number" step="0.01" min="0" name="w" value="{{ draft.w }}" placeholder="ширина" aria-label="Ширина кузова, м" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehBodyOff }}">
+              <input class="input" type="number" step="0.01" min="0" name="h" value="{{ draft.h }}" placeholder="высота" aria-label="Высота кузова, м" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehBodyOff }}">
+            </div>
+            <div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty">{{ vehBodyHint }}</div></div>
           <div class="field" style="grid-column:1/-1"><label>Примечание</label><input class="input" name="note" value="{{ draft.note }}" placeholder="цвет, длинная база, особенности" sc-camel-on-change="{{ onDraft }}" disabled="{{ vehInfoOff }}" maxlength="200"></div>
           <div style="grid-column:1/-1;font-size:12px;color:var(--color-neutral-700);text-wrap:pretty">Название начинается с вида машины (Gazel-…, Labo…, Changan…, Kamaz-…) — по нему тариф. Пустые объём и вес — как у вида в «Тарифах и планах». Новое название заменится в журнале и у водителей бота.</div>
           <sc-if value="{{ vehDrivers }}"><div style="grid-column:1/-1;font-size:13px">{{ vehDrivers }}</div></sc-if>
@@ -1675,6 +1682,37 @@
           <sc-if value="{{ canDelete }}"><button data-edit class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ deleteItem }}">Удалить</button></sc-if>
           <button class="btn btn-secondary" sc-camel-on-click="{{ closeDialog }}">Отмена</button>
           <button data-edit class="btn btn-primary" sc-camel-on-click="{{ saveVeh }}">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isApDialog }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" style="z-index:3000" sc-camel-on-click="{{ closeDialogBg }}">
+      <div class="dialog blueprint ap-dialog" style="width:min(620px,100%);background:var(--color-bg)">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div class="dialog-title">{{ dialogTitle }}</div>
+        <div style="font-size:13px;color:var(--color-neutral-700)">{{ apSub }}</div>
+        <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="field"><label>Вид машины</label><select class="input" name="kind" value="{{ draft.kind }}" sc-camel-on-change="{{ onApKind }}"><sc-for list="{{ apKindOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></div>
+          <div class="field"><label>Госномер</label><input class="input" name="plate" value="{{ draft.plate }}" sc-camel-on-change="{{ onDraft }}" maxlength="16"></div>
+          <div class="field" style="grid-column:1/-1"><label>Марка, модель</label><input class="input" name="model" value="{{ draft.model }}" sc-camel-on-change="{{ onDraft }}" maxlength="40"></div>
+          <div class="field" style="grid-column:1/-1"><label>Кузов внутри: длина × ширина × высота, м</label>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+              <input class="input" type="number" step="0.01" min="0" name="l" value="{{ draft.l }}" placeholder="длина" aria-label="Длина кузова, м" sc-camel-on-change="{{ onDraft }}">
+              <input class="input" type="number" step="0.01" min="0" name="w" value="{{ draft.w }}" placeholder="ширина" aria-label="Ширина кузова, м" sc-camel-on-change="{{ onDraft }}">
+              <input class="input" type="number" step="0.01" min="0" name="h" value="{{ draft.h }}" placeholder="высота" aria-label="Высота кузова, м" sc-camel-on-change="{{ onDraft }}">
+            </div></div>
+          <div class="field"><label>Объём, м³</label><input class="input" type="number" step="0.1" min="0" name="m3" value="{{ draft.m3 }}" placeholder="{{ apM3Ph }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field"><label>Грузоподъёмность, кг</label><input class="input" type="number" step="10" min="0" name="kg" value="{{ draft.kg }}" placeholder="{{ apKgPh }}" sc-camel-on-change="{{ onDraft }}"></div>
+          <div class="field" style="grid-column:1/-1"><label>В автопарке</label><select class="input ap-to" value="{{ apTo }}" sc-camel-on-change="{{ onApTo }}"><sc-for list="{{ apToOpts }}" as="o"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+            <div style="font-size:12px;color:var(--color-neutral-700);text-wrap:pretty">{{ apToNote }}</div></div>
+        </div>
+        <div style="font-size:13px;color:var(--color-accent-900);text-wrap:pretty">{{ dialogError }}</div>
+        <div class="dialog-actions">
+          <button data-edit class="btn btn-ghost" style="margin-right:auto" sc-camel-on-click="{{ denyAp }}">Отклонить</button>
+          <button class="btn btn-secondary" sc-camel-on-click="{{ closeDialog }}">Отмена</button>
+          <button data-edit class="btn btn-primary" sc-camel-on-click="{{ saveAp }}">Разрешить</button>
         </div>
       </div>
     </div>
@@ -2159,7 +2197,7 @@ class Component extends DCLogic {
     // и просим обновить код скрипта.
     const since = { laboBaseIncludesPts: 2, kamazBaseIncludesPts: 2, gazelM3: 3, gazelKg: 3, bTolM3: 4, bTolKg: 4,   // с какой версии скрипт хранит настройку
       changanM3: 5, changanKg: 5, changanBase: 5, changanPt: 5, changanBaseIncludesPts: 5, gazelCount: 5, laboCount: 5, changanCount: 5, tripsPerVehicle: 5, freeOutM3: 6, densityMin: 8, densityMax: 8 };
-    this.gsScriptOld = !(j.v >= 30); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
+    this.gsScriptOld = !(j.v >= 31); this.gsVersion = +j.v || 0; this.gsImports = (j.data && j.data.imports) || []; this.gsTg = (j.data && j.data.tg) || null;
     const cur0 = this.state.data, unset = data.defaults || [];
     delete data.defaults;
     // пустая строка в таблице: берём значение сайта и, если скрипт умеет, записываем его в таблицу
@@ -2910,7 +2948,7 @@ class Component extends DCLogic {
   fleetVehicles(data) {
     const E = window.LogiEngine, info = (data.lists && data.lists.fleet) || {};
     return ((data.lists && data.lists.trucks) || []).filter(t => E.vehicleKind(t))
-      .map(name => { const x = info[name] || {}; return { name, kind: E.vehicleKind(name), m3: +x.m3 || null, kg: +x.kg || null, repair: !!x.repair }; });
+      .map(name => { const x = info[name] || {}; return { name, kind: E.vehicleKind(name), m3: +x.m3 || null, kg: +x.kg || null, repair: !!x.repair, l: +x.l || null, w: +x.w || null, h: +x.h || null }; });
   }
   // вместимость машины [м³, кг]: своя из карточки или вида из «Тарифов и планов»
   vehCap(data, name, kind) {
@@ -2924,19 +2962,66 @@ class Component extends DCLogic {
     if (this.readOnly || !d) return;
     this.setState({ dialog: { type: 'drv', mode: 'edit', id: d.id, error: '', draft: { name: d.name || '', phone: d.phone || '' } } });
   }
+  // заявка водителя со своей машиной (скрипт 31): руководитель проверяет машину, может поправить и выбирает, куда в автопарке
+  apCar(d) { return this.gsVersion >= 31 && d && d.status === 'kutilmoqda' && d.car && VEH[d.car.kind] ? d.car : null; }
+  // части строки машины — отдельными надписями (переводятся по одной)
+  apCarParts(d) {
+    const c = d.car;
+    return [VEH[c.kind] + (c.plate ? ' · ' + c.plate : ''), c.model, c.body ? 'кузов ' + c.body + ' м' : '', c.m3 ? f1(c.m3, 1) + ' м³' : '', c.kg ? f0(c.kg) + ' кг' : '', d.phone ? '📞 ' + d.phone : '']
+      .filter(Boolean).map(t => ({ t }));
+  }
+  // машина автопарка для заявки — как в скрипте: тот же госномер того же вида; иначе свободная машина вида без госномера,
+  // водителя и ремонта; иначе новая
+  apTarget(d, dr) {
+    const E = window.LogiEngine, L = this.state.data.lists, plates = L.plates || {}, fleet = L.fleet || {}, key = p => String(p || '').toUpperCase().replace(/[^0-9A-ZА-ЯЁ]/g, '');
+    const all = (this.gsTg && this.gsTg.drivers) || [], busy = t => all.some(x => x.id !== d.id && x.truck === t && (x.status === 'ruxsat' || x.status === 'kutilmoqda'));
+    const mine = (L.trucks || []).filter(t => E.vehicleKind(t) === dr.kind);
+    return mine.find(t => key(dr.plate) && key(plates[t]) === key(dr.plate)) || mine.find(t => !plates[t] && !busy(t) && !(fleet[t] || {}).repair) || 'new';
+  }
+  openApprove(d) {
+    const c = this.apCar(d);
+    if (this.readOnly || !c) return;
+    const b = String(c.body || '').split('×').map(x => +String(x).replace(',', '.')), dims = b.length === 3 && b.every(x => x > 0) ? b : ['', '', ''];
+    const draft = { kind: c.kind, plate: c.plate || '', model: c.model || '', l: dims[0], w: dims[1], h: dims[2], m3: c.m3 ?? '', kg: c.kg ?? '' };
+    draft.to = this.apTarget(d, draft);
+    this.setState({ dialog: { type: 'drvok', id: d.id, error: '', draft } });
+  }
+  approveCar(dl, d, to) {
+    const dr = dl.draft, err = error => this.setState({ dialog: { ...dl, error } }), L = this.state.data.lists;
+    const num = (v, lo, hi) => { const x = String(v ?? '').replace(',', '.').trim(); if (!x) return null; const n = +x; return isNaN(n) || n < lo || n > hi ? NaN : n; };
+    const plate = String(dr.plate || '').toUpperCase().replace(/\s+/g, ' ').trim().slice(0, 16), model = String(dr.model || '').trim().slice(0, 40);
+    if (!plate) return err('Укажите госномер.');
+    const l = num(dr.l, 0.3, 16), w = num(dr.w, 0.3, 3), h = num(dr.h, 0.2, 4.5), kg = num(dr.kg, 10, 60000);
+    let m3 = num(dr.m3, 0.1, 200);
+    if ([l, w, h].some(Number.isNaN)) return err('Кузов: длина 0,3–16 м, ширина 0,3–3 м, высота 0,2–4,5 м.');
+    if ([l, w, h].some(x => x == null) && [l, w, h].some(x => x != null)) return err('Кузов: укажите длину, ширину и высоту — или оставьте все три пустыми.');
+    if ([m3, kg].some(Number.isNaN)) return err('Проверьте числа: объём 0,1–200 м³, грузоподъёмность 10–60 000 кг.');
+    if (m3 == null && l != null) m3 = Math.round(l * w * h * 10) / 10;
+    if (to === 'new' && (L.trucks || []).length >= 16) return err('В таблице место для 16 названий машин (Sozlamalar C24:C39) — выберите машину автопарка или сначала удалите лишнюю.');
+    if (to !== 'new') {
+      const taken = this.dvTruckTaken(d, to);
+      if (!confirm('Поставить ' + d.name + ' на ' + to + '? Госномер, марка, кузов, объём и грузоподъёмность машины заменятся данными из заявки.' + this.dvTakenNote(taken))) return;
+    }
+    this.setState({ dialog: null });
+    const car = { to: to === 'new' ? '' : to, toNew: to === 'new', kind: dr.kind, plate, model, l: l ?? '', w: w ?? '', h: h ?? '', m3: m3 ?? '', kg: kg ?? '' };
+    this.dvRun('Открываю доступ…', { action: 'driver', id: d.id, status: 'ruxsat', car }, j => {
+      this.gsPull();   // автопарк поменялся в таблице — забираем
+      return d.name + ': доступ открыт, машина ' + j.truck + (j.isNew ? ' добавлена в автопарк' : ' — данные из заявки записаны') + '. Водителю пришло сообщение.' + ((j.freed || []).length ? ' Без машины: ' + j.freed.join(', ') + '.' : '');
+    });
+  }
   openVehicle(name) {
     if (this.readOnly) return;
     const data = this.state.data, x = name ? ((data.lists.fleet || {})[name] || {}) : {};
     this.setState({ dialog: { type: 'veh', mode: name ? 'edit' : 'new', id: name || null, error: '', draft: name
-      ? { kind: window.LogiEngine.vehicleKind(name), name, plate: (data.lists.plates || {})[name] || '', repair: !!x.repair, model: x.model || '', year: x.year ?? '', m3: x.m3 ?? '', kg: x.kg ?? '', note: x.note || '' }
-      : { kind: 'gazel', name: '', plate: '', repair: false, model: '', year: '', m3: '', kg: '', note: '' } } });
+      ? { kind: window.LogiEngine.vehicleKind(name), name, plate: (data.lists.plates || {})[name] || '', repair: !!x.repair, model: x.model || '', year: x.year ?? '', m3: x.m3 ?? '', kg: x.kg ?? '', note: x.note || '', l: x.l ?? '', w: x.w ?? '', h: x.h ?? '' }
+      : { kind: 'gazel', name: '', plate: '', repair: false, model: '', year: '', m3: '', kg: '', note: '', l: '', w: '', h: '' } } });
   }
   // правки автопарка в таблицу: список машин (версия 5), госномера (10), карточки (21), число машин вида
   vehOps(next, prev, extra) {
     const ops = (extra || []).slice(), L = next.lists, P = prev.lists;
     if (JSON.stringify(L.trucks) !== JSON.stringify(P.trucks) && !ops.some(o => o.t === 'rename') && this.gsVersion >= 5) ops.push({ t: 'trucks', v: L.trucks });
     if (JSON.stringify(L.plates || {}) !== JSON.stringify(P.plates || {}) && this.gsVersion >= 10) ops.push({ t: 'plates', v: L.plates || {} });
-    if (JSON.stringify(L.fleet || {}) !== JSON.stringify(P.fleet || {}) && this.gsVersion >= 21) ops.push({ t: 'fleet', v: L.fleet || {} });
+    if (JSON.stringify(L.fleet || {}) !== JSON.stringify(P.fleet || {}) && this.gsVersion >= 21) ops.push(this.gsVersion >= 31 ? { t: 'fleet', v: L.fleet || {}, body: 1 } : { t: 'fleet', v: L.fleet || {} });
     const sv = {}; Object.keys(next.settings).forEach(k => { if (next.settings[k] !== prev.settings[k]) sv[k] = next.settings[k]; });
     if (Object.keys(sv).length) ops.push({ t: 'set', v: sv });
     return ops;
@@ -2955,13 +3040,20 @@ class Component extends DCLogic {
     if (old && name !== old && !v21) return err('Переименовать машину можно с кодом скрипта таблицы версии 21: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.');
     if (!old && list.length >= 16) return err('В таблице место для 16 названий машин (Sozlamalar C24:C39) — сначала удалите лишнюю.');
     const num = (v, lo, hi) => { const x = String(v ?? '').replace(',', '.').trim(); if (!x) return null; const n = +x; return isNaN(n) || n < lo || n > hi ? NaN : n; };
-    const m3 = num(dr.m3, 0.1, 200), kg = num(dr.kg, 10, 60000), year = num(dr.year, 1950, 2100);
+    let m3 = num(dr.m3, 0.1, 200);
+    const kg = num(dr.kg, 10, 60000), year = num(dr.year, 1950, 2100);
     if ([m3, kg, year].some(Number.isNaN)) return err('Проверьте числа: объём 0,1–200 м³, грузоподъёмность 10–60 000 кг, год 1950–2100.');
-    const info = { repair: !!dr.repair, model: String(dr.model || '').trim().slice(0, 40), year, m3, kg, note: String(dr.note || '').trim().slice(0, 200) };
+    // кузов (скрипт 31): длина, ширина, высота — все три или ни одного; объём пустой — из них
+    const body = !this.gsUrl || this.gsVersion >= 31, ow = (data.lists.fleet || {})[old] || {};
+    const l = body ? num(dr.l, 0.3, 16) : ow.l ?? null, w = body ? num(dr.w, 0.3, 3) : ow.w ?? null, h = body ? num(dr.h, 0.2, 4.5) : ow.h ?? null;
+    if ([l, w, h].some(Number.isNaN)) return err('Кузов: длина 0,3–16 м, ширина 0,3–3 м, высота 0,2–4,5 м.');
+    if ([l, w, h].some(x => x == null) && [l, w, h].some(x => x != null)) return err('Кузов: укажите длину, ширину и высоту — или оставьте все три пустыми.');
+    if (m3 == null && l != null) m3 = Math.round(l * w * h * 10) / 10;
+    const info = { repair: !!dr.repair, model: String(dr.model || '').trim().slice(0, 40), year, m3, kg, note: String(dr.note || '').trim().slice(0, 200), l, w, h };
     const plate = String(dr.plate || '').toUpperCase().replace(/\s+/g, ' ').trim().slice(0, 16);
     const fleet = { ...(data.lists.fleet || {}) }, plates = { ...(data.lists.plates || {}) };
     if (old) { delete fleet[old]; delete plates[old]; }
-    if (v21 && (info.repair || info.model || info.year != null || info.m3 != null || info.kg != null || info.note)) fleet[name] = info;
+    if (v21 && (info.repair || info.model || info.year != null || info.m3 != null || info.kg != null || info.note || info.l != null)) fleet[name] = info;
     else if (!v21 && old && (data.lists.fleet || {})[old]) fleet[name] = data.lists.fleet[old];
     if (plate) plates[name] = plate;
     let trucks = list, settings = S;
@@ -3025,9 +3117,9 @@ class Component extends DCLogic {
       dvOpenGs: this.openGs, dvCanSetup: !ro
     });
     out.dvBanner = !this.gsUrl ? 'Водители работают через Google Таблицу и телеграм-бота. Подключите таблицу: «Настройки» → «Связь».' :
-      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 30. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
+      !v9 ? 'Скрипт таблицы версии ' + (this.gsVersion || '?') + ': для бота нужна версия 31. «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.' :
       !T ? 'Телеграм-бот не подключён: «Настройки» → «Связь» → «Телеграм-бот для водителей».' :
-      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (30): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
+      !v10 ? 'Скрипт таблицы версии 9. Чтобы отправлять партии водителям, писать им и хранить госномера машин, обновите код до последней версии (31): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.' :
       !T.hooked ? 'Токен бота есть, но бот не подключён — нажмите «Подключить бота»: «Настройки» → «Связь».' :
       !T.grouped ? 'Группа отчётов не привязана: отчёты водителей и итог дня некуда присылать. Код для группы — «Настройки» → «Связь».' :
       T.tz && !UZ_TZ.includes(T.tz) ? 'Часовой пояс Google Таблицы — ' + T.tz + ', а не Ташкент: время водителей («на линии с …»), «сегодня» и итог дня в 20:00 сдвинуты. ' +
@@ -3036,10 +3128,11 @@ class Component extends DCLogic {
       this.gsVersion < 16 && T.scriptTz && !UZ_TZ.includes(T.scriptTz) ? 'Часовой пояс скрипта — ' + T.scriptTz + ', а не Ташкент: даты партий могут сдвигаться на день назад (04.05.2006 → 03.05.2006). ' +
         'Обновите код скрипта до 29 — с ним пояс скрипта не важен, а сдвинутые даты журнала исправятся сами: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия. Или в Apps Script ⚙ Настройки проекта → Часовой пояс → «(GMT+05:00) Tashkent».' :
       // код ниже 22: скрипту ниже 19 — сначала свойства (без них код 19+ закроет сайт), потом что изменится — по предложению на каждое изменение
-      this.gsVersion < 30 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 30. ' +
+      this.gsVersion < 31 ? 'Скрипт таблицы версии ' + this.gsVersion + '. Обновите код до 31. ' +
         (this.gsVersion < 19 ? 'Сначала задайте свойства скрипта TOKEN (пароль скрипта) и EDITOR_TOKEN (секрет редактора): Apps Script → ⚙ Настройки проекта → Свойства скрипта; что вписать — «Настройки» → «Связь». Без них новый код не пустит сайт. ' +
           'Потом «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия; затем «Переподключить бота».' : '«Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия.') +
-        ' Имя и телефон водителя можно будет поправить на сайте (✎ в списке водителей), а водителя — удалить.' +
+        ' Новый водитель при регистрации в боте напишет свою машину: госномер, марку, кузов и грузоподъёмность; после «Разрешить» машина сама попадёт в автопарк.' +
+        (this.gsVersion < 30 ? ' Имя и телефон водителя можно будет поправить на сайте (✎ в списке водителей), а водителя — удалить.' : '') +
         (this.gsVersion < 29 ? ' Кнопкой «📤 В группу» в журнале можно будет отправить партию в группу отчётов: каждого клиента отдельным сообщением, как водителю, — куда, получатель, груз и маршрут.' : '') +
         (this.gsVersion < 28 ? ' В «Планах» можно будет сделать план на две партии и отправить его водителям одним заданием.' : '') +
         (this.gsVersion < 27 ? ' Точки доставки клиента будут храниться в его анкете, а при выборе партии в журнале сайт спросит, какая локация у каждого клиента.' : '') +
@@ -3131,9 +3224,12 @@ class Component extends DCLogic {
       ],
       dvHasNoTruck: noTruck.length > 0, dvNoTruck: 'В партии ' + dLongs(date) + ' без машины ' + noTruck.length + ' отгр. (' + [...new Set(noTruck.map(s => s.bl))].slice(0, 8).join(', ') + (noTruck.length > 8 ? '…' : '') + ') — водитель их не получит. Назначьте машины: «Планы» → «Принять план» или в журнале.',
       dvGoPlans: () => set({ tab: 'plans', planDate: ds[0], planDate2: ds[1] || '' }),
-      dvPending: drivers.filter(d => d.status === 'kutilmoqda').map(d => { const pick = ((st.dvPendTruck || {})[d.id] != null ? st.dvPendTruck[d.id] : d.truck) || ''; return { name: d.name, truck: d.truck || '—', plate: d.plate || '—', sub: [d.user, d.at ? 'заявка ' + d.at : '', d.lang === 'ru' ? 'русский' : 'узбекский'].filter(Boolean).join(' · '),
-        canTruck, noTruckSel: !canTruck, truckVal: pick, truckOpts: truckOptsFor(d, pick), onTruck: e => set({ dvPendTruck: { ...(st.dvPendTruck || {}), [d.id]: e.target.value } }),
+      dvPending: drivers.filter(d => d.status === 'kutilmoqda').map(d => { const pick = ((st.dvPendTruck || {})[d.id] != null ? st.dvPendTruck[d.id] : d.truck) || '', car = this.apCar(d);
+        return { name: d.name, truck: d.truck || '—', plate: d.plate || '—', sub: [d.user, d.at ? 'заявка ' + d.at : '', d.lang === 'ru' ? 'русский' : 'узбекский'].filter(Boolean).join(' · '),
+        hasCar: !!car, carParts: car ? this.apCarParts(d) : [], allowLabel: car ? 'Проверить и разрешить' : 'Разрешить',
+        canTruck: canTruck && !car, noTruckSel: !canTruck && !car, truckVal: pick, truckOpts: truckOptsFor(d, pick), onTruck: e => set({ dvPendTruck: { ...(st.dvPendTruck || {}), [d.id]: e.target.value } }),
         allow: () => {
+          if (car) return this.openApprove(d);
           if (canTruck) {
             const taken = this.dvTruckTaken(d, pick);
             if (!pick && !confirm('Машина не выбрана: водитель не сможет начать работу, пока вы её не назначите. Разрешить?')) return;
@@ -3217,7 +3313,8 @@ class Component extends DCLogic {
       const fi = fleetInfo[t] || {}, own = fi.m3 || fi.kg;
       const botPlate = (dr.find(d => d.plate) || {}).plate || '';
       return { name: t, plate: plates[t] || '', platePh: botPlate ? 'из бота: ' + botPlate : 'не указан', onPlate: e => this.dvPlate(t, e.target.value),
-        cap: kind ? f1(cap.capM3, 1) + ' м³ · ' + f0(cap.capKg) + ' кг' + (own ? ' (своя)' : '') : '—', repair: !!fi.repair, info: [fi.model, fi.year, fi.note].filter(x => x != null && x !== '').join(' · '),
+        cap: kind ? f1(cap.capM3, 1) + ' м³ · ' + f0(cap.capKg) + ' кг' + (own ? ' (своя)' : '') : '—', repair: !!fi.repair,
+        info: [fi.model, fi.year, fi.l && fi.w && fi.h ? 'кузов ' + [fi.l, fi.w, fi.h].map(x => f1(x, 2)).join(' × ') + ' м' : '', fi.note].filter(x => x != null && x !== '').join(' · '),
         edit: () => this.openVehicle(t), drivers: dr.map(d => d.name + (d.status === 'ruxsat' ? '' : ' (' + (d.status === 'kutilmoqda' ? 'ждёт' : 'отключён') + ')')).join(', ') || '—',
         today: mine.length ? new Set(mine.map(x => x.bl)).size + ' точ. · ' + f1(cbm, 1) + ' м³' + (cap.capM3 ? ' · ' + Math.round(cbm / cap.capM3 * 100) + '%' : '') : 'свободна', todayCls: mine.length ? 'tag-accent' : 'tag-neutral',
         stat: s.days ? s.trips + ' ' + reys(s.trips) + ' · ' + s.days + ' дн.' : '—' };
@@ -4019,7 +4116,7 @@ class Component extends DCLogic {
       body: JSON.stringify({ token: this.gsToken, editor: own.config.editorToken || '', login: A && A.login ? A.login() : '', tg, tgdays: this.tgDays(), site: location.origin + location.pathname.replace(/[^/]*$/, ''), hook: this.gsUrl }) });
     const j = await r.json();
     { const d = this.gsDeny(j); if (d) throw new Error(d); }   // пароль или секрет — раньше проверки версии
-    const need = tg.action === 'truck' || (tg.action === 'driver' && tg.truck != null) ? 23 : ['settings', 'carry'].includes(tg.action) ? 12 : tg.action === 'dispatcher' ? 11 : ['dispatch', 'message', 'summary'].includes(tg.action) ? 10 : 9;   // отправка партии, сообщения, итог дня — с 10; диспетчер — с 11; настройки бота и перенос — с 12; машина водителя — с 23
+    const need = tg.action === 'driver' && tg.car ? 31 : tg.action === 'truck' || (tg.action === 'driver' && tg.truck != null) ? 23 : ['settings', 'carry'].includes(tg.action) ? 12 : tg.action === 'dispatcher' ? 11 : ['dispatch', 'message', 'summary'].includes(tg.action) ? 10 : 9;   // отправка партии, сообщения, итог дня — с 10; диспетчер — с 11; настройки бота и перенос — с 12; машина водителя — с 23
     if (!(j.v >= need)) throw new Error('Для этого нужен код скрипта таблицы версии ' + need + ' (сейчас ' + (j.v || 'старее 8') + '): «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → Развернуть → новая версия развертывания');
     if (j.error && /external_request|UrlFetchApp\.fetch/.test(j.error)) throw new Error('Скрипту таблицы не разрешены внешние запросы: в Apps Script выберите функцию authorize → ▶ Выполнить → отметьте все галочки → Продолжить.');
     if (j.error) throw new Error(j.error);
@@ -4523,7 +4620,7 @@ class Component extends DCLogic {
     const curSub = top === 'reports' ? (st.tab === 'dash' ? 'dash' : st.repKind || 'batch') : st.tab;
     const subtabs = (SUB[top] || []).filter(([k]) => !(k === 'link' && this.readOnly)).map(([k, l]) => ({ l, cls: k === curSub ? 'subtab on' : 'subtab',
       go: () => top === 'reports' ? this.setState(k === 'dash' ? { tab: 'dash' } : { tab: 'reports', repKind: k }) : this.goSettings(k) }));
-    const base = { tabs, subtabs, hasSubtabs: subtabs.length > 0, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isDrivers: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isLocAskDialog: false, isWhDialog: false, isVehDialog: false, isDrvDialog: false, isGsDialog: false, isCheck: false, isFleetSet: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, planMapRef: this.planMapRef, vizRef: this.vizRef,
+    const base = { tabs, subtabs, hasSubtabs: subtabs.length > 0, loading: !st.ready, isJournal: false, isClients: false, isMap: false, isDash: false, isPlans: false, isDrivers: false, isViz: false, isTariffs: false, isReports: false, isImport: false, isShipDialog: false, isClientDialog: false, isLocAskDialog: false, isWhDialog: false, isVehDialog: false, isDrvDialog: false, isApDialog: false, isGsDialog: false, isCheck: false, isFleetSet: false, depotName: '', savedNote: '', exportXlsx: this.exportXlsx, mapRef: this.mapRef, planMapRef: this.planMapRef, vizRef: this.vizRef,
       fileInputRef: this.fileInputRef, onFilePicked: this.onFilePicked, connectFile: this.connectFile, disconnectFile: this.disconnectFile, saveNow: () => this.saveToFile(), reloadFromFile: () => this.readFromHandle(),
       account: () => window.LogiAuth && window.LogiAuth.openAccount(), readOnly: this.readOnly };
     const fs = st.fileStatus, fat = st.fileAt ? hhmm(st.fileAt.getHours() * 60 + st.fileAt.getMinutes()) : '';
@@ -4951,7 +5048,7 @@ class Component extends DCLogic {
             return { name: l.name + ' · ' + l.label, pts: l.points.length + ' точ.', cbm: f1(l.cbm, 1) + ' / ' + f1(l.body.v, 0) + ' м³', kg: f0(l.kg) + ' / ' + f0(l.maxKg) + ' кг',
               cbmPct: Math.min(100, l.fill * 100).toFixed(0) + '%', kgPct: Math.min(100, kgF * 100).toFixed(0) + '%', cbmBar: barCol(l.fill), kgBar: barCol(kgF),
               hasOver: l.overM3 > 0, over: 'Сверх кузова ' + f1(l.overM3, 1) + ' м³', go: () => this.setState({ vizTrip: i, vizStep: 0, vizSel: null }) }; });
-          out.vizNote = 'Машины стоят рядом, кабиной влево. Кузов — по объёму из «Тарифов». Кубики условные: размеров мест нет, груз каждой точки показан по его объёму.';
+          out.vizNote = 'Машины стоят рядом, кабиной влево. Кузов — по размерам из карточки машины, без них — по объёму из «Тарифов». Кубики условные: размеров мест нет, груз каждой точки показан по его объёму.';
         } else {
           const l = lays[one], t = M.plan.trips[one], n = l.points.length, step = Math.min(st.vizStep, n), kgF = l.maxKg ? l.kg / l.maxKg : 0;
           const atDoor = l.body.flat ? 'у заднего борта' : 'у дверей';
@@ -4977,7 +5074,8 @@ class Component extends DCLogic {
               info: f1(p.cbm, 2) + ' м³ · ' + f0(p.kg) + ' кг' + (p.places ? ' · ' + p.places + ' мест' : '') + (done ? ' · выгружено' : ''),
               bg: sel ? 'var(--color-accent-100)' : 'var(--color-bg)', border: sel ? 'var(--color-accent)' : 'var(--color-divider)', opacity: done ? '0.45' : '1',
               go: () => this.setState({ vizSel: sel ? null : p.n }) }; });
-          out.vizNote = (l.body.flat ? l.label + ': ' + dims(l.body).replace(', груз до', ' — по данным производителя; груз до') + ' высотой — из объёма ' + f1(l.body.v, 1) + ' м³ во «Тарифах».'
+          out.vizNote = (l.body.own ? dims(l.body).replace('≈ ', '').replace(/^./, c => c.toUpperCase()) + ' — из карточки машины («Водители и автопарк»).'
+            : l.body.flat ? l.label + ': ' + dims(l.body).replace(', груз до', ' — по данным производителя; груз до') + ' высотой — из объёма ' + f1(l.body.v, 1) + ' м³ во «Тарифах».'
             : 'К' + dims(l.body).slice(1) + ': ширина и высота типичные для ' + l.label + ', длина — из объёма во «Тарифах».') + ' Кубики условные: размеров мест нет, груз каждой точки разложен по объёму. Последнюю точку грузят первой — к кабине.';
         }
       }
@@ -5175,7 +5273,7 @@ class Component extends DCLogic {
             try { const j = await this.tgPost(body); setTg({ busy: false, res: done ? done(j) : '', color: 'var(--color-accent-700)' }); }
             catch (e) { setTg({ busy: false, res: e.message || String(e), color: 'var(--color-accent-900)' }); }
           };
-          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 30 (не ниже 9).' :
+          out.tgInfo = !v9 ? 'Для бота нужен код скрипта таблицы версии 31 (не ниже 9).' :
             !T ? 'В свойствах скрипта нет токена бота.' :
             !T.hooked ? 'Токен бота есть. Нажмите «Подключить бота».' :
             !T.grouped ? 'Бот @' + T.bot + ' подключён ✅ Осталось привязать группу отчётов: добавьте бота в группу и отправьте там команду ниже.' :
@@ -5200,7 +5298,7 @@ class Component extends DCLogic {
             return { name: d.name || '—', truck: d.truck || '—', plate: d.plate || '—', label: lb[0], tagCls: lb[1],
               sub: t ? 'Сегодня: с ' + t.started + (t.ended ? ' до ' + t.ended : ', в работе') + ' · доставлено ' + t.ok + (t.fail ? ', не доставлено ' + t.fail : '') : [d.user, d.at ? 'заявка ' + d.at : '', d.lang === 'ru' ? 'русский' : 'узбекский'].filter(Boolean).join(' · '),
               canAllow: d.status === 'kutilmoqda' || d.status === 'o‘chirilgan' || d.status === 'rad', canOff: d.status === 'ruxsat' || d.status === 'kutilmoqda',
-              allow: () => run('Открываю доступ…', { action: 'driver', id: d.id, status: 'ruxsat' }, () => d.name + ': доступ открыт, водителю пришло сообщение.'),
+              allow: () => d.status === 'kutilmoqda' && this.apCar(d) ? this.openApprove(d) : run('Открываю доступ…', { action: 'driver', id: d.id, status: 'ruxsat' }, () => d.name + ': доступ открыт, водителю пришло сообщение.'),
               off: () => { if (confirm('Отключить водителя ' + d.name + ' (' + d.truck + ')? Бот перестанет показывать ему точки.')) run('Отключаю…', { action: 'driver', id: d.id, status: d.status === 'kutilmoqda' ? 'rad' : 'o‘chirilgan' }, () => d.name + ': доступ закрыт.'); } };
           });
           out.tgHasDrivers = out.tgDrivers.length > 0;
@@ -5287,6 +5385,23 @@ class Component extends DCLogic {
             this.setState({ dialog: null });
             this.dvRun('Удаляю водителя…', { action: 'drvdel', id: d.id }, () => d.name + ': удалён из списка водителей.');
           } });
+      } else if (dl.type === 'drvok') {
+        // заявка водителя со своей машиной (скрипт 31): проверить, поправить, выбрать машину автопарка или новую
+        const all = (this.gsTg && this.gsTg.drivers) || [], d = all.find(x => x.id === dl.id) || { id: dl.id, name: '' }, L = data.lists, plates = L.plates || {}, fleet = L.fleet || {};
+        const mine = (L.trucks || []).filter(t => E.vehicleKind(t) === dr.kind), to = dr.to === 'new' || mine.includes(dr.to) ? dr.to : this.apTarget(d, dr);
+        const on = t => all.filter(x => x.id !== d.id && x.truck === t && (x.status === 'ruxsat' || x.status === 'kutilmoqda')).map(x => x.name);
+        const n = v => +String(v ?? '').replace(',', '.'), dimV = [dr.l, dr.w, dr.h].map(n), cap = this.vehCap({ ...data, lists: { ...L, fleet: {} } }, '', dr.kind);
+        Object.assign(out, { isApDialog: true, dialogTitle: 'Заявка: ' + (d.name || ''), apSub: [d.phone ? '📞 ' + d.phone : '', d.user, d.at ? 'заявка ' + d.at : ''].filter(Boolean).join(' · '),
+          apKindOpts: ['gazel', 'labo', 'changan', 'kamaz'].map(v => ({ v, l: VEH[v] })), apTo: to,
+          apToOpts: [{ v: 'new', l: '+ новая машина ' + this.vehNextName(L.trucks || [], dr.kind) }].concat(mine.map(t => { const o = on(t);
+            return { v: t, l: t + (plates[t] ? ' · ' + plates[t] : '') + ((fleet[t] || {}).repair ? ' · в ремонте' : '') + (o.length ? ' — ' + o.join(', ') : '') }; })),
+          apM3Ph: dimV.every(x => x > 0) ? 'из кузова: ' + f1(dimV[0] * dimV[1] * dimV[2], 1) : 'как у вида: ' + f1(cap[0], 1), apKgPh: 'как у вида: ' + f0(cap[1]),
+          apToNote: to === 'new' ? 'Новая машина появится в автопарке, число машин вида в «Тарифах и планах» вырастет — она пойдёт в планы.'
+            : 'Данные ' + to + ' заменятся данными из заявки.' + (on(to).length ? ' Сейчас на ней: ' + on(to).join(', ') + ' — останется без машины.' : ''),
+          onApKind: e => { const kind = e.target.value; this.setState(s0 => { const nd = { ...s0.dialog.draft, kind }; nd.to = this.apTarget(d, nd); return { dialog: { ...s0.dialog, error: '', draft: nd } }; }); },
+          onApTo: e => { const v = e.target.value; this.setState(s0 => ({ dialog: { ...s0.dialog, error: '', draft: { ...s0.dialog.draft, to: v } } })); },
+          saveAp: () => this.approveCar(dl, d, to),
+          denyAp: () => { if (confirm('Отклонить заявку ' + d.name + '?')) { this.setState({ dialog: null }); this.dvRun('Отклоняю…', { action: 'driver', id: d.id, status: 'rad' }, () => d.name + ': заявка отклонена.'); } } });
       } else if (dl.type === 'veh') {
         // карточка машины («Настройки» → «Водители и автопарк»)
         const v21 = !this.gsUrl || this.gsVersion >= 21, cap = this.vehCap({ ...data, lists: { ...data.lists, fleet: {} } }, '', dr.kind);
@@ -5294,6 +5409,9 @@ class Component extends DCLogic {
         Object.assign(out, { isVehDialog: true, dialogTitle: dl.mode === 'new' ? 'Новая машина' : 'Машина ' + dl.id, vehIsNew: dl.mode === 'new', vehIsOld: dl.mode !== 'new', vehKindName: VEH[dr.kind] || '',
           vehKindOpts: ['gazel', 'labo', 'changan', 'kamaz'].map(v => ({ v, l: VEH[v] })), vehNamePh: dl.mode === 'new' ? this.vehNextName(data.lists.trucks, dr.kind) : dl.id,
           vehM3Ph: 'как у вида: ' + f1(cap[0], 1), vehKgPh: 'как у вида: ' + f0(cap[1]), vehRepair: !!dr.repair, vehInfoOff: !v21, vehNameOff: !v21 && dl.mode === 'edit',
+          vehBodyOff: !!this.gsUrl && this.gsVersion < 31,
+          vehBodyHint: this.gsUrl && this.gsVersion < 31 ? 'Кузов сохраняется в таблице с кодом скрипта версии 31: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.'
+            : 'По кузову рисуется 3D-загрузка. Пустой объём — посчитается из кузова. Водитель пишет кузов в боте при регистрации.',
           onVehRepair: e => { const on = e.target.checked; this.setState(s => ({ dialog: { ...s.dialog, error: '', draft: { ...s.dialog.draft, repair: on } } })); },
           vehHasNote21: !v21, vehNote21: 'Марка, год, «в ремонте», своя вместимость и переименование сохраняются в таблице с кодом скрипта версии 21: «Настройки» → «Связь» → «Скопировать код» → вставить в Apps Script → новая версия развертывания.',
           vehDrivers: drv.length ? 'Водители в боте: ' + drv.map(d => d.name + (d.status === 'ruxsat' ? '' : ' (ждёт)')).join(', ') : '',
