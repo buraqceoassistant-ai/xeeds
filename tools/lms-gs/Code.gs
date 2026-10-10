@@ -11,10 +11,12 @@
  *    Ссылка …/exec — адрес сервера для страницы платформы.
  * Забыли пароль методиста — функция newAdmin: новый вход методиста, логин и пароль — в журнале выполнения.
  * Копия данных — каждую ночь (функция backup, папка backups рядом с state.json), хранится 30 дней.
+ * Файлы (сканы паспортов, вложения журналов и сверхзадач) — в папке files рядом с state.json: в данных остаётся
+ * ссылка lmsfile:<id>, сам файл сервер отдаёт только тому, кому видна эта ссылка (действие file).
  *
  * Запрос — POST с JSON { action, token, … }, ответ — JSON { ok, … } или { ok: false, code, error }.
  */
-var LMS_VERSION = 1;
+var LMS_VERSION = 2;           // 2: файлы — отдельно на Диске, действие file
 var PBKDF2_ITER = 10000;          // пароль хранится только как PBKDF2-SHA256 с солью
 var SESSION_DAYS = 30;            // вход на устройстве живёт 30 дней с последнего запроса
 var FAIL_MAX = 5, FAIL_LOCK_MIN = 15;  // 5 неверных паролей подряд — логин закрыт на 15 минут
@@ -22,6 +24,8 @@ var MAX_SESSIONS = 10;            // входов одного человека 
 var BACKUP_KEEP_DAYS = 30;
 var PASS_MARK = 80;
 var MAX_OPS = 500;
+var FILE_MIN = 2048;              // data:-строки короче (значки) остаются в данных, длиннее — файлом на Диске
+var AUDIT_KEEP = 500;             // журнал нарушений защиты урока — последние 500 записей
 var DAY_MS = 864e5;
 
 /* ---------------- вход в веб-приложение ---------------- */
@@ -45,14 +49,16 @@ function route_(req) {
   if (a === 'logout') { props_().deleteProperty(s.key); return { ok: true }; }
   if (a === 'since') {
     var rev = +props_().getProperty('LMS_REV') || 0;
-    if (+req.rev === rev) return { ok: true, rev: rev, same: true };
+    if (+req.rev === rev) return { ok: true, v: LMS_VERSION, rev: rev, same: true };
     return load_(s);
   }
   if (a === 'load') return load_(s);
   if (a === 'patch') return patch_(s, req.ops);
   if (a === 'quiz') return quiz_(s, req);
+  if (a === 'retest') return retest_(s, req);
   if (a === 'password') return password_(s, req);
   if (a === 'resetPassword') return resetPassword_(s, req);
+  if (a === 'file') return file_(s, req);
   throw err_('bad', 'Неизвестное действие «' + a + '»');
 }
 
@@ -186,7 +192,7 @@ function me_(st, s) {
 
 function load_(s) {
   var st = readState_(), me = me_(st, s);
-  return { ok: true, rev: st.rev, me: me.id, state: viewFor_(st, me) };
+  return { ok: true, v: LMS_VERSION, rev: st.rev, me: me.id, state: viewFor_(st, me) };
 }
 
 function password_(s, req) {
@@ -284,7 +290,7 @@ function viewFor_(st, me) {
 /* ---------------- правки ---------------- */
 
 // поля своей карточки, которые сотрудник не меняет сам (их ставит методист)
-var LOCKED_USER = ['id', 'role', 'login', 'password', 'name', 'status', 'position', 'department', 'cohort', 'trackId', 'mentor', 'level', 'levelXpBase', 'levelAt', 'startedAt'];
+var LOCKED_USER = ['id', 'role', 'login', 'password', 'name', 'status', 'position', 'department', 'cohort', 'trackId', 'mentor', 'level', 'levelXpBase', 'levelAt', 'levelTasks', 'startedAt'];
 // списки «своих» записей: поле владельца
 var OWN = { requests: 'userId', notifications: 'userId', assets: 'uid', surveys: 'uid', initiatives: 'uid', drills: 'uid', audit: 'userId', errors: 'uid', xtasks: 'uid' };
 // поля своих записей, которые ставит методист или наставник
@@ -293,7 +299,7 @@ var LOCKED_ITEM = {
   initiatives: ['status', 'reply', 'repliedAt'],
   xtasks: ['title', 'desc', 'due', 'xp', 'scale', 'li', 'by', 'at', 'review', 'doneAt'],
   errors: ['by', 'at', 'lessonId', 'cat', 'sev', 'text', 'impact', 'closedAt'],
-  assets: ['issue', 'mismatch', 'returnedAt'],
+  assets: ['confirmedAt', 'resolved', 'mismatch', 'returnedAt'],   // о проблеме (issue) сотрудник сообщает сам
   audit: [], notifications: [], surveys: [], drills: []
 };
 var EMP_LESSON_STATUS = ['in-progress', 'question', 'exam-ready'];
@@ -407,15 +413,26 @@ function patch_(s, ops) {
   if (ops.length > MAX_OPS) throw err_('bad', 'Слишком много правок за раз (больше ' + MAX_OPS + ')');
   return withLock_(function () {
     var st = readState_(), me = me_(st, s), admin = me.role === 'admin', rejected = [], applied = 0;
-    var before = admin ? clone_(st.users || []) : null;
+    var before = admin ? clone_(st.users || []) : null, seen = null;
+    /* ссылка на файл в правке сотрудника — только на файл, который ему и так виден (иначе вписал бы чужой и скачал) */
+    function foreignFile(op) {
+      var refs = JSON.stringify(op.value === undefined ? null : op.value).match(/"lmsfile:[\w-]+"/g);
+      if (!refs) return false;
+      if (seen === null) seen = JSON.stringify(viewFor_(st, me));
+      return refs.some(function (r) { return seen.indexOf(r) < 0; });
+    }
     ops.forEach(function (op, i) {
       var top = op && Array.isArray(op.path) ? op.path[0] : '';
-      var why = !top ? 'неверная правка' : DEVICE_KEYS.indexOf(top) >= 0 ? '«' + top + '» хранится только на устройстве' : admin ? null : checkEmployee_(st, me, op);
+      var why = !top ? 'неверная правка' : DEVICE_KEYS.indexOf(top) >= 0 ? '«' + top + '» хранится только на устройстве' : admin ? null : checkEmployee_(st, me, op) || (foreignFile(op) ? 'чужой файл' : null);
       if (!why && !admin && top === 'notifications' && op.path.length === 2 && op.op === 'set' && !LmsSync.get(st, op.path)) op = Object.assign({}, op, { value: Object.assign({}, op.value, { from: me.id }) });
       if (why) { rejected.push({ i: i, reason: why }); return; }
-      try { if (LmsSync.applyOne(st, op)) applied++; } catch (e) { rejected.push({ i: i, reason: e.message }); }
+      try {
+        if (op.op === 'set') op = Object.assign({}, op, { value: storeFiles_(op.value, me.id) });
+        if (LmsSync.applyOne(st, op)) applied++;
+      } catch (e) { rejected.push({ i: i, reason: e.message }); }
     });
     if (admin) syncCreds_(st, before, me, s, rejected);
+    if ((st.audit || []).length > AUDIT_KEEP) st.audit = st.audit.slice(0, AUDIT_KEEP);
     if (applied) { st.rev = (+st.rev || 0) + 1; writeState_(st); }
     return { ok: true, rev: st.rev, applied: applied, rejected: rejected };
   });
@@ -444,6 +461,44 @@ function syncCreds_(st, before, me, s, rejected) {
   Object.keys(cr).forEach(function (k) { if (!alive[k]) { props_().deleteProperty('cred:' + k); dropSessions_(k); } });
 }
 
+/* ---------------- файлы: на Диске, в данных — ссылка ---------------- */
+
+function filesFolder_() {
+  var P = props_(), id = P.getProperty('LMS_FILES');
+  if (id) return DriveApp.getFolderById(id);
+  var f = DriveApp.getFolderById(P.getProperty('LMS_FOLDER')).createFolder('files');
+  P.setProperty('LMS_FILES', f.getId());
+  return f;
+}
+/* data:-строки внутри значения правки → файлы на Диске; { name, data } — имя файла из name */
+function storeFiles_(v, uid, name) {
+  if (typeof v === 'string') {
+    var m = /^data:([^;,]*)((?:;[^;,]*)*?)(;base64)?,/.exec(v);
+    if (!m || v.length < FILE_MIN) return v;
+    var body = v.slice(m[0].length);
+    var bytes = m[3] ? Utilities.base64Decode(body) : Utilities.newBlob(decodeURIComponent(body)).getBytes();
+    var f = filesFolder_().createFile(Utilities.newBlob(bytes, m[1] || 'application/octet-stream', String(name || 'fayl')));
+    f.setDescription('BURAQ o‘quv: загрузил ' + uid);
+    return 'lmsfile:' + f.getId();
+  }
+  if (Array.isArray(v)) return v.map(function (x) { return storeFiles_(x, uid); });
+  if (v && typeof v === 'object') {
+    var o = {};
+    Object.keys(v).forEach(function (k) { o[k] = storeFiles_(v[k], uid, k === 'data' ? v.name : null); });
+    return o;
+  }
+  return v;
+}
+/* файл отдаётся, только если ссылка на него есть в том, что видит этот человек */
+function file_(s, req) {
+  var id = String(req.id || '');
+  if (!/^[\w-]{8,}$/.test(id)) throw err_('bad', 'Неверный номер файла');
+  var st = readState_(), me = me_(st, s);
+  if (JSON.stringify(viewFor_(st, me)).indexOf('"lmsfile:' + id + '"') < 0) throw err_('forbidden', 'Этот файл вам недоступен');
+  var b = DriveApp.getFileById(id).getBlob();
+  return { ok: true, name: b.getName(), type: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
+}
+
 /* ---------------- тест урока: балл считает сервер ---------------- */
 
 function quiz_(s, req) {
@@ -466,6 +521,30 @@ function quiz_(s, req) {
     st.rev = (+st.rev || 0) + 1;
     writeState_(st);
     return { ok: true, rev: st.rev, score: sc, passMark: PASS_MARK, answers: qs.map(function (q) { return q.answer; }) };
+  });
+}
+
+/* повторная проверка после ошибки: три первых вопроса урока, балл считает сервер; сдал — ошибка закрыта, наставнику уведомление */
+function retest_(s, req) {
+  return withLock_(function () {
+    var st = readState_(), me = me_(st, s), uid = String(me.id);
+    var x = (st.errors || []).filter(function (e) { return String(e.id) === String(req.errorId); })[0];
+    if (!x || String(x.uid) !== uid) throw err_('forbidden', 'Это не ваша запись об ошибке');
+    if (x.status !== 'assigned') throw err_('quiz', 'Повторная проверка уже сдана или не назначена');
+    var l = null;
+    (st.course.sections || []).forEach(function (sec) { (sec.lessons || []).forEach(function (y) { if (y.id === x.lessonId) l = y; }); });
+    var qs = ((l && l.quiz) || []).slice(0, 3), ans = req.answers;
+    if (!qs.length) throw err_('bad', 'У урока нет теста');
+    if (!Array.isArray(ans) || ans.length !== qs.length) throw err_('bad', 'Ответьте на все вопросы');
+    var sc = Math.round(qs.filter(function (q, i) { return ans[i] === q.answer; }).length * 100 / qs.length), t = now_();
+    if (sc >= PASS_MARK) {
+      x.status = 'done'; x.retest = { score: sc, at: t };
+      st.notifications = st.notifications || [];
+      st.notifications.unshift({ id: t * 100 + Math.floor(Math.random() * 100), userId: x.by, kind: 'errfix', text: '', route: 'quality', at: t, read: false, err: { name: me.name, ttl: l.title, score: sc } });
+      st.rev = (+st.rev || 0) + 1;
+      writeState_(st);
+    }
+    return { ok: true, rev: st.rev, score: sc, passMark: PASS_MARK };
   });
 }
 
